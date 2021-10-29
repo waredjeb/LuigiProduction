@@ -1,8 +1,8 @@
 import os
 import sys
-from utils import set_pure_input_namespace
+import utils
 
-@set_pure_input_namespace
+@utils.set_pure_input_namespace
 def haddTriggerEff_outputs(args):
     targets = []
 
@@ -10,7 +10,7 @@ def haddTriggerEff_outputs(args):
         targets.append( os.path.join( args.inDir , args.targetsPrefix + proc + '.' + args.tag + '.root' ) )
     return targets
 
-@set_pure_input_namespace
+@utils.set_pure_input_namespace
 def haddTriggerEff(args):
     """
     adds the ROOT histograms produced in the preceding step

@@ -8,7 +8,11 @@ from scripts.haddTriggerEff import haddTriggerEff
 ########################################################################
 ### ARGUMENT PARSING ###################################################
 ########################################################################
-_tasks = ( 'hadd', )
+_tasks = ( 'hadd', 'drawsf' )
+_triggers = ['all', #all trig
+             '9', '10', '11', '12',     #single trig
+             '13', '14'
+             ]
 _processes = dict( Radions =    ('Radion_m300',
                                  'Radion_m400',
                                  'Radion_m500',
@@ -17,21 +21,24 @@ _processes = dict( Radions =    ('Radion_m300',
                                  'Radion_m800',
                                  'Radion_m900',),
                   
-                   SingleMuon = ('SingleMuon2018A',
+                   SingleMuon = ('SingleMuon2018',
+                                 'SingleMuon2018A',
                                  'SingleMuon2018B',
                                  'SingleMuon2018C',
-                                 'SingleMuon2018D',),
+                                 'SingleMuon2018D'),
                    
                    MET =        ('MET2018A',
                                  'MET2018B',
                                  'MET2018C',
                                  'MET2018D',),
                    
-                   TT =         ('TT_fullyHad',
+                   TT =         ('TTall',
+                                 'TT_fullyHad',
                                  'TT_fullyLep',
                                  'TT_semiLep',),
                    
                    DY =         ('DY',
+                                 'DYall',
                                  'DY_lowMass',),
                   )
     
@@ -63,6 +70,14 @@ parser.add_argument(
     type=str,
     required=True,
     choices=_processes.keys(),
+    help='Select the processes over which the workflow will be run.'
+)
+parser.add_argument(
+    '--triggers',
+    nargs='+', #1 or more arguments
+    type=str,
+    required=True,
+    choices=_triggers,
     help='Select the processes over which the workflow will be run.'
 )
 parser.add_argument(
@@ -101,12 +116,20 @@ class cfg(luigi.Config):
     ### Define luigi parameters ###
     # general
     tag = luigi.Parameter( FLAGS.tag )
-    tag_folder = luigi.Parameter( os.path.join(base_name, FLAGS.tag) )
-    targets_folder = luigi.Parameter( os.path.join(base_name, FLAGS.tag,
+    tag_folder = luigi.Parameter( os.path.join(data_storage, FLAGS.tag) )
+    targets_folder = luigi.Parameter( os.path.join(data_storage, FLAGS.tag,
                                                    'targets/') )
-    target_default_name = luigi.Parameter( default='DefaultTarget.txt' )
+    targets_default_name = luigi.Parameter( default='DefaultTarget.txt' )
+    targets_prefix = luigi.Parameter(default='hist_')
     
     # haddTriggerEff
     hadd_taskname, hadd_hierarchy = set_task_and_hierarchy( 'hadd' )
     hadd_processes = luigi.DictParameter( default=FLAGS.processes )
     hadd_indir = luigi.Parameter(default=data_storage)
+
+    # drawTriggerScaleFactors
+    drawsf_taskname, hadd_hierarchy = set_task_and_hierarchy( 'drawsf' )
+    drawsf_indir = luigi.Parameter(default=data_storage)
+    drawsf_processes = luigi.DictParameter( default=FLAGS.processes )
+    drawsf_triggers = luigi.DictParameter( default=FLAGS.triggers )
+    drawdf_htcut = luigi.Parameter(default='metnomu200cut')

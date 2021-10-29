@@ -52,7 +52,8 @@ def set_pure_input_namespace(func):
   Used when luigi calls a function with a luigi.DictParameter().
   It can however be made more ganeral.
   """
-  def wrapper(args):ll
+  def wrapper(args):
+    print(type(args))
     if not isinstance(args, (argparse.Namespace, SimpleNamespace)):
       args = SimpleNamespace(**args)
     return func(args)
