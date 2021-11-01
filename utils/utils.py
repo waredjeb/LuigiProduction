@@ -7,9 +7,11 @@ def add_slash(s):
   s = s if s[-1] == '/' else s + '/'
   return s
 
-def slash_to_underscore_and_keep(s, n=4):
-  """Replaces slashes by underscores, keeping only the last 'n' slash-separated strings"""
-  return '_'.join( s.split('/')[-n:] )
+class dotDict(dict):
+    """dot.notation access to dictionary attributes"""
+    __getattr__ = dict.get
+    __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
             
 def create_single_dir(p):
   """Creates a directory if it does not exist"""
@@ -34,6 +36,10 @@ def debug(message, flag=True):
 def remove(f):
   if os.path.exists( f ):
     os.remove( f )
+
+def slash_to_underscore_and_keep(s, n=4):
+  """Replaces slashes by underscores, keeping only the last 'n' slash-separated strings"""
+  return '_'.join( s.split('/')[-n:] )
 
 def upify(s):
   """capitalizes the first letter of the passed string"""

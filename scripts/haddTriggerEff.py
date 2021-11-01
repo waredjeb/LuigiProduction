@@ -1,13 +1,13 @@
 import os
 import sys
-import utils
+from utils import utils
 
 @utils.set_pure_input_namespace
 def haddTriggerEff_outputs(args):
     targets = []
 
     for proc in args.processes:
-        targets.append( os.path.join( args.inDir , args.targetsPrefix + proc + '.' + args.tag + '.root' ) )
+        targets.append( os.path.join( args.indir , args.targetsPrefix + proc + '.' + args.tag + '.root' ) )
     return targets
 
 @utils.set_pure_input_namespace

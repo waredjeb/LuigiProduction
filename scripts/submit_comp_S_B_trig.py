@@ -46,7 +46,7 @@ if __name__ == "__main__":
 
 	# -- Check input folder
 	if not os.path.exists (opt.indir) :
-		print 'input folder', opt.indir, 'not existing, exiting'
+		print('input folder', opt.indir, 'not existing, exiting')
 		sys.exit (1)
 
 

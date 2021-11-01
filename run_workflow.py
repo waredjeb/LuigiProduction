@@ -1,15 +1,16 @@
 import os
 import luigi
 import utils
+from utils import utils
 
-from luigi_utils import ForceableEnsureRecentTarget, ForceParameter
-from luigi_utils import WorkflowDebugger
-from luigi_utils import is_force_mistake
+from luigi_conf.luigi_utils import ForceableEnsureRecentTarget, ForceParameter
+from luigi_conf.luigi_utils import WorkflowDebugger
+from luigi_conf.luigi_utils import is_force_mistake
 
 from scripts.haddTriggerEff import haddTriggerEff, haddTriggerEff_outputs
 from scripts.drawTriggerSF import drawTriggerSF, drawTriggerSF_outputs
 
-from luigi_cfg import cfg, FLAGS
+from luigi_conf.luigi_cfg import cfg, FLAGS
 lcfg = cfg() #luigi configuration
 
 #make each independent script/step target-agnostic (all should be taken care of in this file)
@@ -40,19 +41,17 @@ def get_target_path(taskname):
 ### HADD TRIGGER EFFICIENCIES ##########################################
 ########################################################################
 class HaddTriggerEff(ForceableEnsureRecentTarget):
-    hadd_args = luigi.DictParameter( default={'inDir': lcfg.hadd_indir,
-                                              'targetsPrefix': lcfg.targets_prefix,
-                                              'tag': lcfg.tag,
-                                              'processes': lcfg.hadd_processes,
-                                              } )
-    
-    target_path = get_target_path( lcfg.hadd_taskname )
+    args = utils.dotDict(lcfg.drawsf_params)
+    args.update( {'targetsPrefix': lcfg.targets_prefix,
+                  'tag': lcfg.tag,
+                  } )
+
+    target_path = get_target_path( args.taskname )
     
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def output(self):
         targets = []
-        print( self.hadd_args )
-        targets_list = haddTriggerEff_outputs( self.hadd_args )
+        targets_list = haddTriggerEff_outputs( self.args )
 
         #define luigi targets
         for t in targets_list:
@@ -68,7 +67,7 @@ class HaddTriggerEff(ForceableEnsureRecentTarget):
 
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def run(self):
-        haddTriggerEff( self.hadd_args )
+        haddTriggerEff( self.args )
         
     # @WorkflowDebugger(flag=FLAGS.debug_workflow)
     # def requires(self):
@@ -76,26 +75,61 @@ class HaddTriggerEff(ForceableEnsureRecentTarget):
     #     return None
 
 ########################################################################
+### COMPARE TRIGGERS ###################################################
+########################################################################
+# class CompareTriggers(ForceableEnsureRecentTarget):
+#     p = utils.dotDict(lcfg.comp_params)
+    
+#     #drawsf_args
+#     args = luigi.DictParameter(
+#         default={'inDir': p.indir,
+#                  'targetsPrefix': lcfg.targets_prefix,
+#                  'tag': lcfg.tag,
+#                  'processes': p.processes,
+#                  } )
+#     target_path = get_target_path( p.taskname )
+    
+#     @WorkflowDebugger(flag=FLAGS.debug_workflow)
+#     def output(self):
+#         targets = []
+#         targets_list = drawTriggerSF_outputs( self.args )
+
+#         #define luigi targets
+#         for t in targets_list:
+#             targets.append( luigi.LocalTarget(t) )
+
+#         #write the target files for debugging
+#         utils.remove( self.target_path )
+#         with open( self.target_path, 'w' ) as f:
+#             for t in targets_list:
+#                 f.write( t )
+                
+#         return targets
+
+#     @WorkflowDebugger(flag=FLAGS.debug_workflow)
+#     def run(self):
+#         drawTriggerSF( self.args )
+            
+#     @WorkflowDebugger(flag=FLAGS.debug_workflow)
+#     def requires(self):
+#         force_flag = FLAGS.force > p.hierarchy
+#         return HaddTriggerEff(force=force_flag)
+
+########################################################################
 ### DRAW TRIGGER SCALE FACTORS #########################################
 ########################################################################
 class DrawTriggerScaleFactors(ForceableEnsureRecentTarget):
-    tn = lcfg.drawsf_taskname
+    args = utils.dotDict(lcfg.drawsf_params)
+    args.update( {'targetsPrefix': lcfg.targets_prefix,
+                  'tag': lcfg.tag,
+                  } )
     
-    #drawsf_args
-    params = dict()
-    params[addstr(tn, 'args')] = luigi.DictParameter(
-        default={'inDir': getattr(lcfg, addstr(tn, 'indir')),
-                 'targetsPrefix': lcfg.targets_prefix,
-                 'tag': lcfg.tag,
-                 'processes': getattr(lcfg, addstr(tn, 'processes')),
-                 } )
-    target_path = get_target_path( tn )
+    target_path = get_target_path( args.taskname )
     
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def output(self):
         targets = []
-        print(type(self.params[addstr(self.tn, 'args')]))
-        targets_list = drawTriggerSF_outputs( self.params[addstr(self.tn, 'args')] )
+        targets_list = drawTriggerSF_outputs( self.args )
 
         #define luigi targets
         for t in targets_list:
@@ -111,12 +145,11 @@ class DrawTriggerScaleFactors(ForceableEnsureRecentTarget):
 
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def run(self):
-        print(type(self.params[addstr(self.tn, 'args')]))
-        drawTriggerSF( self.params[addstr(self.tn, 'args')] )
+        drawTriggerSF( self.args )
             
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def requires(self):
-        force_flag = FLAGS.force > getattr(lcfg, addstr(self.tn, 'hierarchy'))
+        force_flag = FLAGS.force > self.args.hierarchy
         return HaddTriggerEff(force=force_flag)
 
 
