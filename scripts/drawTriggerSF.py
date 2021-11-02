@@ -273,7 +273,6 @@ def check_trigger(args, proc, trig, channel, save_names):
     sf.Draw('same P0')
     RedrawBorder()
 
-    #'/data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_Radion_2018_resDNN_ALLMETtrigger_test_28Apr2021/output_trigEffBkg/fig/'
     canvas.SaveAs( save_names[0] )
     canvas.SaveAs( save_names[1] )
 

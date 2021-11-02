@@ -8,7 +8,7 @@ from scripts.haddTriggerEff import haddTriggerEff
 ########################################################################
 ### ARGUMENT PARSING ###################################################
 ########################################################################
-_tasks = ( 'hadd', 'comp', 'drawsf' )
+_tasks = ( 'submit', 'hadd', 'comp', 'drawsf' )
 _triggers = ('all', #all trig
              '9', '10', '11', '12',     #single trig
              '13', '14'
@@ -66,12 +66,20 @@ parser.add_argument(
     help='Select the scheduler for luigi.'
 )
 parser.add_argument(
-    '--processes',
+    '--data_processes',
     nargs='+', #1 or more arguments
     type=str,
     required=True,
     choices=_processes.keys(),
-    help='Select the processes over which the workflow will be run.'
+    help='Select the data processes over which the workflow will be run.'
+)
+parser.add_argument(
+    '--mc_processes',
+    nargs='+', #1 or more arguments
+    type=str,
+    required=True,
+    choices=_processes.keys(),
+    help='Select the MC processes over which the workflow will be run.'
 )
 parser.add_argument(
     '--triggers',
@@ -126,13 +134,27 @@ class cfg(luigi.Config):
                                                    'targets/') )
     targets_default_name = luigi.Parameter( default='DefaultTarget.txt' )
     targets_prefix = luigi.Parameter(default='hist_')
-    
+
+    data_input = luigi.Parameter(
+        default='/data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_Radion_2018_fixedMETtriggers_mht_16Jun2021/')
+
+    # submitTriggerEff
+    _rawname = set_task_name('submit')
+    submit_params = luigi.DictParameter(
+        default={ 'taskname': _rawname,
+                  'hierarchy': _tasks.index(_rawname)+1,
+                  'data_processes': FLAGS.data_processes,
+                  'mc_processes': FLAGS.mc_processes,
+                  'indir': data_input,
+                  'outdir': data_storage } )
+
     # haddTriggerEff
     _rawname = set_task_name('hadd')
     hadd_params = luigi.DictParameter(
         default={ 'taskname': _rawname,
                   'hierarchy': _tasks.index(_rawname)+1,
-                  'processes': FLAGS.processes,
+                  'data_processes': FLAGS.data_processes,
+                  'mc_processes': FLAGS.mc_processes,
                   'indir': data_storage } )
 
     # compareTriggers

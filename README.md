@@ -2,9 +2,33 @@
 
 Requirements:
 
-- ```python 3.9.6```
+- ```python 3.7``` (not tested, but likely works on other Python 3 subversions)
 - ```luigi``` (available in ```CMSSW``` after running ```cmsenv``` and using ```python3```.
 
+
+Installation using ```conda```:
+
+- Install a [miniconda release](https://docs.conda.io/en/latest/miniconda.html) (python 3.7 linux used here)
+- Convert ```law``` to a conda package using ```conda-build``` (this will not be required as soon as ```law``` is made available in some ```conda``` channel):
+
+```
+#from the conda "base" environment
+conda install conda-build
+conda skeleton pypi law
+conda-build law
+```
+
+- Create conda environment and install the [```law```](https://github.com/riga/law) and [```ROOT```](https://root.cern/install/#conda) packages:
+
+```
+conda create --name <name> python=3.7
+conda activate <name>
+conda install --use-local law #install the conda package created in the previous step
+
+#install ROOT from the ```conda-forge``` channel
+conda config --set channel_priority strict 
+conda install -c conda-forge root
+```
 
 ### Luigi Workflow
 

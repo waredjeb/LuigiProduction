@@ -25,7 +25,11 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    getTriggerEffSig(args.indir, args/outdir, args.proc, args.file)
+    
 
+def getTriggerEffSig(indir, outdir, proc, file):
+    
     # -- Check if outdir exists, if not create it
     if not os.path.exists(args.outdir):
         os.makedirs(args.outdir)
@@ -196,7 +200,3 @@ if __name__ == "__main__":
 
     f_out.Close()
     f_in.Close()
-            
-        
-        
-        
