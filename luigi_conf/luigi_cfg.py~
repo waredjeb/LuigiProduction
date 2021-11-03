@@ -8,11 +8,12 @@ from scripts.haddTriggerEff import haddTriggerEff
 ########################################################################
 ### ARGUMENT PARSING ###################################################
 ########################################################################
-_tasks = ( 'hadd', 'drawsf' )
-_triggers = ['all', #all trig
+_tasks = ( 'submit', 'hadd', 'comp', 'drawsf' )
+_triggers = ('all', #all trig
              '9', '10', '11', '12',     #single trig
              '13', '14'
-             ]
+             )
+_channels = ( 'all', 'etau', 'mutau', 'tautau', 'mumu' )
 _processes = dict( Radions =    ('Radion_m300',
                                  'Radion_m400',
                                  'Radion_m500',
@@ -65,12 +66,20 @@ parser.add_argument(
     help='Select the scheduler for luigi.'
 )
 parser.add_argument(
-    '--processes',
+    '--data_processes',
     nargs='+', #1 or more arguments
     type=str,
     required=True,
     choices=_processes.keys(),
-    help='Select the processes over which the workflow will be run.'
+    help='Select the data processes over which the workflow will be run.'
+)
+parser.add_argument(
+    '--mc_processes',
+    nargs='+', #1 or more arguments
+    type=str,
+    required=True,
+    choices=_processes.keys(),
+    help='Select the MC processes over which the workflow will be run.'
 )
 parser.add_argument(
     '--triggers',
@@ -79,6 +88,13 @@ parser.add_argument(
     required=True,
     choices=_triggers,
     help='Select the processes over which the workflow will be run.'
+)
+parser.add_argument(
+    '--channels',
+    nargs='+', #1 or more arguments
+    type=str,
+    default=_channels,
+    help='Select the channels over which the workflow will be run.'
 )
 parser.add_argument(
     '--tag',
@@ -96,13 +112,10 @@ FLAGS, _ = parser.parse_known_args()
 ########################################################################
 ### HELPER FUNCTIONS ###################################################
 ########################################################################
-def task_index( t ):
-    return luigi.IntParameter(default=_tasks.index(t)+1)
-
-def set_task_and_hierarchy( task_name ):
-    assert( task_name in _tasks )
-    return ( luigi.Parameter(default=task_name),
-             luigi.IntParameter( task_index(task_name)) )
+def set_task_name(n):
+    "handles the setting of each task name"
+    assert( n in _tasks )
+    return n
 
 ########################################################################
 ### LUIGI CONFIGURATION ################################################
@@ -121,15 +134,45 @@ class cfg(luigi.Config):
                                                    'targets/') )
     targets_default_name = luigi.Parameter( default='DefaultTarget.txt' )
     targets_prefix = luigi.Parameter(default='hist_')
-    
-    # haddTriggerEff
-    hadd_taskname, hadd_hierarchy = set_task_and_hierarchy( 'hadd' )
-    hadd_processes = luigi.DictParameter( default=FLAGS.processes )
-    hadd_indir = luigi.Parameter(default=data_storage)
 
+    data_input = luigi.Parameter(
+        default='/data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_Radion_2018_fixedMETtriggers_mht_16Jun2021/')
+
+    # submitTriggerEff
+    _rawname = set_task_name('submit')
+    submit_params = luigi.DictParameter(
+        default={ 'taskname': _rawname,
+                  'hierarchy': _tasks.index(_rawname)+1,
+                  'data_processes': FLAGS.data_processes,
+                  'mc_processes': FLAGS.mc_processes,
+                  'indir': data_input,
+                  'outdir': data_storage } )
+
+    # haddTriggerEff
+    _rawname = set_task_name('hadd')
+    hadd_params = luigi.DictParameter(
+        default={ 'taskname': _rawname,
+                  'hierarchy': _tasks.index(_rawname)+1,
+                  'data_processes': FLAGS.data_processes,
+                  'mc_processes': FLAGS.mc_processes,
+                  'indir': data_storage } )
+
+    # compareTriggers
+    _rawname = set_task_name('comp')
+    comp_params = luigi.DictParameter(
+        default={ 'taskname': _rawname,
+                  'hierarchy': _tasks.index(_rawname)+1,
+                  'processes': FLAGS.processes,
+                  'indir': data_storage } )
+    
     # drawTriggerScaleFactors
-    drawsf_taskname, hadd_hierarchy = set_task_and_hierarchy( 'drawsf' )
-    drawsf_indir = luigi.Parameter(default=data_storage)
-    drawsf_processes = luigi.DictParameter( default=FLAGS.processes )
-    drawsf_triggers = luigi.DictParameter( default=FLAGS.triggers )
-    drawdf_htcut = luigi.Parameter(default='metnomu200cut')
+    _rawname = set_task_name('drawsf')
+    drawsf_params = luigi.DictParameter(
+        default={ 'taskname': _rawname,
+                  'hierarchy': _tasks.index(_rawname)+1,
+                  'processes': FLAGS.processes,
+                  'indir': data_storage,
+                  'triggers': FLAGS.triggers,
+                  'channels': FLAGS.channels,
+                  'htcut': 'metnomu200cut',
+                  'data_type': 'MET2018_sum' } )

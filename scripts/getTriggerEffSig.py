@@ -18,29 +18,30 @@ if __name__ == "__main__":
     # -- Parse input arguments
     parser = argparse.ArgumentParser(description='Command line parser')
 
-    parser.add_argument('--indir',   dest='indir',   help='SKIM directory')
-    parser.add_argument('--outdir',  dest='outdir',  help='output directory')
-    parser.add_argument('--proc',    dest='proc',    help='Process name as in SKIM directory')
-    parser.add_argument('--file',    dest='fileName', help='ID of input root file')
+    parser.add_argument('--indir',    dest='indir',    help='SKIM directory')
+    parser.add_argument('--outdir',   dest='outdir',   help='output directory')
+    parser.add_argument('--sample',   dest='sample',   help='Process name as in SKIM directory')
+    parser.add_argument('--file',     dest='fileName', help='ID of input root file')
+    parser.add_argument('--channels', dest='channels', help='ID of input root file')
 
     args = parser.parse_args()
 
-    getTriggerEffSig(args.indir, args/outdir, args.proc, args.file)
+    getTriggerEffSig(args.indir, args.outdir, args.sample, args.fileName, args.channels)
     
 
-def getTriggerEffSig(indir, outdir, proc, file):
+def getTriggerEffSig(indir, outdir, sample, fileName, channels):
     
     # -- Check if outdir exists, if not create it
-    if not os.path.exists(args.outdir):
-        os.makedirs(args.outdir)
-    if not os.path.exists(args.outdir+'/'+args.proc):
-        os.makedirs(args.outdir+'/'+args.proc)
-    OUT_DIR= args.outdir+'/'+args.proc
+    if not os.path.exists(outdir):
+        os.makedirs(outdir)
+    if not os.path.exists(outdir+'/'+sample):
+        os.makedirs(outdir+'/'+sample)
+    OUT_DIR= outdir+'/'+sample
 
     
     # -- Define histograms
     h_MET, h_METonly, h_ALL= {},{},{}
-    cat = ['etau','mutau','tautau','mumu','ee','emu','all']
+    cat = channels
     #trg = ['9','10','11']#,'12','13','14', 'all']
     trg = ['MET','Tau','TauMET']
     var = ['met_et','HT20','mht_et','metnomu_et','mhtnomu_et','dau1_pt','dau2_pt']
@@ -57,9 +58,9 @@ def getTriggerEffSig(indir, outdir, proc, file):
                 h_METonly[i][j][k] = TH1D('passMETonly_{}_{}_{}'.format(i,j,k),     '',6,0.,600.)
 
 
-    isData = ('2018' in args.proc) # TODO
+    isData = ('2018' in sample) # TODO
 
-    f_in = TFile(args.indir+"/SKIM_"+args.proc+"/"+args.fileName)
+    f_in = TFile(indir+"/SKIM_"+sample+"/"+fileName)
     t_in = f_in.Get('HTauTauTree')
 
     sumweights=0
@@ -185,8 +186,8 @@ def getTriggerEffSig(indir, outdir, proc, file):
                             h_METonly[i][j][k].Fill(fillVar[j],evtW)
 
 
-    file_id = ''.join( c for c in args.fileName[-10:] if c.isdigit() ) 
-    outName = OUT_DIR+"/hist_eff_"+args.proc+"_"+file_id+".metnomu200cut.root"
+    file_id = ''.join( c for c in fileName[-10:] if c.isdigit() ) 
+    outName = OUT_DIR+"/hist_eff_"+sample+"_"+file_id+"."+htcut+".root"
     print('saving file: ', file_id, 'at ', outName)
     f_out = TFile(outName,'recreate')
     f_out.cd()

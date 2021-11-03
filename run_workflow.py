@@ -15,12 +15,10 @@ from scripts.getTriggerEffSig import getTriggerEffSig
 from luigi_conf.luigi_cfg import cfg, FLAGS
 lcfg = cfg() #luigi configuration
 
-#make each independent script/step target-agnostic (all should be taken care of in this file)
-#this will require some additional work in case the targets are only known at runtime, but that will likely not happen
-
 import re
 re_txt = re.compile('\.txt')
 
+#/grid_mnt/vol_home/llr/cms/portales/hhbbtautau/KLUB_UL/CMSSW_11_1_0_pre6/src/KLUBAnalysis/studies/METtriggerStudies/draw_trigger_sf.C 
 ########################################################################
 ### LAW HTCONDOR WORKFLOW ##############################################
 ########################################################################
@@ -112,13 +110,15 @@ def get_target_path(taskname):
 #INDIR="/data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_Radion_2018_fixedMETtriggers_mht_16Jun2021/"
 #OUTDIR="/data_CMS/cms/alves/FRAMEWORKTEST/"
 #PROC="MET2018A MET2018B MET2018C MET2018D"
-
 class SubmitTriggerEff(LawBaseTask, HTCondorWorkflow, law.LocalWorkflow
                        #, ForceableEnsureRecentTarget
                        ):
+    samples = luigi.Parameter(significant=True)
+    
     args = utils.dotDict(lcfg.submit_params)
     args.update( {'targetsPrefix': lcfg.targets_prefix,
                   'tag': lcfg.tag,
+                  'samples': samples,
                   } )
 
     target_path = get_target_path( args.taskname )
@@ -127,7 +127,7 @@ class SubmitTriggerEff(LawBaseTask, HTCondorWorkflow, law.LocalWorkflow
         my_branch_map = dict()
 
         count = 0
-        for proc in (args.data_processes+args.mc_processes):
+        for proc in args.samples:
             inputfiles = os.path.join( args.indir, '/SKIM_'+proc, 'goodfiles.txt' )
             with open(inputfiles) as fIn:
                 for line in fIn:
@@ -144,23 +144,27 @@ class SubmitTriggerEff(LawBaseTask, HTCondorWorkflow, law.LocalWorkflow
     
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def run(self):
-        branch_proc, branch_file = self.branch_data
+        branch_sample, branch_file = self.branch_data
         getTriggerEffSig(indir=args.indir, outdir=args.outdir,
-                         proc=branch_proc, file=branch_file)
+                         sample=branch_sample, fileName=branch_file,
+                         channels=args.channels)
 
         # once self.output() above is CHANGED, the following lines will not be needed
         output = self.output()
-        output.dump({"process": branch_proc, "file": branch_file})
+        output.dump({"sample": branch_sample, "file": branch_file})
 
 ########################################################################
 ### HADD TRIGGER EFFICIENCIES ##########################################
 ########################################################################
 class HaddTriggerEff(ForceableEnsureRecentTarget):
-    args = utils.dotDict(lcfg.drawsf_params)
+    samples = luigi.Parameter(significant=True)
+    
+    args = utils.dotDict(lcfg.hadd_params)
     args.update( {'targetsPrefix': lcfg.targets_prefix,
                   'tag': lcfg.tag,
+                  'samples': samples,
                   } )
-
+    
     target_path = get_target_path( args.taskname )
     
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
@@ -182,13 +186,17 @@ class HaddTriggerEff(ForceableEnsureRecentTarget):
 
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def run(self):
+        print("INPUTS: ")
+        inputs = self.input()["collection"].targets
+        print(inputs)
+        
         haddTriggerEff( self.args )
         
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def requires(self):
         force_flag = FLAGS.force > self.args.hierarchy
         #return SubmitTriggerEff(force=force_flag)
-        return SubmitTriggerEff()
+        return SubmitTriggerEff(version='1', samples=self.samples).req(self)
 
 ########################################################################
 ### COMPARE TRIGGERS ###################################################
@@ -266,7 +274,9 @@ class DrawTriggerScaleFactors(ForceableEnsureRecentTarget):
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def requires(self):
         force_flag = FLAGS.force > self.args.hierarchy
-        return HaddTriggerEff(force=force_flag)
+        return [ HaddTriggerEff(force=force_flag, samples=self.args.data),
+                 #HaddTriggerEff(force=force_flag, samples=args.mc_processes) ]
+                 SubmitTriggerEff(version='1', samples=self.args.mc_processes) ]
 
 
 ########################################################################

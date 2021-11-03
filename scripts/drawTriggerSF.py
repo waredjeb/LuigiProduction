@@ -55,7 +55,7 @@ def check_trigger(args, proc, trig, channel, save_names):
     # '/data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_Radion_2018_resDNN_ALLMETtrigger_test_28Apr2021/output_trigEffBkg_TTCR_fixedtrig/';
     fname      = args.targetsPrefix + proc + '.' + args.htcut + '.root'
     # fname_data = args.targetsPrefix+data+'_sum.HTcut600.root'
-    fname_data = args.targetsPrefix + args.data_type + '.' + args.htcut + '.root'
+    fname_data = args.targetsPrefix + args.data_target + '.' + args.htcut + '.root'
 
     f_basepath = os.path.join(args.indir, args.tag)
     f_data = TFile( os.path.join(f_basepath, fname_data), 'READ');
@@ -279,9 +279,9 @@ def check_trigger(args, proc, trig, channel, save_names):
 @utils.set_pure_input_namespace
 def drawTriggerSF_outputs(args):
     outputs_png, outputs_pdf = ([] for _ in range(2))
-    for proc in args.processes:
+    for proc in args.mc_processes:
         for trig in args.triggers:
-            canvas_name = 'triggerSF_' + args.data_type + '_' + proc + '_trig_' + trig + '.' + args.htcut
+            canvas_name = 'triggerSF_' + args.data_target + '_' + proc + '_trig_' + trig + '.' + args.htcut
             for ch in args.channels:
               png_out = os.path.join(args.indir, 'fig/', ch, '/png/', canvas_name + '.png')
               outputs_png.append(png_out)
@@ -295,8 +295,8 @@ def drawTriggerSF(args):
   outputs = drawTriggerSF_outputs(args)
   dim3 = len(args.channels)
   dim2 = len(args.triggers) * dim3
-  dim1 = len(args.processes) * dim2
-  for i,proc in enumerate(args.processes):
+  dim1 = len(args.mc_processes) * dim2
+  for i,proc in enumerate(args.mc_processes):
     for j,trig in enumerate(args.triggers):
       for ch in args.channels:
         names = ( outputs[i*dim2 + j*dim3],
@@ -333,7 +333,7 @@ if __name__ == '__main__':
     parser.add_argument('-i', '--indir', help='Inputs directory', required=True)
     parser.add_argument('-x', '--targetsPrefix', help='prefix to the names of the produced outputs (targets in luigi lingo)', required=True)
     parser.add_argument('-t', '--tag', help='string to diferentiate between different workflow runs', required=True)
-    parser.add_argument('-p', '--processes', help='physics processes to be analyzed: Radions, MET, ...', required=True)
+    parser.add_argument('-p', '--mc_processes', help='MC processes to be analyzed: Radions, TT, ...', required=True)
     args = parser.parse_args()
 
     drawTriggerSF(args) 

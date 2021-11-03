@@ -4,11 +4,8 @@ from utils import utils
 
 @utils.set_pure_input_namespace
 def haddTriggerEff_outputs(args):
-    targets = []
-
-    for proc in args.processes:
-        targets.append( os.path.join( args.indir , args.targetsPrefix + proc + '.' + args.tag + '.root' ) )
-    return targets
+    target = os.path.join( args.indir , args.targetsPrefix + args.data_target + '.' + args.tag + '.root' )
+    return target
 
 @utils.set_pure_input_namespace
 def haddTriggerEff(args):
@@ -46,7 +43,9 @@ def haddTriggerEff(args):
         #'MET2018D',
     ]
 
-    for target, proc in zip(haddTriggerEff_outputs(args), args.processes):
-        command = 'hadd -f'
-        inputs = os.path.join( dir_in, proc + '/*' + args.tag + '.root' )
-        os.system( command + ' ' + target + ' ' + inputs )
+    target = haddTriggerEff_outputs(args)
+    command = 'hadd -f'
+    inputs = ''
+    for smpl in args.samples:
+        inputs += os.path.join(dir_in, smpl + '/*' + args.tag + '.root ')
+    os.system( command + ' ' + target + ' ' + inputs )
