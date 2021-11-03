@@ -283,9 +283,9 @@ def drawTriggerSF_outputs(args):
         for trig in args.triggers:
             canvas_name = 'triggerSF_' + args.data_target + '_' + proc + '_trig_' + trig + '.' + args.htcut
             for ch in args.channels:
-              png_out = os.path.join(args.indir, 'fig/', ch, '/png/', canvas_name + '.png')
+              png_out = os.path.join(args.indir, 'fig', ch, 'png', canvas_name + '.png')
               outputs_png.append(png_out)
-              pdf_out = os.path.join(args.indir, 'fig/', ch, '/pdf/', canvas_name +'.pdf')
+              pdf_out = os.path.join(args.indir, 'fig', ch, 'pdf', canvas_name +'.pdf')
               outputs_pdf.append(pdf_out)
     outputs_png.extend(outputs_pdf) #join all outputs in the same list
     return outputs_png

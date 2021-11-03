@@ -5,7 +5,7 @@ from utils import utils
 @utils.set_pure_input_namespace
 def haddTriggerEff_outputs(args):
     target = os.path.join( args.indir , args.targetsPrefix + args.data_target + '.' + args.tag + '.root' )
-    return target
+    return [target]
 
 @utils.set_pure_input_namespace
 def haddTriggerEff(args):

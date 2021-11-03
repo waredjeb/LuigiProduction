@@ -40,9 +40,7 @@ class LawBaseTask(law.Task):
         return (self.__class__.__name__, self.version)
 
     def local_path(self, *path):
-        # ANALYSIS_DATA_PATH is defined in setup.sh
-        parts = (os.getenv("ANALYSIS_DATA_PATH"),) + self.store_parts() + path
-        return os.path.join(*parts)
+        return "LAWBASETASK_LOCAL_PATH.txt"
 
     def local_target(self, *path):
         return law.LocalFileTarget(self.local_path(*path))
@@ -113,12 +111,10 @@ def get_target_path(taskname):
 class SubmitTriggerEff(LawBaseTask, HTCondorWorkflow, law.LocalWorkflow
                        #, ForceableEnsureRecentTarget
                        ):
-    samples = luigi.Parameter(significant=True)
-    
+    samples = luigi.ListParameter(significant=True)
     args = utils.dotDict(lcfg.submit_params)
     args.update( {'targetsPrefix': lcfg.targets_prefix,
                   'tag': lcfg.tag,
-                  'samples': samples,
                   } )
 
     target_path = get_target_path( args.taskname )
@@ -127,12 +123,12 @@ class SubmitTriggerEff(LawBaseTask, HTCondorWorkflow, law.LocalWorkflow
         my_branch_map = dict()
 
         count = 0
-        for proc in args.samples:
-            inputfiles = os.path.join( args.indir, '/SKIM_'+proc, 'goodfiles.txt' )
+        for smpl in self.samples:
+            inputfiles = os.path.join( self.args.indir, 'SKIM_'+smpl, 'goodfiles.txt' )
             with open(inputfiles) as fIn:
                 for line in fIn:
                     if '.root' in line:
-                        my_branch_map[count] = (proc, line)
+                        my_branch_map[count] = (smpl, line)
                         count += 1
                         
         return my_branch_map
@@ -145,9 +141,9 @@ class SubmitTriggerEff(LawBaseTask, HTCondorWorkflow, law.LocalWorkflow
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def run(self):
         branch_sample, branch_file = self.branch_data
-        getTriggerEffSig(indir=args.indir, outdir=args.outdir,
+        getTriggerEffSig(indir=self.args.indir, outdir=self.args.outdir,
                          sample=branch_sample, fileName=branch_file,
-                         channels=args.channels)
+                         channels=self.args.channels)
 
         # once self.output() above is CHANGED, the following lines will not be needed
         output = self.output()
@@ -157,7 +153,7 @@ class SubmitTriggerEff(LawBaseTask, HTCondorWorkflow, law.LocalWorkflow
 ### HADD TRIGGER EFFICIENCIES ##########################################
 ########################################################################
 class HaddTriggerEff(ForceableEnsureRecentTarget):
-    samples = luigi.Parameter(significant=True)
+    samples = luigi.ListParameter(significant=True)
     
     args = utils.dotDict(lcfg.hadd_params)
     args.update( {'targetsPrefix': lcfg.targets_prefix,
@@ -181,7 +177,7 @@ class HaddTriggerEff(ForceableEnsureRecentTarget):
         with open( self.target_path, 'w' ) as f:
             for t in targets_list:
                 f.write( t )
-                
+
         return targets
 
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
