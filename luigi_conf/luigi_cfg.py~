@@ -14,31 +14,31 @@ _triggers = ('all', #all trig
              '13', '14'
              )
 _channels = ( 'all', 'etau', 'mutau', 'tautau', 'mumu' )
-_data = dict( MET = ('MET2018A',
+_data = dict( MET = ['MET2018A',
                      'MET2018B',
                      'MET2018C',
-                     'MET2018D',) )
-_mc_processes = dict( Radions = ('Radion_m300',
+                     'MET2018D',] )
+_mc_processes = dict( Radions = ['Radion_m300',
                                  'Radion_m400',
                                  'Radion_m500',
                                  'Radion_m600',
                                  'Radion_m700',
                                  'Radion_m800',
-                                 'Radion_m900',),
+                                 'Radion_m900',],
                   
-                      SingleMuon = ('SingleMuon2018',
+                      SingleMuon = ['SingleMuon2018',
                                     'SingleMuon2018A',
                                     'SingleMuon2018B',
                                     'SingleMuon2018C',
-                                    'SingleMuon2018D'),
+                                    'SingleMuon2018D'],
                       
-                      TT =         ('TT_fullyHad',
+                      TT =         ['TT_fullyHad',
                                     'TT_fullyLep',
-                                    'TT_semiLep',),
+                                    'TT_semiLep',],
                       
-                      DY =         ('DY',
+                      DY =         ['DY',
                                     'DYall',
-                                    'DY_lowMass',),
+                                    'DY_lowMass',],
                      )
     
 parser = argparse.ArgumentParser()
@@ -133,48 +133,57 @@ class cfg(luigi.Config):
 
     ### Define luigi parameters ###
     # general
-    tag = luigi.Parameter( FLAGS.tag )
-    tag_folder = luigi.Parameter( os.path.join(data_storage, FLAGS.tag) )
-    targets_folder = luigi.Parameter( os.path.join(data_storage, FLAGS.tag,
-                                                   'targets/') )
-    targets_default_name = luigi.Parameter( default='DefaultTarget.txt' )
-    targets_prefix = luigi.Parameter(default='hist_')
+    tag = FLAGS.tag
+    tag_folder = os.path.join(data_storage, tag)
+    targets_folder = os.path.join(data_storage, tag, 'targets')
+    targets_default_name = 'DefaultTarget.txt'
+    targets_prefix = 'hist_'
 
     data_input = '/data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_Radion_2018_fixedMETtriggers_mht_16Jun2021/'
 
-    # submitTriggerEff
+    ####
+    #### submitTriggerEff
+    ####
     _rawname = set_task_name('submit')
     submit_params = luigi.DictParameter(
         default={ 'taskname': _rawname,
                   'hierarchy': _tasks.index(_rawname)+1,
                   'indir': data_input,
-                  'outdir': data_storage,
+                  'outdir': tag_folder,
                   'channels': FLAGS.channels,
                   'htcut': FLAGS.htcut, } )
-
-    # haddTriggerEff
+    ####
+    #### haddTriggerEff
+    ####
     _rawname = set_task_name('hadd')
     hadd_params = luigi.DictParameter(
         default={ 'taskname': _rawname,
                   'hierarchy': _tasks.index(_rawname)+1,
-                  'indir': data_storage,
+                  'indir': tag_folder,
                   'data_target': data_target} )
-
-    # compareTriggers
+    ####
+    #### compareTriggers
+    ####
     _rawname = set_task_name('comp')
     comp_params = luigi.DictParameter(
         default={ 'taskname': _rawname,
                   'hierarchy': _tasks.index(_rawname)+1,
-                  'indir': data_storage } )
-    
-    # drawTriggerScaleFactors
+                  'indir': tag_folder } )
+
+    ####
+    #### drawTriggerScaleFactors
+    ####
     _rawname = set_task_name('drawsf')
+    # clever way to flatten a nested list
+    _selected_mc_processes = sum([ _mc_processes[proc] for proc in FLAGS.mc_processes ], [])
+    _selected_data = sum([ _data[x] for x in FLAGS.data ], [])
+
     drawsf_params = luigi.DictParameter(
         default={ 'taskname': _rawname,
                   'hierarchy': _tasks.index(_rawname)+1,
-                  'data': FLAGS.data,
-                  'mc_processes': FLAGS.mc_processes,
-                  'indir': data_storage,
+                  'data': _selected_data,
+                  'mc_processes': _selected_mc_processes,
+                  'indir': tag_folder,
                   'triggers': FLAGS.triggers,
                   'channels': FLAGS.channels,
                   'htcut': FLAGS.htcut,

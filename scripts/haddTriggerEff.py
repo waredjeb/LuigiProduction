@@ -48,4 +48,7 @@ def haddTriggerEff(args):
     inputs = ''
     for smpl in args.samples:
         inputs += os.path.join(dir_in, smpl + '/*' + args.tag + '.root ')
-    os.system( command + ' ' + target + ' ' + inputs )
+
+    # This likely has to be adapted if there is more than one target
+    for t in target:
+        os.system( command + ' ' + t + ' ' + inputs )

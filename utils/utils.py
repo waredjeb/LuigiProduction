@@ -59,7 +59,6 @@ def set_pure_input_namespace(func):
   It can however be made more ganeral.
   """
   def wrapper(args):
-    print(type(args))
     if not isinstance(args, (argparse.Namespace, SimpleNamespace)):
       args = SimpleNamespace(**args)
     return func(args)

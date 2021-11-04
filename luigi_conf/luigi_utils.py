@@ -69,7 +69,7 @@ class WorkflowDebugger():
         def wrapper(*args, **kwargs):
             if self.flag:
                 stack = inspect.stack()
-                c = stack[1][0].f_locals["self"].__class__.__name__
+                c = stack[1][0].f_locals['self'].__class__.__name__
                 m = stack[1][0].f_code.co_name
                 s = 'Class: {}, Method: {}, Internal luigi method: {}'.format(c, func.__name__, m)
                 print('=========Workflow Debugger========== ' + s)
