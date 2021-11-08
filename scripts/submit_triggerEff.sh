@@ -20,7 +20,7 @@ function print_usage {
     submits condor jobs for trigger scale factors
 
     Run example: 
-    bash submit_triggerEff.sh  -i /data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_Radion_2018_fixedMETtriggers_mht_16Jun2021/ -o /data_CMS/cms/alves/FRAMEWORKTEST/ -p MET2018
+    bash submit_triggerEff.sh -n -i /data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_Radion_2018_fixedMETtriggers_mht_16Jun2021/ -o /data_CMS/cms/alves/FRAMEWORKTEST/ -p MET2018
 "
     printf "${usage}"
 }
@@ -83,7 +83,8 @@ fi
 ############### SET DEPENDENT VARIABLES #######################
 ###############################################################
 if [ "${p_arg}" == "MET2018" ]; then
-    PROC="MET2018A MET2018B MET2018C MET2018D"
+    PROC="MET2018A"
+    #PROC="MET2018A MET2018B MET2018C MET2018D"
     #PROC="Radion_m300 Radion_m400 Radion_m500 Radion_m600 Radion_m700 Radion_m800 Radion_m900"
 fi
 
@@ -95,10 +96,10 @@ if [ "${DRY_RUN}" -eq 1 ]; then
 fi
 for proc in $PROC
 do
-    command="python3 ${THISPATH}/submit_triggerEff.py --indir=\"${i_arg}\" --outdir=\"${o_arg}\" --proc=\"${PROC}\""
+    shell_command="python3 ${THISPATH}/submit_triggerEff.py --indir=${i_arg} --outdir=${o_arg} --proc=${PROC}"
     if [ "${DRY_RUN}" -eq 1 ]; then
-	echo "${command}"
+	echo "${shell_command}"
     else
-	"$command"
+	command "${shell_command}"
     fi
 done

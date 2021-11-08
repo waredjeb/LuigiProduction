@@ -1,5 +1,5 @@
 import os, sys
-import optparse
+import argparse
 import fileinput
 import time
 import glob
@@ -27,11 +27,14 @@ def parseInputFileList(fileName):
 if __name__ == "__main__":
 
     # -- Parse options
-    parser = optparse.OptionParser('')
-    parser.add_option('-a', '--indir',  dest='indir',  required=True, help='in directory')
-    parser.add_option('-o', '--outdir', dest='outdir', required=True, help='out directory')
-    parser.add_option('-p', '--proc',   dest='proc',   required=True, help='process name')
-    (opt, args) = parser.parse_args()
+    parser = argparse.ArgumentParser(description='Command line parser')
+    parser.add_argument('-a', '--indir',    dest='indir',    required=True, help='in directory')
+    parser.add_argument('-o', '--outdir',   dest='outdir',   required=True, help='out directory')
+    parser.add_argument('-p', '--proc',     dest='proc',     required=True, help='process name')
+    parser.add_argument('-c', '--channels', dest='channels',
+                        default=( 'all', 'etau', 'mutau', 'tautau', 'mumu' ),
+                        help='channels considered')
+    opt = parser.parse_args()
 
     # -- Check input folder
     if not os.path.exists(opt.indir):
@@ -39,8 +42,8 @@ if __name__ == "__main__":
         exit(1)
         
     # -- Input list
-    inputfiles = opt.indir+'/SKIM_'+opt.proc+'/goodfiles.txt'
-    
+    inputfiles = os.path.join(opt.indir, 'SKIM_' + opt.proc + '/goodfiles.txt')
+
     # -- Job steering files
     currFolder = os.getcwd ()
     jobsDir = currFolder+'/jobs/'
@@ -54,18 +57,25 @@ if __name__ == "__main__":
             if '.root' in line:
                 filelist.append(line)
 
+    home = os.environ['HOME']
+    prog = 'python ' + os.path.join(home, 'METTriggerStudies/scripts/', 'getTriggerEffSig.py')
+
     # -- Write steering files
     for listname in filelist:
         # - Define job command
+        modstring = lambda x : x.replace(opt.indir,'').replace('/','').replace('SKIM_','').replace(opt.proc,'').replace('\n','')
         command = ( prog +
-                    ' --indir='   + opt.indir +
-                    ' --outdir='  + opt.outdir +
-                    ' --proc='    + opt.proc +
-                    ' --file='    + listname.replace(opt.indir,'').replace('/','').replace('SKIM_','').replace(opt.proc,'')
+                    ' --indir '    + opt.indir +
+                    ' --outdir '   + opt.outdir +
+                    ' --sample '   + opt.proc +
+                    ' --file '     + modstring(listname) +
+                    ' --channels ' + ' '.join(opt.channels)
                    )
 
+        print(command)
+        quit()
         # - Setup
-        jobFile = os.path.join(jobsDir, '/job_'+opt.proc+'_{}.sh'.format(n))
+        jobFile = os.path.join(jobsDir, 'job_'+opt.proc+'_{}.sh'.format(n))
 
         with open(jobFile, 'w') as s:
             s.write('#!/bin/bash\n')
@@ -86,33 +96,3 @@ if __name__ == "__main__":
         commandFile.write (command + '\n')
 
     commandFile.close()
-
-def writeMainSubmissionJob(args):
-    inputfiles = os.path.join(args.indir, '/SKIM_' + process, 'goodfiles.txt')
-    
-    prog = 'python get_trigger_eff_sig.py'
-    #thisfile = listname.replace(opt.indir,'').replace('/','').replace('SKIM_','').replace(opt.proc,'')
-    thisfile = "$(filename)"
-    command = ( prog +
-                ' --indir='   + indir  +
-                ' --outdir='  + outdir +
-                ' --proc='    + process +
-                ' --file='    + thisfile
-               )
-
-    currFolder = os.getcwd()
-    jobsDir = os.path.join(currFolder, 'jobs')        
-
-    with open( os.path.join(jobsDir, 'main.sh') , 'w') as s:
-        s.write('#!/bin/bash\n')
-        s.write('export X509_USER_PROXY=~/.t3/proxy.cert\n')
-        s.write('source /cvmfs/cms.cern.ch/cmsset_default.sh\n')
-        s.write('cd /home/llr/cms/portales/hhbbtautau/CMSSW_11_1_0_pre6/src\n')
-        s.write('eval `scram r -sh`\n')
-        s.write('cd {}\n'.format(currFolder))
-        s.write(command)
-        s.write('queue filename from {}'.format())
-
-    # - Submit job (test)
-    os.system('chmod u+rwx '+ jobFile)
-    os.system('/opt/exp_soft/cms/t3/t3submit -short ' + jobFile)

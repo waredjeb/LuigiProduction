@@ -13,30 +13,40 @@ def CheckBit(number,bitpos):
     res = bool(number&(bitdigit<<bitpos))
     return res
 
-if __name__ == "__main__":
+class LeafManager():
+    """
+    Class to manage TTree branch leafs, making sure they exist.
+    """
+    def __init__(self, fname, t_in):
+        self.fname = fname
+        self.tree = t_in
+        self.absent_leaves = set()
+        self.error_prefix = '[LeafManager]: '
+        
+    def getLeaf(self, leaf):
+        if not isinstance(leaf, str):
+            m = 'The leaf must be a string.'
+            raise TypeError(self.error_prefix + m)
+        try:
+            obj = self.tree.GetListOfBranches().FindObject(leaf)
+            name = obj.GetName()
+            getAttr = lambda x : getattr(self.tree, x)
+            return getAttr(leaf)
+        except ReferenceError:
+            if leaf not in self.absent_leaves:
+                m = 'WARNING: leaf ' + leaf + ' does not exist in file ' + self.fname + '.'
+                print(self.error_prefix + m)
+                self.absent_leaves.add(leaf)
+            return 0.
 
-    # -- Parse input arguments
-    parser = argparse.ArgumentParser(description='Command line parser')
-
-    parser.add_argument('--indir',    dest='indir',    help='SKIM directory')
-    parser.add_argument('--outdir',   dest='outdir',   help='output directory')
-    parser.add_argument('--sample',   dest='sample',   help='Process name as in SKIM directory')
-    parser.add_argument('--file',     dest='fileName', help='ID of input root file')
-    parser.add_argument('--channels', dest='channels', help='ID of input root file')
-
-    args = parser.parse_args()
-
-    getTriggerEffSig(args.indir, args.outdir, args.sample, args.fileName, args.channels)
-    
-
-def getTriggerEffSig(indir, outdir, sample, fileName, channels):
+def getTriggerEffSig(indir, outdir, sample, fileName, channels, htcut):
     
     # -- Check if outdir exists, if not create it
     if not os.path.exists(outdir):
         os.makedirs(outdir)
-    if not os.path.exists(outdir+'/'+sample):
-        os.makedirs(outdir+'/'+sample)
-    OUT_DIR= outdir+'/'+sample
+    if not os.path.exists( os.path.join(outdir, sample) ):
+        os.makedirs( os.path.join(outdir, sample) )
+    outdir = os.path.join(outdir, sample)
 
     
     # -- Define histograms
@@ -44,7 +54,8 @@ def getTriggerEffSig(indir, outdir, sample, fileName, channels):
     cat = channels
     #trg = ['9','10','11']#,'12','13','14', 'all']
     trg = ['MET','Tau','TauMET']
-    var = ['met_et','HT20','mht_et','metnomu_et','mhtnomu_et','dau1_pt','dau2_pt']
+    var = ['met_et', 'HT20', 'mht_et', 'metnomu_et', 'mhtnomu_et', 'dau1_pt', 'dau2_pt']
+    
     for i in cat:
         h_MET[i] = {}
         h_METonly[i] = {}
@@ -60,27 +71,30 @@ def getTriggerEffSig(indir, outdir, sample, fileName, channels):
 
     isData = ('2018' in sample) # TODO
 
-    f_in = TFile(indir+"/SKIM_"+sample+"/"+fileName)
+    fname = os.path.join(indir, 'SKIM_'+sample, fileName)
+    f_in = TFile( fname )
     t_in = f_in.Get('HTauTauTree')
 
     sumweights=0
     fillVar = {}
+    lf = LeafManager( fname, t_in )
+
     for entry in range(0,t_in.GetEntries()):
         t_in.GetEntry(entry)
-        
-        pairtype = getattr(t_in, 'pairType' )
-        mhh = getattr(t_in, 'HHKin_mass' )
+
+        pairtype = lf.getLeaf( 'pairType' )
+        mhh = lf.getLeaf( 'HHKin_mass' )
         if mhh<1:
             continue
-#        print('mass ok')
-        nleps      = getattr(t_in, 'nleps'      )
-        nbjetscand = getattr(t_in, 'nbjetscand' )
-        isOS       = getattr(t_in, 'isOS'       )
+        #        print('mass ok')
+        nleps      = lf.getLeaf( 'nleps'      )
+        nbjetscand = lf.getLeaf( 'nbjetscand' )
+        isOS       = lf.getLeaf( 'isOS'       )
 
-        dau1_eleiso = getattr(t_in, 'dau1_eleMVAiso'    )
-        dau1_muiso  = getattr(t_in, 'dau1_iso'          )
-        dau1_tauiso = getattr(t_in, 'dau1_deepTauVsJet' )
-        dau2_tauiso = getattr(t_in, 'dau2_deepTauVsJet' )
+        dau1_eleiso = lf.getLeaf( 'dau1_eleMVAiso'    )
+        dau1_muiso  = lf.getLeaf( 'dau1_iso'          )
+        dau1_tauiso = lf.getLeaf( 'dau1_deepTauVsJet' )
+        dau2_tauiso = lf.getLeaf( 'dau2_deepTauVsJet' )
         
         if pairtype==1 and (dau1_eleiso!=1 or dau2_tauiso<5):
             continue
@@ -90,20 +104,20 @@ def getTriggerEffSig(indir, outdir, sample, fileName, channels):
             continue
 
         #((tauH_SVFIT_mass-116.)*(tauH_SVFIT_mass-116.))/(35.*35.) + ((bH_mass_raw-111.)*(bH_mass_raw-111.))/(45.*45.) <  1.0
-        svfit_mass = getattr(t_in,'tauH_SVFIT_mass')
-        bH_mass    = getattr(t_in,'bH_mass_raw')
+        svfit_mass = lf.getLeaf('tauH_SVFIT_mass')
+        bH_mass    = lf.getLeaf('bH_mass_raw')
 
-       #mcut = ((svfit_mass-129.)*(svfit_mass-129.))/(53.*53.) + ((bH_mass-169.)*(bH_mass-169.))/(145.*145.) <  1.0
-       #if mcut: # inverted elliptical mass cut (-> ttCR)
-       #    continue
-
-#        print('passed selection')
-        mcweight   = getattr(t_in, "MC_weight"          )
-        pureweight = getattr(t_in, "PUReweight"         )
-        trigsf     = getattr(t_in, "trigSF"             )
-        lumi       = getattr(t_in, "lumi"               )
-        idandiso   = getattr(t_in, "IdAndIsoSF_deep_pt" )
-
+        #mcut = ((svfit_mass-129.)*(svfit_mass-129.))/(53.*53.) + ((bH_mass-169.)*(bH_mass-169.))/(145.*145.) <  1.0
+        #if mcut: # inverted elliptical mass cut (-> ttCR)
+        #    continue
+        
+        #        print('passed selection')
+        mcweight   = lf.getLeaf( "MC_weight" )
+        pureweight = lf.getLeaf( "PUReweight" )
+        trigsf     = lf.getLeaf( "trigSF" )
+        lumi       = lf.getLeaf( "lumi" )
+        idandiso   = lf.getLeaf( "IdAndIsoSF_deep_pt")
+        
         if np.isnan(mcweight): mcweight=1
         if np.isnan(pureweight): pureweight=1
         if np.isnan(trigsf): trigsf=1
@@ -115,30 +129,20 @@ def getTriggerEffSig(indir, outdir, sample, fileName, channels):
         if isData: evtW=1.
         sumweights+=evtW
 
-        MET    = getattr(t_in,'met_et')
-        HTfull = getattr(t_in,'HT20')
+        MET    = lf.getLeaf('met_et')
+        HTfull = lf.getLeaf('HT20')
 
-        #var = ['met_et','HT20','mht_et','metnomu_et','mhtnomu_et']
-        fillVar['met_et']     = getattr(t_in,'met_et')   #MET
-        fillVar['HT20']       = getattr(t_in,'HT20')     #HTfull
-        fillVar['mht_et']     = getattr(t_in,'mht_et')
-        fillVar['metnomu_et'] = getattr(t_in,'metnomu_et')
-        fillVar['mhtnomu_et'] = getattr(t_in,'mhtnomu_et')
-        fillVar['dau1_pt']       = getattr(t_in,'dau1_pt')#HTfull
-        fillVar['dau2_pt']       = getattr(t_in,'dau2_pt')#HTfull
-
-
-        #fillVar=HTfull
-        #if fillVar['metnomu_et']<200: continue
+        for v in var:
+            fillVar[v] = lf.getLeaf(v)
         for j in var:
             if fillVar[j]>600: fillVar[j]=599. # include overflow
 
-        passMET = getattr(t_in,'isMETtrigger')
-        passLEP = getattr(t_in,'isLeptrigger')
-        passTAU = getattr(t_in,'isSingleTautrigger')
-        passTAUMET = getattr(t_in,'isTauMETtrigger')
+        passMET = lf.getLeaf(   'isMETtrigger')
+        passLEP = lf.getLeaf(   'isLeptrigger')
+        passTAU = lf.getLeaf(   'isSingleTautrigger')
+        passTAUMET = lf.getLeaf('isTauMETtrigger')
 
-        trigBit = getattr(t_in,'pass_triggerbit')
+        trigBit = lf.getLeaf('pass_triggerbit')
         
         passReq = {}
         #req=[9,10,11]#,12,13,14]
@@ -187,9 +191,9 @@ def getTriggerEffSig(indir, outdir, sample, fileName, channels):
 
 
     file_id = ''.join( c for c in fileName[-10:] if c.isdigit() ) 
-    outName = OUT_DIR+"/hist_eff_"+sample+"_"+file_id+"."+htcut+".root"
-    print('saving file: ', file_id, 'at ', outName)
-    f_out = TFile(outName,'recreate')
+    outName = os.path.join(outdir, 'hist_eff_'+sample+'_'+file_id+'.'+htcut+'.root')
+    print('Saving file {} at {} '.format(file_id, outName) )
+    f_out = TFile(outName, 'RECREATE')
     f_out.cd()
 
     for i in cat:
@@ -201,3 +205,20 @@ def getTriggerEffSig(indir, outdir, sample, fileName, channels):
 
     f_out.Close()
     f_in.Close()
+
+if __name__ == "__main__":
+
+    # -- Parse input arguments
+    parser = argparse.ArgumentParser(description='Command line parser')
+
+    parser.add_argument('--indir',    dest='indir',    required=True, help='SKIM directory')
+    parser.add_argument('--outdir',   dest='outdir',   required=True, help='output directory')
+    parser.add_argument('--sample',   dest='sample',   required=True, help='Process name as in SKIM directory')
+    parser.add_argument('--file',     dest='fileName', required=True, help='ID of input root file')
+    parser.add_argument('--channels', dest='channels', required=True, nargs='+', type=str,
+                        help='Select the channels over which the workflow will be run.' )
+    parser.add_argument('--htcut', dest='htcut', default='metnomu200cut', help='Specifies a cut.')
+    
+    args = parser.parse_args()
+
+    getTriggerEffSig(args.indir, args.outdir, args.sample, args.fileName, args.channels, args.htcut)
