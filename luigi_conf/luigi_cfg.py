@@ -135,6 +135,8 @@ class cfg(luigi.Config):
     # general
     tag = FLAGS.tag
     tag_folder = os.path.join(data_storage, tag)
+    print(tag_folder)
+    quit()
     targets_folder = os.path.join(data_storage, tag, 'targets')
     targets_default_name = 'DefaultTarget.txt'
     targets_prefix = 'hist_'
