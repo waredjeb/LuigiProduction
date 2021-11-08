@@ -25,30 +25,33 @@ def parseInputFileList(fileName):
     return filelist
 
 if __name__ == "__main__":
+    #Run example (but is being called by the corresponding bash script
+    #python3 /home/llr/cms/alves/METTriggerStudies/scripts/submit_triggerEff.py --indir /data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_Radion_2018_fixedMETtriggers_mht_16Jun2021/ --outdir /data_CMS/cms/alves/FRAMEWORKTEST/ --proc MET2018A --channels all etau mutau tautau mumu
 
     # -- Parse options
     parser = argparse.ArgumentParser(description='Command line parser')
     parser.add_argument('-a', '--indir',    dest='indir',    required=True, help='in directory')
     parser.add_argument('-o', '--outdir',   dest='outdir',   required=True, help='out directory')
     parser.add_argument('-p', '--proc',     dest='proc',     required=True, help='process name')
-    parser.add_argument('-c', '--channels', dest='channels',
-                        default=( 'all', 'etau', 'mutau', 'tautau', 'mumu' ),
-                        help='channels considered')
-    opt = parser.parse_args()
+    parser.add_argument('-c', '--channels', dest='channels', required=True, nargs='+', type=str,
+                        help='Select the channels over which the workflow will be run.' )
+    args = parser.parse_args()
 
     # -- Check input folder
-    if not os.path.exists(opt.indir):
-        print('input folder', opt.indir, 'not existing, exiting')
+    if not os.path.exists(args.indir):
+        print('input folder', args.indir, 'not existing, exiting')
         exit(1)
         
     # -- Input list
-    inputfiles = os.path.join(opt.indir, 'SKIM_' + opt.proc + '/goodfiles.txt')
+    inputfiles = os.path.join(args.indir, 'SKIM_' + args.proc + '/goodfiles.txt')
 
     # -- Job steering files
     currFolder = os.getcwd ()
-    jobsDir = currFolder+'/jobs/'
+    jobsDir = os.path.join(currFolder, 'jobs')
     n = int(0)
-    commandFile = open (jobsDir + '/submit.sh', 'w')
+    commandFile = open( os.path.join(jobsDir, 'submit.sh'), 'w')
+    print(jobsDir)
+    quit()
 
     # -- Parse input list
     filelist=[]
@@ -58,24 +61,23 @@ if __name__ == "__main__":
                 filelist.append(line)
 
     home = os.environ['HOME']
-    prog = 'python ' + os.path.join(home, 'METTriggerStudies/scripts/', 'getTriggerEffSig.py')
+    prog = 'python3 ' + os.path.join(home, 'METTriggerStudies/scripts/', 'getTriggerEffSig.py')
 
     # -- Write steering files
     for listname in filelist:
         # - Define job command
-        modstring = lambda x : x.replace(opt.indir,'').replace('/','').replace('SKIM_','').replace(opt.proc,'').replace('\n','')
+        modstring = lambda x : x.replace(args.indir,'').replace('/','').replace('SKIM_','').replace(args.proc,'').replace('\n','')
         command = ( prog +
-                    ' --indir '    + opt.indir +
-                    ' --outdir '   + opt.outdir +
-                    ' --sample '   + opt.proc +
+                    ' --indir '    + args.indir +
+                    ' --outdir '   + args.outdir +
+                    ' --sample '   + args.proc +
                     ' --file '     + modstring(listname) +
-                    ' --channels ' + ' '.join(opt.channels)
+                    ' --channels ' + ' '.join(args.channels) +
+                    ' --htcut '    + 'metnomu200cut'
                    )
 
-        print(command)
-        quit()
         # - Setup
-        jobFile = os.path.join(jobsDir, 'job_'+opt.proc+'_{}.sh'.format(n))
+        jobFile = os.path.join(jobsDir, 'job_'+args.proc+'_{}.sh'.format(n))
 
         with open(jobFile, 'w') as s:
             s.write('#!/bin/bash\n')
@@ -83,9 +85,9 @@ if __name__ == "__main__":
             s.write('source /cvmfs/cms.cern.ch/cmsset_default.sh\n')
             s.write('cd /home/llr/cms/portales/hhbbtautau/CMSSW_11_1_0_pre6/src\n')
             s.write('eval `scram r -sh`\n')
-            s.write('cd %s\n'%currFolder)
+            s.write('cd {}\n'.format(currFolder))
             s.write(command)
-            s.write('echo "Done for job %d" \n'%n)
+            s.write('echo "Done for job {}" \n'.format(n))
 
         # - Submit job (test)
         os.system('chmod u+rwx '+ jobFile)

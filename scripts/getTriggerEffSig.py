@@ -208,6 +208,9 @@ def getTriggerEffSig(indir, outdir, sample, fileName, channels, htcut):
 
 if __name__ == "__main__":
 
+    #Run example:
+    #python3 /home/llr/cms/alves/METTriggerStudies/scripts/getTriggerEffSig.py --indir /data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_Radion_2018_fixedMETtriggers_mht_16Jun2021/ --outdir /data_CMS/cms/alves/FRAMEWORKTEST/ --sample MET2018A --file output_0.root --channels all etau mutau tautau mumu --htcut metnomu200cut
+    
     # -- Parse input arguments
     parser = argparse.ArgumentParser(description='Command line parser')
 
@@ -217,7 +220,7 @@ if __name__ == "__main__":
     parser.add_argument('--file',     dest='fileName', required=True, help='ID of input root file')
     parser.add_argument('--channels', dest='channels', required=True, nargs='+', type=str,
                         help='Select the channels over which the workflow will be run.' )
-    parser.add_argument('--htcut', dest='htcut', default='metnomu200cut', help='Specifies a cut.')
+    parser.add_argument('--htcut', dest='htcut', required=True, help='Specifies a cut.')
     
     args = parser.parse_args()
 
