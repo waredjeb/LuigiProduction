@@ -83,10 +83,26 @@ fi
 ############### SET DEPENDENT VARIABLES #######################
 ###############################################################
 if [ "${p_arg}" == "MET2018" ]; then
-    PROC="MET2018A"
-    #PROC="MET2018A MET2018B MET2018C MET2018D"
-    #PROC="Radion_m300 Radion_m400 Radion_m500 Radion_m600 Radion_m700 Radion_m800 Radion_m900"
+    #PROC=("MET2018A" "MET2018B" "MET2018C" "MET2018D")
+    PROC=("MET2018A")
+elif [ "${p_arg}" == "Radions" ]; then
+    PROC=("Radion_m300" "Radion_m400" "Radion_m500" "Radion_m600" "Radion_m700" "Radion_m800 Radion_m900")
 fi
+
+###############################################################
+############### DEFINE SUBMISSION COMMAND #####################
+###############################################################
+function mycommand() {
+    local options="${THISPATH}/submit_triggerEff.py --indir ${i_arg} --outdir ${o_arg} --proc ${1} --channels all etau mutau tautau mumu"
+    if [ "$2" -eq 0 ]; then
+	echo python3 ${options} 
+    elif [ "$2" -eq 1 ]; then
+	python3 ${options}
+    else
+	echo ":mycommand: received a wrong argument."
+	return 1;
+    fi
+}
 
 ###############################################################
 ############### RUN PYTHON SCRIPT #############################
@@ -94,12 +110,12 @@ fi
 if [ "${DRY_RUN}" -eq 1 ]; then
     echo "---- DRY RUN ----"
 fi
-for proc in $PROC
+
+for proc in ${PROC[@]}
 do
-    shell_command="python3 ${THISPATH}/submit_triggerEff.py --indir=${i_arg} --outdir=${o_arg} --proc=${PROC}"
     if [ "${DRY_RUN}" -eq 1 ]; then
-	echo "${shell_command}"
+	mycommand $proc 0;
     else
-	command "${shell_command}"
+	mycommand $proc 1;
     fi
 done
