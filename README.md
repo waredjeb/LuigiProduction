@@ -2,33 +2,37 @@
 
 Requirements:
 
-- ```python 3.7``` (not tested, but likely works on other Python 3 subversions)
-- ```luigi``` (available in ```CMSSW``` after running ```cmsenv``` and using ```python3```.
+- ```python 3.9``` (likely works on other Python 3 versions)
+- ```luigi``` (available in ```CMSSW``` after running ```cmsenv``` and using ```python3```).
 
 
-Installation using ```conda```:
+## Tasks (steps of the study)
 
-- Install a [miniconda release](https://docs.conda.io/en/latest/miniconda.html) (python 3.7 linux used here)
-- Convert ```law``` to a conda package using ```conda-build``` (this will not be required as soon as ```law``` is made available in some ```conda``` channel):
+- Running HTCondor jobs
 
+```shell
+#Example
+python3 /home/llr/cms/alves/CMSSW_12_2_0_pre1/src/METTriggerStudies/scripts/submit_triggerEff.py
+        --indir /data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_Radion_2018_fixedMETtriggers_mht_16Jun2021/
+	--outdir /data_CMS/cms/alves/TriggerScaleFactors
+	--tag v1
+	--proc MET2018A MET2018B MET2018C MET2018D
+	--channels all etau mutau tautau mumu
 ```
-#from the conda "base" environment
-conda install conda-build
-conda skeleton pypi law
-conda-build law
-```
 
-- Create conda environment and install the [```law```](https://github.com/riga/law) and [```ROOT```](https://root.cern/install/#conda) packages:
+Output ```ROOT``` files: ```/data_CMS/cms/alves/TriggerScaleFactors/v1/```
+Submission files: ```$HOME/jobs/submission/```
+Job standard output and error streams: ```$HOME/jobs/outputs/```
 
-```
-conda create --name <name> python=3.7
-conda activate <name>
-conda install --use-local law #install the conda package created in the previous step
 
-#install ROOT from the ```conda-forge``` channel
-conda config --set channel_priority strict 
-conda install -c conda-forge root
-```
+Check the meaning of the arguments by adding ```--help```.
+
+- Running the ```luigi``` workflow
+
+TODO
+
+
+-------------------------------------
 
 ### Luigi Workflow
 
@@ -72,14 +76,31 @@ You should then be able to visualize the worflow in your browser by going to ```
 
 ------------------------------------
 
-## Tasks (steps of the study)
+## Future steps
 
-- Adding histograms
+### Using ```law```
 
-```shell
-python haddTrigerEff.py
+In case [```law```](https://github.com/riga/law) is required (to manage ```htcondor``` jobs), one can install it as follows, using ```conda```:
+
+
+- Install a [miniconda release](https://docs.conda.io/en/latest/miniconda.html) (python 3.7 linux used here)
+- Convert ```law``` to a conda package using ```conda-build``` (this will not be required as soon as ```law``` is made available in some ```conda``` channel):
+
+```
+#from the conda "base" environment
+conda install conda-build
+conda skeleton pypi law
+conda-build law
 ```
 
-Check the meaning of the arguments by adding ```--help```.
+- Create conda environment and install the [```law```](https://github.com/riga/law) and [```ROOT```](https://root.cern/install/#conda) packages:
 
--------------------------------------
+```
+conda create --name <name> python=3.9
+conda activate <name>
+conda install --use-local law #install the conda package created in the previous step
+
+#install ROOT from the ```conda-forge``` channel
+conda config --set channel_priority strict 
+conda install -c conda-forge root
+```

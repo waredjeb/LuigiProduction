@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+##################### REDUNDANT! ###########################
+########### REPLACED BY SUBMIT_TRIGGEREFF.PY ###############
+############################################################
+
 h_description="prints this help message"
 n_description="dry-run: prints the commands but does not run them"
 i_description="input data directory"
@@ -28,7 +32,7 @@ function print_usage {
 ###############################################################
 ############### SET INDEPENDENT VARIABLES #####################
 ###############################################################
-THISPATH="${HOME}/METTriggerStudies/scripts"
+THISPATH="${HOME}/${CMSSW_VERSION}/src/METTriggerStudies/scripts"
 DRY_RUN=0
 
 # list of arguments expected in the input
@@ -83,8 +87,7 @@ fi
 ############### SET DEPENDENT VARIABLES #######################
 ###############################################################
 if [ "${p_arg}" == "MET2018" ]; then
-    #PROC=("MET2018A" "MET2018B" "MET2018C" "MET2018D")
-    PROC=("MET2018A")
+    PROC=("MET2018A" "MET2018B" "MET2018C" "MET2018D")
 elif [ "${p_arg}" == "Radions" ]; then
     PROC=("Radion_m300" "Radion_m400" "Radion_m500" "Radion_m600" "Radion_m700" "Radion_m800 Radion_m900")
 fi
@@ -95,7 +98,7 @@ fi
 function mycommand() {
     local options="${THISPATH}/submit_triggerEff.py --indir ${i_arg} --outdir ${o_arg} --proc ${1} --channels all etau mutau tautau mumu"
     if [ "$2" -eq 0 ]; then
-	echo python3 ${options} 
+	echo python3 ${options}
     elif [ "$2" -eq 1 ]; then
 	python3 ${options}
     else

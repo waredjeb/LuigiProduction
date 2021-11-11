@@ -1,4 +1,3 @@
-from ROOT import *
 import re
 import os
 import sys
@@ -7,6 +6,7 @@ import fnmatch
 import math
 from array import array
 import numpy as np
+import ROOT
 
 def CheckBit(number,bitpos):
     bitdigit = 1
@@ -40,7 +40,6 @@ class LeafManager():
             return 0.
 
 def getTriggerEffSig(indir, outdir, sample, fileName, channels, htcut):
-    
     # -- Check if outdir exists, if not create it
     if not os.path.exists(outdir):
         os.makedirs(outdir)
@@ -59,20 +58,21 @@ def getTriggerEffSig(indir, outdir, sample, fileName, channels, htcut):
     for i in cat:
         h_MET[i] = {}
         h_METonly[i] = {}
-        h_ALL[i] = {}#TH1D('passALL_{}'.format(i),     '',6,0.,600.)
+        h_ALL[i] = {}
         for j in var:
             h_MET[i][j]={}
             h_METonly[i][j] = {}
-            h_ALL[i][j] = TH1D('passALL_{}_{}'.format(i,j),     '',6,0.,600.)
+                
+            h_ALL[i][j] = ROOT.TH1D('passALL_{}_{}'.format(i,j), '', 6, 0., 600.)
             for k in trg:
-                h_MET[i][j][k] = TH1D('passMET_{}_{}_{}'.format(i,j,k),     '',6,0.,600.)
-                h_METonly[i][j][k] = TH1D('passMETonly_{}_{}_{}'.format(i,j,k),     '',6,0.,600.)
+                h_MET[i][j][k] = ROOT.TH1D('passMET_{}_{}_{}'.format(i,j,k),     '',6,0.,600.)
+                h_METonly[i][j][k] = ROOT.TH1D('passMETonly_{}_{}_{}'.format(i,j,k),     '',6,0.,600.)
 
 
     isData = ('2018' in sample) # TODO
 
     fname = os.path.join(indir, 'SKIM_'+sample, fileName)
-    f_in = TFile( fname )
+    f_in = ROOT.TFile( fname )
     t_in = f_in.Get('HTauTauTree')
 
     sumweights=0
@@ -193,7 +193,7 @@ def getTriggerEffSig(indir, outdir, sample, fileName, channels, htcut):
     file_id = ''.join( c for c in fileName[-10:] if c.isdigit() ) 
     outName = os.path.join(outdir, 'hist_eff_'+sample+'_'+file_id+'.'+htcut+'.root')
     print('Saving file {} at {} '.format(file_id, outName) )
-    f_out = TFile(outName, 'RECREATE')
+    f_out = ROOT.TFile(outName, 'RECREATE')
     f_out.cd()
 
     for i in cat:
@@ -206,22 +206,22 @@ def getTriggerEffSig(indir, outdir, sample, fileName, channels, htcut):
     f_out.Close()
     f_in.Close()
 
-if __name__ == "__main__":
 
-    #Run example:
-    #python3 /home/llr/cms/alves/METTriggerStudies/scripts/getTriggerEffSig.py --indir /data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_Radion_2018_fixedMETtriggers_mht_16Jun2021/ --outdir /data_CMS/cms/alves/FRAMEWORKTEST/ --sample MET2018A --file output_0.root --channels all etau mutau tautau mumu --htcut metnomu200cut
-    
-    # -- Parse input arguments
-    parser = argparse.ArgumentParser(description='Command line parser')
 
-    parser.add_argument('--indir',    dest='indir',    required=True, help='SKIM directory')
-    parser.add_argument('--outdir',   dest='outdir',   required=True, help='output directory')
-    parser.add_argument('--sample',   dest='sample',   required=True, help='Process name as in SKIM directory')
-    parser.add_argument('--file',     dest='fileName', required=True, help='ID of input root file')
-    parser.add_argument('--channels', dest='channels', required=True, nargs='+', type=str,
-                        help='Select the channels over which the workflow will be run.' )
-    parser.add_argument('--htcut', dest='htcut', required=True, help='Specifies a cut.')
-    
-    args = parser.parse_args()
+#Run example:
+#python3 /home/llr/cms/alves/METTriggerStudies/scripts/getTriggerEffSig.py --indir /data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_Radion_2018_fixedMETtriggers_mht_16Jun2021/ --outdir /data_CMS/cms/alves/FRAMEWORKTEST/ --sample MET2018A --file output_0.root --channels all etau mutau tautau mumu --htcut metnomu200cut
 
-    getTriggerEffSig(args.indir, args.outdir, args.sample, args.fileName, args.channels, args.htcut)
+# -- Parse input arguments
+parser = argparse.ArgumentParser(description='Command line parser')
+
+parser.add_argument('--indir',    dest='indir',    required=True, help='SKIM directory')
+parser.add_argument('--outdir',   dest='outdir',   required=True, help='output directory')
+parser.add_argument('--sample',   dest='sample',   required=True, help='Process name as in SKIM directory')
+parser.add_argument('--file',     dest='fileName', required=True, help='ID of input root file')
+parser.add_argument('--channels', dest='channels', required=True, nargs='+', type=str,
+                    help='Select the channels over which the workflow will be run.' )
+parser.add_argument('--htcut', dest='htcut', required=True, help='Specifies a cut.')
+
+args = parser.parse_args()
+
+getTriggerEffSig(args.indir, args.outdir, args.sample, args.fileName, args.channels, args.htcut)
