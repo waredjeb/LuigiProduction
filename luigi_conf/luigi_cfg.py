@@ -3,12 +3,12 @@ import argparse
 import luigi
 from luigi.util import inherits
 
-from scripts.haddTriggerEff import haddTriggerEff
-
 ########################################################################
 ### ARGUMENT PARSING ###################################################
 ########################################################################
-_tasks = ( 'submit', 'hadd', 'comp', 'drawsf' )
+_tasks = ( #'submit',
+    'hadd', 'comp', 'drawsf'
+)
 _triggers = ('all', #all trig
              '9', '10', '11', '12',     #single trig
              '13', '14'
@@ -101,7 +101,7 @@ parser.add_argument(
     help='Specifies a tag to differentiate workflow runs.'
 )
 parser.add_argument(
-    '--htcut',
+    '--subtag',
     type=str,
     default='metnomu200cut',
     help='Specifies a cut.'
@@ -125,7 +125,7 @@ def set_task_name(n):
 ### LUIGI CONFIGURATION ################################################
 ########################################################################
 class cfg(luigi.Config):
-    base_name = 'FRAMEWORKTEST'
+    base_name = 'TriggerScaleFactors'
     data_base = os.path.join( '/data_CMS/', 'cms' )
     user = os.environ['USER']
     data_storage = os.path.join(data_base, user, base_name)
@@ -135,8 +135,6 @@ class cfg(luigi.Config):
     # general
     tag = FLAGS.tag
     tag_folder = os.path.join(data_storage, tag)
-    print(tag_folder)
-    quit()
     targets_folder = os.path.join(data_storage, tag, 'targets')
     targets_default_name = 'DefaultTarget.txt'
     targets_prefix = 'hist_'
@@ -146,14 +144,15 @@ class cfg(luigi.Config):
     ####
     #### submitTriggerEff
     ####
-    _rawname = set_task_name('submit')
-    submit_params = luigi.DictParameter(
-        default={ 'taskname': _rawname,
-                  'hierarchy': _tasks.index(_rawname)+1,
-                  'indir': data_input,
-                  'outdir': tag_folder,
-                  'channels': FLAGS.channels,
-                  'htcut': FLAGS.htcut, } )
+    # _rawname = set_task_name('submit')
+    # submit_params = luigi.DictParameter(
+    #     default={ 'taskname': _rawname,
+    #               'hierarchy': _tasks.index(_rawname)+1,
+    #               'indir': data_input,
+    #               'outdir': tag_folder,
+    #               'channels': FLAGS.channels,
+    #               'subtag': FLAGS.subtag, } )
+
     ####
     #### haddTriggerEff
     ####
@@ -162,7 +161,8 @@ class cfg(luigi.Config):
         default={ 'taskname': _rawname,
                   'hierarchy': _tasks.index(_rawname)+1,
                   'indir': tag_folder,
-                  'data_target': data_target} )
+                  'data_target': data_target,
+                  'subtag': FLAGS.subtag} )
     ####
     #### compareTriggers
     ####
@@ -188,5 +188,5 @@ class cfg(luigi.Config):
                   'indir': tag_folder,
                   'triggers': FLAGS.triggers,
                   'channels': FLAGS.channels,
-                  'htcut': FLAGS.htcut,
+                  'subtag': FLAGS.subtag,
                   'data_target': data_target } )

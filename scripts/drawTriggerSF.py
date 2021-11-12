@@ -53,21 +53,20 @@ def RedrawBorder():
 def check_trigger(args, proc, trig, channel, save_names):
 
     # '/data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_Radion_2018_resDNN_ALLMETtrigger_test_28Apr2021/output_trigEffBkg_TTCR_fixedtrig/';
-    fname      = args.targetsPrefix + proc + '.' + args.htcut + '.root'
+    fname      = args.targetsPrefix + proc + '.' + args.subtag + '.root'
     # fname_data = args.targetsPrefix+data+'_sum.HTcut600.root'
-    fname_data = args.targetsPrefix + args.data_target + '.' + args.htcut + '.root'
+    fname_data = args.targetsPrefix + args.data_target + '.' + args.subtag + '.root'
 
-    f_basepath = os.path.join(args.indir, args.tag)
-    f_data = TFile( os.path.join(f_basepath, fname_data), 'READ');
-    f_in   = TFile( os.path.join(f_basepath, fname), 'READ');
+    f_data = TFile( os.path.join(args.indir, fname_data), 'READ');
+    f_in   = TFile( os.path.join(args.indir, fname), 'READ');
 
-    print( 'Opening file: {}'.format( os.path.join(f_basepath, fname) ) )
+    print( 'Opening file: {}'.format( os.path.join(args.indir, fname) ) )
     
     hname_all     = 'passALL_'     + channel
     hname_met     = 'passMET_'     + channel + '_' + trig
     hname_metonly = 'passMETonly_' + channel + '_' + trig
-    hname_met.ReplaceAll('_all_all','_all')
-    hname_metonly.ReplaceAll('_all_all','_all')
+    hname_met.replace('_all_all','_all')
+    hname_metonly.replace('_all_all','_all')
     print('Getting hist: {}'.format(hname_met) )
     h_passMET     = f_in.Get( hname_met     )
     h_passALL     = f_in.Get( hname_all     )
@@ -225,9 +224,9 @@ def check_trigger(args, proc, trig, channel, save_names):
     l.SetTextColor(1)
 
     latexChannel = copy(channel)
-    latexChannel.ReplaceAll('mu','#mu')
-    latexChannel.ReplaceAll('tau','#tau_{h}')
-    latexChannel.ReplaceAll('Tau','#tau_{h}')
+    latexChannel.replace('mu','#mu')
+    latexChannel.replace('tau','#tau_{h}')
+    latexChannel.replace('Tau','#tau_{h}')
 
     l.DrawLatex( lX, lY,        'Channel: '+latexChannel)
     l.DrawLatex( lX, lY-lYstep, 'Trigger(s): '+trig)
@@ -251,7 +250,7 @@ def check_trigger(args, proc, trig, channel, save_names):
     axor2.GetYaxis().SetTitleOffset(0.45)
     axor2.GetYaxis().SetTitle('Data/MC')
     axor2.GetXaxis().SetTitle('MET [GeV]')
-    if strstr(args.htcut,'MET'):
+    if strstr(args.subtag,'MET'):
        axor2.GetXaxis().SetTitle('H_{T} [GeV]')
 
     axor2.Draw()
@@ -281,7 +280,7 @@ def drawTriggerSF_outputs(args):
     outputs_png, outputs_pdf = ([] for _ in range(2))
     for proc in args.mc_processes:
         for trig in args.triggers:
-            canvas_name = 'triggerSF_' + args.data_target + '_' + proc + '_trig_' + trig + '.' + args.htcut
+            canvas_name = 'triggerSF_' + args.data_target + '_' + proc + '_trig_' + trig + '.' + args.subtag
             for ch in args.channels:
               png_out = os.path.join(args.indir, 'fig', ch, 'png', canvas_name + '.png')
               outputs_png.append(png_out)

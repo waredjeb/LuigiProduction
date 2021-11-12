@@ -4,13 +4,13 @@ import utils
 from utils import utils
 
 from luigi_conf.luigi_utils import WorkflowDebugger
-from luigi_conf.luigi_utils import is_force_mistake
+from luigi_conf.luigi_utils import is_force_mistake, ForceableEnsureRecentTarget
 
 from scripts.haddTriggerEff import haddTriggerEff, haddTriggerEff_outputs
 from scripts.drawTriggerSF import drawTriggerSF, drawTriggerSF_outputs
-from scripts.getTriggerEffSig import getTriggerEffSig
 
 from luigi_conf.luigi_cfg import cfg, FLAGS
+
 lcfg = cfg() #luigi configuration
 
 import re
@@ -20,15 +20,6 @@ re_txt = re.compile('\.txt')
 ########################################################################
 ### HELPER FUNCTIONS ###################################################
 ########################################################################
-def addstr(*args, connector='_'):
-    s = ''
-    for arg in args:
-        if arg==args[0]:
-            s = arg
-        else:
-            s += connector + arg
-    return s
-
 def get_target_path(taskname):
     target_path = os.path.join(lcfg.targets_folder,
                                re_txt.sub( '_'+taskname+'.txt',
@@ -44,58 +35,11 @@ def luigi_to_raw( param ):
         return [x for x in param]
     else:
         raise NotImplementedError('[' + inspect.stack()[0][3] + ']: ' + 'only tuples/lsits implemented so far!')
-        
-########################################################################
-### JOB SUBMISSION #####################################################
-#########################################################################
-#INDIR="/data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_Radion_2018_fixedMETtriggers_mht_16Jun2021/"
-#OUTDIR="/data_CMS/cms/alves/FRAMEWORKTEST/"
-#PROC="MET2018A MET2018B MET2018C MET2018D"
-
-# class SubmitTriggerEff(LawBaseTask, HTCondorWorkflow, law.LocalWorkflow):
-#     samples = luigi.ListParameter(significant=True)
-#     args = utils.dotDict(lcfg.submit_params)
-#     #args = lcfg.submit_params
-#     args.update( {'targetsPrefix': lcfg.targets_prefix,
-#                   'tag': lcfg.tag,
-#                   } )
-
-#     target_path = get_target_path( args['taskname'] )
-
-#     def create_branch_map(self):
-#         my_branch_map = dict()
-
-#         count = 0
-#         for smpl in self.samples:
-#             inputfiles = os.path.join( self.args['indir'], 'SKIM_'+smpl, 'goodfiles.txt' )
-#             with open(inputfiles) as fIn:
-#                 for line in fIn:
-#                     if '.root' in line:
-#                         my_branch_map[count] = (smpl, line)
-#                         count += 1
-                        
-#         return my_branch_map
     
-#     #@WorkflowDebugger(flag=FLAGS.debug_workflow)
-#     def output(self):
-#         #CHANGE to actually reflect the output ROOT files in get_trigger_eff_sig.py
-#         return self.local_target("SubmitTriggerEff_output_{}.json".format(self.branch))
-    
-#     #@WorkflowDebugger(flag=FLAGS.debug_workflow)
-#     def run(self):
-#         branch_sample, branch_file = self.branch_data
-#         getTriggerEffSig(indir=self.args['indir'], outdir=self.args['outdir'],
-#                          sample=branch_sample, fileName=branch_file,
-#                          channels=self.args.channels)
-
-#         # once self.output() above is CHANGED, the following lines will not be needed
-#         output = self.output()
-#         output.dump({"sample": branch_sample, "file": branch_file})
-
 ########################################################################
 ### HADD TRIGGER EFFICIENCIES ##########################################
 ########################################################################
-class HaddTriggerEff(luigi.Task):
+class HaddTriggerEff(ForceableEnsureRecentTarget):
     samples = luigi.ListParameter(significant=True)
     args = utils.dotDict(lcfg.hadd_params)
     args.update( {'targetsPrefix': lcfg.targets_prefix,
@@ -123,20 +67,12 @@ class HaddTriggerEff(luigi.Task):
 
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def run(self):
-        #print("INPUTS: ")
-        inputs = self.input()["collection"].targets
-        #print(inputs)
-
         self.args['samples'] = luigi_to_raw( self.samples )
+        print(args)
+        quit()
 
         haddTriggerEff( self.args )
         
-    # @WorkflowDebugger(flag=FLAGS.debug_workflow)
-    # def requires(self):
-    #     force_flag = FLAGS.force > self.args.hierarchy
-    #     #return SubmitTriggerEff(force=force_flag)
-    #     return SubmitTriggerEff(version='1', samples=self.samples)#.req(self)
-
 ########################################################################
 ### COMPARE TRIGGERS ###################################################
 ########################################################################
@@ -181,12 +117,11 @@ class HaddTriggerEff(luigi.Task):
 ########################################################################
 ### DRAW TRIGGER SCALE FACTORS #########################################
 ########################################################################
-class DrawTriggerScaleFactors(luigi.Task):
+class DrawTriggerScaleFactors(ForceableEnsureRecentTarget):
     args = utils.dotDict(lcfg.drawsf_params)
     args.update( {'targetsPrefix': lcfg.targets_prefix,
                   'tag': lcfg.tag,
                   } )
-    
     target_path = get_target_path( args.taskname )
     
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
@@ -212,11 +147,10 @@ class DrawTriggerScaleFactors(luigi.Task):
             
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def requires(self):
-        #force_flag = FLAGS.force > self.args.hierarchy
-        return [ HaddTriggerEff(samples=self.args.data),
-                 #HaddTriggerEff(force=force_flag, samples=self.args.data),
+        force_flag = FLAGS.force > self.args.hierarchy
+        return [ HaddTriggerEff(force=force_flag, samples=self.args.data),
                  #HaddTriggerEff(force=force_flag, samples=args.mc_processes) ]
-                 SubmitTriggerEff(version='1', samples=self.args.mc_processes) ]
+                ]
 
 
 ########################################################################
@@ -244,8 +178,7 @@ if __name__ == "__main__":
     #         write_dummy_file(fname)
     
     #8 categories => at most 8 workers required
-    #last_task = DrawTriggerScaleFactors(force=FLAGS.force>0)
-    last_task = DrawTriggerScaleFactors()
+    last_task = DrawTriggerScaleFactors(force=FLAGS.force>0)
     if FLAGS.scheduler == 'central':
         luigi.build([last_task], workers=FLAGS.workers, local_scheduler=False, log_level='INFO')
     if FLAGS.scheduler == 'local':

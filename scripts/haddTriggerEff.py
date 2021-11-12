@@ -4,7 +4,7 @@ from utils import utils
 
 @utils.set_pure_input_namespace
 def haddTriggerEff_outputs(args):
-    target = os.path.join( args.indir , args.targetsPrefix + args.data_target + '.' + args.tag + '.root' )
+    target = os.path.join( args.indir , args.targetsPrefix + args.data_target + '.' + args.subtag + '.root' )
     return [target]
 
 @utils.set_pure_input_namespace
@@ -12,10 +12,6 @@ def haddTriggerEff(args):
     """
     adds the ROOT histograms produced in the preceding step
     """
-    #dir_in = '/data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_Radion_2018_fixedMETtriggers_mht_16Jun2021/output_trigEffBkg_TTCR_fixedtrig/'
-    dir_in = '/data_CMS/cms/alves/FRAMEWORKTEST/'
-
-    tag = 'metnomu200cut'
     processes = [
         #'DY',
         #'DY_lowMass',
@@ -47,8 +43,9 @@ def haddTriggerEff(args):
     command = 'hadd -f'
     inputs = ''
     for smpl in args.samples:
-        inputs += os.path.join(dir_in, smpl + '/*' + args.tag + '.root ')
-
+        inputs += os.path.join(args.indir, smpl + '/*' + args.subtag + '.root ')
+    print(inputs)
+    quit()
     # This likely has to be adapted if there is more than one target
     for t in target:
         os.system( command + ' ' + t + ' ' + inputs )

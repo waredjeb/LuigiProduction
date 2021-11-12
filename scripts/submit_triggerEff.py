@@ -61,7 +61,7 @@ for thisProc in args.processes:
     jobFile = os.path.join(jobDir, 'job_{}.sh'.format(thisProc))
 
     command =  ( ( '{prog} --indir {indir} --outdir {outdir} --sample {sample} '
-                   '--file ${{1}} --channels {channels} --htcut metnomu200cut\n' )
+                   '--file ${{1}} --subtag metnomu200cut --channels {channels}\n' )
                  .format( prog=prog, indir=args.indir, outdir=os.path.join(args.outdir, args.tag+'/'),
                           sample=thisProc, channels=' '.join(args.channels) )
                 )
