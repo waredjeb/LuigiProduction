@@ -14,10 +14,10 @@ _triggers = ('all', #all trig
              '13', '14'
              )
 _channels = ( 'all', 'etau', 'mutau', 'tautau', 'mumu' )
-_data = dict( MET = ['MET2018A',
-                     'MET2018B',
-                     'MET2018C',
-                     'MET2018D',] )
+_data = dict( MET2018 = ['MET2018A',
+                         'MET2018B',
+                         'MET2018C',
+                         'MET2018D',] )
 _mc_processes = dict( Radions = ['Radion_m300',
                                  'Radion_m400',
                                  'Radion_m500',
@@ -65,15 +65,13 @@ parser.add_argument(
 )
 parser.add_argument(
     '--data',
-    nargs='+', #1 or more arguments
     type=str,
     required=True,
     choices=_data.keys(),
     help='Select the data over which the workflow will be run.'
 )
 parser.add_argument(
-    '--mc_processes',
-    nargs='+', #1 or more arguments
+    '--mc_process',
     type=str,
     required=True,
     choices=_mc_processes.keys(),
@@ -161,7 +159,6 @@ class cfg(luigi.Config):
         default={ 'taskname': _rawname,
                   'hierarchy': _tasks.index(_rawname)+1,
                   'indir': tag_folder,
-                  'data_target': data_target,
                   'subtag': FLAGS.subtag} )
     ####
     #### compareTriggers
@@ -177,16 +174,20 @@ class cfg(luigi.Config):
     ####
     _rawname = set_task_name('drawsf')
     # clever way to flatten a nested list
-    _selected_mc_processes = sum([ _mc_processes[proc] for proc in FLAGS.mc_processes ], [])
-    _selected_data = sum([ _data[x] for x in FLAGS.data ], [])
-
+    #_selected_mc_process = sum([ _mc_processes[proc] for proc in FLAGS.mc_process ], [])
+    #_selected_data = sum([ _data[x] for x in FLAGS.data ], [])
+    _selected_mc_process = _mc_processes[FLAGS.mc_process]
+    _selected_data = _data[FLAGS.data]
+    
     drawsf_params = luigi.DictParameter(
         default={ 'taskname': _rawname,
                   'hierarchy': _tasks.index(_rawname)+1,
+                  'dataset_name': FLAGS.data,
+                  'mc_name': FLAGS.mc_process,
                   'data': _selected_data,
-                  'mc_processes': _selected_mc_processes,
+                  'mc_processes': _selected_mc_process,
                   'indir': tag_folder,
                   'triggers': FLAGS.triggers,
                   'channels': FLAGS.channels,
                   'subtag': FLAGS.subtag,
-                  'data_target': data_target } )
+                  'target_suffix': '_Sum' } )

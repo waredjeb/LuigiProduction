@@ -1,6 +1,7 @@
 import os
 import luigi
 import utils
+import inspect
 from utils import utils
 
 from luigi_conf.luigi_utils import WorkflowDebugger
@@ -41,6 +42,7 @@ def luigi_to_raw( param ):
 ########################################################################
 class HaddTriggerEff(ForceableEnsureRecentTarget):
     samples = luigi.ListParameter(significant=True)
+    target_suffix = luigi.Parameter(significant=True)
     args = utils.dotDict(lcfg.hadd_params)
     args.update( {'targetsPrefix': lcfg.targets_prefix,
                   'tag': lcfg.tag,
@@ -50,6 +52,7 @@ class HaddTriggerEff(ForceableEnsureRecentTarget):
     
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def output(self):
+        self.args['target_suffix'] = self.target_suffix
         targets = []
         targets_list = haddTriggerEff_outputs( self.args )
 
@@ -68,10 +71,11 @@ class HaddTriggerEff(ForceableEnsureRecentTarget):
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def run(self):
         self.args['samples'] = luigi_to_raw( self.samples )
-        print(args)
-        quit()
+        self.args['target_suffix'] = self.target_suffix
 
         haddTriggerEff( self.args )
+        
+
         
 ########################################################################
 ### COMPARE TRIGGERS ###################################################
@@ -143,15 +147,21 @@ class DrawTriggerScaleFactors(ForceableEnsureRecentTarget):
 
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def run(self):
+        print('++++++++++++++ DEBUG +++++++++++++++++')
+        print(self.args)
+        quit()
         drawTriggerSF( self.args )
             
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def requires(self):
         force_flag = FLAGS.force > self.args.hierarchy
-        return [ HaddTriggerEff(force=force_flag, samples=self.args.data),
-                 #HaddTriggerEff(force=force_flag, samples=args.mc_processes) ]
-                ]
+        add_extension = lambda x : x + self.args.target_suffix
 
+        return [ HaddTriggerEff(force=force_flag, samples=self.args.data,
+                                    target_suffix=add_extension(self.args.dataset_name) ),
+                 
+                 HaddTriggerEff(force=force_flag, samples=self.args.mc_processes,
+                                target_suffix=add_extension(self.args.mc_name) ) ]
 
 ########################################################################
 ### MAIN ###############################################################
