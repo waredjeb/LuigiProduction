@@ -6,12 +6,11 @@ from luigi.util import inherits
 ########################################################################
 ### ARGUMENT PARSING ###################################################
 ########################################################################
-_tasks = ( #'submit',
-    'hadd', 'comp', 'drawsf'
-)
+_tasks = ( 'submit', 'hadd', 'comp', 'drawsf')
 _triggers = ('all', #all trig
-             '9', '10', '11', '12',     #single trig
-             '13', '14'
+             #'9', '10', '11', '12',     #single trig
+             #'13', '14',
+             'met_et',
              )
 _channels = ( 'all', 'etau', 'mutau', 'tautau', 'mumu' )
 _data = dict( MET2018 = ['MET2018A',
@@ -105,6 +104,11 @@ parser.add_argument(
     help='Specifies a cut.'
 )
 parser.add_argument(
+    '--submit',
+    action='store_true',
+    help="Executes the submission to HTCondor."
+)
+parser.add_argument(
     '--debug_workflow',
     action='store_true',
     help="Explicitly print the functions being run for each task, for workflow debugging purposes."
@@ -135,21 +139,23 @@ class cfg(luigi.Config):
     tag_folder = os.path.join(data_storage, tag)
     targets_folder = os.path.join(data_storage, tag, 'targets')
     targets_default_name = 'DefaultTarget.txt'
-    targets_prefix = 'hist_'
+    targets_prefix = 'hist_eff_'
 
     data_input = '/data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_Radion_2018_fixedMETtriggers_mht_16Jun2021/'
 
     ####
     #### submitTriggerEff
     ####
-    # _rawname = set_task_name('submit')
-    # submit_params = luigi.DictParameter(
-    #     default={ 'taskname': _rawname,
-    #               'hierarchy': _tasks.index(_rawname)+1,
-    #               'indir': data_input,
-    #               'outdir': tag_folder,
-    #               'channels': FLAGS.channels,
-    #               'subtag': FLAGS.subtag, } )
+    _rawname = set_task_name('submit')
+    _all_processes = _mc_processes[FLAGS.mc_process] + _data[FLAGS.data]
+    submit_params = luigi.DictParameter(
+        default={ 'taskname': _rawname,
+                  'hierarchy': _tasks.index(_rawname)+1,
+                  'indir': data_input,
+                  'outdir': tag_folder,
+                  'processes': _all_processes,
+                  'channels': FLAGS.channels,
+                  'subtag': FLAGS.subtag} )
 
     ####
     #### haddTriggerEff

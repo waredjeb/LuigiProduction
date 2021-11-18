@@ -39,7 +39,7 @@ class LeafManager():
                 self.absent_leaves.add(leaf)
             return 0.
 
-def getTriggerEffSig(indir, outdir, sample, fileName, channels, subtag):
+def getTriggerEffSig(indir, outdir, sample, fileName, channels, subtag, tprefix):
     # -- Check if outdir exists, if not create it
     if not os.path.exists(outdir):
         os.makedirs(outdir)
@@ -191,7 +191,7 @@ def getTriggerEffSig(indir, outdir, sample, fileName, channels, subtag):
 
 
     file_id = ''.join( c for c in fileName[-10:] if c.isdigit() ) 
-    outName = os.path.join(outdir, 'hist_eff_'+sample+'_'+file_id+'.'+subtag+'.root')
+    outName = os.path.join(outdir, tprefix + sample + '_' + file_id + '.' + subtag + '.root')
     print('Saving file {} at {} '.format(file_id, outName) )
     f_out = ROOT.TFile(outName, 'RECREATE')
     f_out.cd()
@@ -220,9 +220,10 @@ parser.add_argument('--sample',   dest='sample',   required=True, help='Process 
 parser.add_argument('--file',     dest='fileName', required=True, help='ID of input root file')
 parser.add_argument('--subtag',   dest='subtag',  required=True,
                     help='Additional (sub)tag to differentiate similar runs within the same tag.')
+parser.add_argument('--tprefix',   dest='tprefix',  required=True, help='Targets name prefix.')
 parser.add_argument('--channels', dest='channels', required=True, nargs='+', type=str,
                     help='Select the channels over which the workflow will be run.' )
 
 args = parser.parse_args()
 
-getTriggerEffSig(args.indir, args.outdir, args.sample, args.fileName, args.channels, args.subtag)
+getTriggerEffSig(args.indir, args.outdir, args.sample, args.fileName, args.channels, args.subtag, args.tprefix)

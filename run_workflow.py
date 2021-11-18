@@ -1,4 +1,5 @@
 import os
+import time
 import luigi
 import utils
 import inspect
@@ -7,6 +8,7 @@ from utils import utils
 from luigi_conf.luigi_utils import WorkflowDebugger
 from luigi_conf.luigi_utils import is_force_mistake, ForceableEnsureRecentTarget
 
+from scripts.submitTriggerEff import submitTriggerEff, submitTriggerEff_outputs
 from scripts.haddTriggerEff import haddTriggerEff, haddTriggerEff_outputs
 from scripts.drawTriggerSF import drawTriggerSF, drawTriggerSF_outputs
 
@@ -36,7 +38,43 @@ def luigi_to_raw( param ):
         return [x for x in param]
     else:
         raise NotImplementedError('[' + inspect.stack()[0][3] + ']: ' + 'only tuples/lsits implemented so far!')
+
+########################################################################
+### SUBMIT TRIGGER EFFICIENCIES USING HTCONDOR #########################
+########################################################################
+class SubmitTriggerEff(ForceableEnsureRecentTarget):
+    args = utils.dotDict(lcfg.submit_params)
+    args.update( {'targetsPrefix': lcfg.targets_prefix,
+                  'tag': lcfg.tag,
+                  } )
     
+    target_path = get_target_path( args.taskname )
+    
+    @WorkflowDebugger(flag=FLAGS.debug_workflow)
+    def output(self):
+        targets = []
+        targets_list = submitTriggerEff_outputs( self.args )
+
+        #define luigi targets
+        for t in targets_list:
+            targets.append( luigi.LocalTarget(t) )
+
+        #write the target files for debugging
+        utils.remove( self.target_path )
+        with open( self.target_path, 'w' ) as f:
+            for t in targets_list:
+                f.write( t + '\n' )
+
+        return targets
+
+    @WorkflowDebugger(flag=FLAGS.debug_workflow)
+    def run(self):
+        submitTriggerEff( self.args )
+
+        time.sleep(1.0)
+        os.system('condor_q')
+        
+
 ########################################################################
 ### HADD TRIGGER EFFICIENCIES ##########################################
 ########################################################################
@@ -147,22 +185,8 @@ class DrawTriggerScaleFactors(ForceableEnsureRecentTarget):
 
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def run(self):
-        print('++++++++++++++ DEBUG +++++++++++++++++')
-        print(self.args)
-        quit()
         drawTriggerSF( self.args )
-            
-    @WorkflowDebugger(flag=FLAGS.debug_workflow)
-    def requires(self):
-        force_flag = FLAGS.force > self.args.hierarchy
-        add_extension = lambda x : x + self.args.target_suffix
-
-        return [ HaddTriggerEff(force=force_flag, samples=self.args.data,
-                                    target_suffix=add_extension(self.args.dataset_name) ),
-                 
-                 HaddTriggerEff(force=force_flag, samples=self.args.mc_processes,
-                                target_suffix=add_extension(self.args.mc_name) ) ]
-
+        
 ########################################################################
 ### MAIN ###############################################################
 ########################################################################
@@ -188,7 +212,10 @@ if __name__ == "__main__":
     #         write_dummy_file(fname)
     
     #8 categories => at most 8 workers required
-    last_task = DrawTriggerScaleFactors(force=FLAGS.force>0)
+    if FLAGS.submit:
+        last_task = SubmitTriggerEff(force=FLAGS.force>0)
+    else:
+        last_task = DrawTriggerScaleFactors(force=FLAGS.force>0)
     if FLAGS.scheduler == 'central':
         luigi.build([last_task], workers=FLAGS.workers, local_scheduler=False, log_level='INFO')
     if FLAGS.scheduler == 'local':
