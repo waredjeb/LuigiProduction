@@ -7,11 +7,11 @@ from luigi.util import inherits
 ### ARGUMENT PARSING ###################################################
 ########################################################################
 _tasks = ( 'submit', 'hadd', 'comp', 'drawsf')
-_triggers = ('all', #all trig
-             #'9', '10', '11', '12',     #single trig
-             #'13', '14',
-             'met_et',
+_triggers = ('nonStandard', #>=9
+             '9', '10', '11', '12',     #single trig
+             '13', '14',
              )
+_variables = ['met_et', 'HT20', 'mht_et', 'metnomu_et', 'mhtnomu_et', 'dau1_pt', 'dau2_pt']
 _channels = ( 'all', 'etau', 'mutau', 'tautau', 'mumu' )
 _data = dict( MET2018 = ['MET2018A',
                          'MET2018B',
@@ -92,6 +92,13 @@ parser.add_argument(
     help='Select the channels over which the workflow will be run.'
 )
 parser.add_argument(
+    '--variables',
+    nargs='+', #1 or more arguments
+    type=str,
+    default=_variables,
+    help='Select the variables over which the workflow will be run.'
+)
+parser.add_argument(
     '--tag',
     type=str,
     required=True,
@@ -147,14 +154,16 @@ class cfg(luigi.Config):
     #### submitTriggerEff
     ####
     _rawname = set_task_name('submit')
-    _all_processes = _mc_processes[FLAGS.mc_process] + _data[FLAGS.data]
     submit_params = luigi.DictParameter(
         default={ 'taskname': _rawname,
                   'hierarchy': _tasks.index(_rawname)+1,
                   'indir': data_input,
                   'outdir': tag_folder,
-                  'processes': _all_processes,
+                  'data': _data[FLAGS.data],
+                  'mc_processes': _mc_processes[FLAGS.mc_process],
+                  'triggers': FLAGS.triggers,
                   'channels': FLAGS.channels,
+                  'variables': FLAGS.variables,
                   'subtag': FLAGS.subtag} )
 
     ####
@@ -188,12 +197,56 @@ class cfg(luigi.Config):
     drawsf_params = luigi.DictParameter(
         default={ 'taskname': _rawname,
                   'hierarchy': _tasks.index(_rawname)+1,
-                  'dataset_name': FLAGS.data,
+                  'data_name': FLAGS.data,
                   'mc_name': FLAGS.mc_process,
                   'data': _selected_data,
                   'mc_processes': _selected_mc_process,
                   'indir': tag_folder,
                   'triggers': FLAGS.triggers,
                   'channels': FLAGS.channels,
+                  'variables': FLAGS.variables,
                   'subtag': FLAGS.subtag,
                   'target_suffix': '_Sum' } )
+
+"""
+DATA:
+@ bit position - path
+0 - HLT_IsoMu24_v
+1 - HLT_IsoMu27_v
+2 - HLT_Ele32_WPTight_Gsf_v
+3 - HLT_Ele35_WPTight_Gsf_v
+4 - HLT_DoubleTightChargedIsoPFTau35_Trk1_TightID_eta2p1_Reg_v
+5 - HLT_DoubleMediumChargedIsoPFTau40_Trk1_TightID_eta2p1_Reg_v
+6 - HLT_DoubleTightChargedIsoPFTau40_Trk1_eta2p1_Reg_v
+7 - HLT_DoubleMediumChargedIsoPFTauHPS35_Trk1_eta2p1_Reg_v
+8 - HLT_IsoMu20_eta2p1_LooseChargedIsoPFTauHPS27_eta2p1_CrossL1_v
+9 - HLT_IsoMu20_eta2p1_LooseChargedIsoPFTau27_eta2p1_CrossL1_v
+10 - HLT_Ele24_eta2p1_WPTight_Gsf_LooseChargedIsoPFTauHPS30_eta2p1_CrossL1_v
+11 - HLT_Ele24_eta2p1_WPTight_Gsf_LooseChargedIsoPFTau30_eta2p1_CrossL1_v
+12 - HLT_VBF_DoubleLooseChargedIsoPFTau20_Trk1_eta2p1_v
+13 - HLT_VBF_DoubleLooseChargedIsoPFTauHPS20_Trk1_eta2p1_v
+14 - HLT_PFHT500_PFMET100_PFMHT100_IDTight_v
+15 - HLT_PFMETNoMu120_PFMHTNoMu120_IDTight_v
+16 - HLT_PFMETNoMu120_PFMHTNoMu120_IDTight_PFHT60_v
+17 - HLT_MediumChargedIsoPFTau50_Trk30_eta2p1_1pr_MET100_v
+18 - HLT_MediumChargedIsoPFTau50_Trk30_eta2p1_1pr_MET110_v
+19 - HLT_MediumChargedIsoPFTau50_Trk30_eta2p1_1pr_MET130_v
+
+MC:
+@ bit position - path
+0 - HLT_IsoMu24_v
+1 - HLT_IsoMu27_v
+2 - HLT_Ele32_WPTight_Gsf_v
+3 - HLT_Ele35_WPTight_Gsf_v
+4 - HLT_DoubleMediumChargedIsoPFTauHPS35_Trk1_eta2p1_Reg_v
+5 - HLT_IsoMu20_eta2p1_LooseChargedIsoPFTauHPS27_eta2p1_CrossL1_v
+6 - HLT_Ele24_eta2p1_WPTight_Gsf_LooseChargedIsoPFTauHPS30_eta2p1_CrossL1_v
+7 - HLT_VBF_DoubleLooseChargedIsoPFTau20_Trk1_eta2p1_v
+8 - HLT_VBF_DoubleLooseChargedIsoPFTauHPS20_Trk1_eta2p1_v
+9 - HLT_PFHT500_PFMET100_PFMHT100_IDTight_v
+10 - HLT_PFMETNoMu120_PFMHTNoMu120_IDTight_v
+11 - HLT_PFMETNoMu120_PFMHTNoMu120_IDTight_PFHT60_v
+12 - HLT_MediumChargedIsoPFTau50_Trk30_eta2p1_1pr_MET100_v
+13 - HLT_MediumChargedIsoPFTau50_Trk30_eta2p1_1pr_MET110_v
+14 - HLT_MediumChargedIsoPFTau50_Trk30_eta2p1_1pr_MET130_v
+"""

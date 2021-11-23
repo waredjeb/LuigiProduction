@@ -58,22 +58,26 @@ def RedrawBorder():
   l.DrawLine(gPad.GetUxmin(), gPad.GetUymin(), gPad.GetUxmin(), gPad.GetUymax()) #left border
   l.DrawLine(gPad.GetUxmin(), gPad.GetUymin(), gPad.GetUxmax(), gPad.GetUymin()) #bottom border
 
-def check_trigger(args, proc, trig, channel, save_names):
+def check_trigger(args, proc, channel, variable, trig, save_names):
   _name = lambda a,b,c,d : a + b + c + '.' + d + '.root'
   fname = _name(args.targetsPrefix, args.mc_name,
                 args.target_suffix, args.subtag )
   # fname_data = args.targetsPrefix+data+'_sum.HTcut600.root'
-  fname_data = _name( args.targetsPrefix, args.dataset_name,
+  fname_data = _name( args.targetsPrefix, args.data_name,
                       args.target_suffix, args.subtag )
 
-  f_data = TFile( os.path.join(args.indir, fname_data), 'READ');
-  f_in   = TFile( os.path.join(args.indir, fname), 'READ');
+  f_data_name = os.path.join(args.indir, fname_data)
+  f_data = TFile( f_data_name, 'READ');
+  f_in_name = os.path.join(args.indir, fname)
+  f_in   = TFile( f_in_name, 'READ');
 
-  print( 'Opening file: {}'.format( os.path.join(args.indir, fname) ) )
+  print('Open files:')
+  print( ' - Data: {}'.format(f_data_name))
+  print( ' - MC: {}'.format(f_in_name))
     
-  hname_all     = 'passALL_'     + channel
-  hname_met     = 'passMET_'     + channel + '_' + trig
-  hname_metonly = 'passMETonly_' + channel + '_' + trig
+  hname_all     = 'passALL_{}_{}'.format(channel, variable)
+  hname_met     = 'passMET_{}_{}_{}'.format(channel, variable, trig)
+  hname_metonly = 'passMETonly_{}_{}_{}'.format(channel, variable, trig)
   hname_met.replace('_all_all','_all')
   hname_metonly.replace('_all_all','_all')
 
@@ -291,14 +295,15 @@ def drawTriggerSF_outputs(args):
   outputs_png, outputs_pdf = ([] for _ in range(2))
   for proc in args.mc_processes:
     for trig in args.triggers:
-      canvas_name = 'triggerSF_' + args.dataset_name + '_' + proc + '_trig_' + trig + '.' + args.subtag
-      for ch in args.channels:
-        basename = os.path.join(args.indir, 'fig', ch, 'png', '')
-        utils.create_single_dir(basename)
-        png_out = os.path.join(basename, canvas_name + '.png')
-        outputs_png.append(png_out)
-        pdf_out = os.path.join(args.indir, 'fig', ch, 'pdf', canvas_name +'.pdf')
-        outputs_pdf.append(pdf_out)
+      canvas_name = 'triggerSF_' + args.data_name + '_' + proc + '_trig_' + trig + '.' + args.subtag
+      for var in args.variables:
+        for ch in args.channels:
+          basename = os.path.join(args.indir, 'fig', ch, var, 'png', '')
+          utils.create_single_dir(basename)
+          png_out = os.path.join(basename, canvas_name + '.png')
+          outputs_png.append(png_out)
+          pdf_out = os.path.join(args.indir, 'fig', ch, var, 'pdf', canvas_name +'.pdf')
+          outputs_pdf.append(pdf_out)
   outputs_png.extend(outputs_pdf) #join all outputs in the same list
 
   return outputs_png
@@ -306,15 +311,17 @@ def drawTriggerSF_outputs(args):
 @utils.set_pure_input_namespace
 def drawTriggerSF(args):
   outputs = drawTriggerSF_outputs(args)
-  dim3 = len(args.channels)
-  dim2 = len(args.triggers) * dim3
-  dim1 = len(args.mc_processes) * dim2
-  for i,proc in enumerate(args.mc_processes):
-    for j,trig in enumerate(args.triggers):
-      for ch in args.channels:
-        names = ( outputs[i*dim2 + j*dim3],
-                  outputs[i*dim2 + j*dim3 + dim1] )
-        check_trigger( args, proc, trig, ch, names )
+  dt = len(args.triggers)
+  dv = len(args.variables) * dt
+  dc = len(args.channels) * dv
+  dp = len(args.mc_processes) * dc
+  for ip,proc in enumerate(args.mc_processes):
+    for ic,ch in enumerate(args.channels):
+      for iv,var in enumerate(args.variables):
+        for it,trig in enumerate(args.triggers):
+          index = ip*dc + ic*dv + iv*dt + it
+          names = ( outputs[index], outputs[index + dp] )
+          check_trigger( args, proc, ch, var, trig, names )
         
 # check_trigger( 'MET2018_partial', i, 'HTcut600', j, 'all'     , true) #comb
 # check_trigger( 'MET2018_partial', i, 'HTcut600', j,  'etau'   , true) #mutau
@@ -349,4 +356,4 @@ if __name__ == '__main__':
     parser.add_argument('-p', '--mc_processes', help='MC processes to be analyzed: Radions, TT, ...', required=True)
     args = parser.parse_args()
 
-    drawTriggerSF(args) 
+    drawTriggerSF(args)

@@ -1,6 +1,7 @@
 import re
 import os
 import sys
+import functools
 import argparse
 import fnmatch
 import math
@@ -39,7 +40,9 @@ class LeafManager():
                 self.absent_leaves.add(leaf)
             return 0.
 
-def getTriggerEffSig(indir, outdir, sample, fileName, channels, subtag, tprefix):
+def getTriggerEffSig(indir, outdir, sample, fileName,
+                     channels, variables, triggers,
+                     subtag, tprefix, isData):
     # -- Check if outdir exists, if not create it
     if not os.path.exists(outdir):
         os.makedirs(outdir)
@@ -47,29 +50,39 @@ def getTriggerEffSig(indir, outdir, sample, fileName, channels, subtag, tprefix)
         os.makedirs( os.path.join(outdir, sample) )
     outdir = os.path.join(outdir, sample)
 
-    
+    # -- Shift triggers for the data (MC and data triggers do not match)
+    if isData:
+        shiftedTriggers = []
+        for t in triggers:
+            try:
+                shiftedTriggers.append(int(t)+5) #shift based on HLT trigger bits
+            except ValueError:
+                if t == 'nonStandard':
+                    shiftedTriggers.append('nonStandard')
+                else:
+                    raise
+    else:
+        shiftedTriggers = triggers
+        
     # -- Define histograms
     h_MET, h_METonly, h_ALL= {},{},{}
-    cat = channels
-    #trg = ['9','10','11']#,'12','13','14', 'all']
-    trg = ['MET','Tau','TauMET']
-    var = ['met_et', 'HT20', 'mht_et', 'metnomu_et', 'mhtnomu_et', 'dau1_pt', 'dau2_pt']
-    
-    for i in cat:
+
+    for i in channels:
+
         h_MET[i] = {}
         h_METonly[i] = {}
         h_ALL[i] = {}
-        for j in var:
+        for j in variables:
+            hall_name = 'passALL_{}_{}'.format(i,j)
             h_MET[i][j]={}
             h_METonly[i][j] = {}
                 
-            h_ALL[i][j] = ROOT.TH1D('passALL_{}_{}'.format(i,j), '', 6, 0., 600.)
-            for k in trg:
-                h_MET[i][j][k] = ROOT.TH1D('passMET_{}_{}_{}'.format(i,j,k),     '',6,0.,600.)
-                h_METonly[i][j][k] = ROOT.TH1D('passMETonly_{}_{}_{}'.format(i,j,k),     '',6,0.,600.)
-
-
-    isData = ('2018' in sample) # TODO
+            h_ALL[i][j] = ROOT.TH1D(hall_name,'', 6, 0., 600.)
+            for k in triggers:
+                hmet_name = 'passMET_{}_{}_{}'.format(i,j,k)
+                h_MET[i][j][k] = ROOT.TH1D(hmet_name, '', 6, 0., 600.)
+                hmetonly_name = 'passMETOnly_{}_{}_{}'.format(i,j,k)
+                h_METonly[i][j][k] = ROOT.TH1D(hmetonly_name, '', 6, 0., 600.)
 
     fname = os.path.join(indir, 'SKIM_'+sample, fileName)
     f_in = ROOT.TFile( fname )
@@ -126,15 +139,16 @@ def getTriggerEffSig(indir, outdir, sample, fileName, channels, subtag, tprefix)
 
         evtW = pureweight*trigsf*lumi*idandiso
         if np.isnan(evtW): evtW=1
-        if isData: evtW=1.
+        if isData:
+            evtW=1.
         sumweights+=evtW
 
         MET    = lf.getLeaf('met_et')
         HTfull = lf.getLeaf('HT20')
 
-        for v in var:
+        for v in variables:
             fillVar[v] = lf.getLeaf(v)
-        for j in var:
+        for j in variables:
             if fillVar[j]>600: fillVar[j]=599. # include overflow
 
         passMET = lf.getLeaf(   'isMETtrigger')
@@ -143,26 +157,30 @@ def getTriggerEffSig(indir, outdir, sample, fileName, channels, subtag, tprefix)
         passTAUMET = lf.getLeaf('isTauMETtrigger')
 
         trigBit = lf.getLeaf('pass_triggerbit')
+        if isData:
+            nonStandTrigBits = [CheckBit(trigBit, i) for i in range(14,20)]
+        else:
+            nonStandTrigBits = [CheckBit(trigBit, i) for i in range(9,15)]
         
         passReq = {}
-        #req=[9,10,11]#,12,13,14]
-        #if isData:
-        #    req=[14,15,16]#,17,18,19]
-        #
-        #passReq['9']  = CheckBit(trigBit,req[0])
-        #passReq['10'] = CheckBit(trigBit,req[1])
-        #passReq['11'] = CheckBit(trigBit,req[2])
-        ##passReq['12'] = CheckBit(trigBit,req[3])
-        ##passReq['13'] = CheckBit(trigBit,req[4])
-        ##passReq['14'] = CheckBit(trigBit,req[5])
+        for trig in triggers:
+            try:
+                passReq[trig] = CheckBit(trigBit, int(trig))
+            except ValueError:
+                if trig == 'nonStandard':
+                    passReq[trig] = functools.reduce(lambda x,y: x or y,
+                                                     nonStandTrigBits)
+                else:
+                    raise
+
         passReq['MET'] = passMET
         passReq['Tau'] = passTAU
         passReq['TauMET'] = passTAUMET
-        #
-        passMu   = passLEP and (CheckBit(trigBit,0) or CheckBit(trigBit,1))
+        
+        passMu = passLEP and (CheckBit(trigBit,0) or CheckBit(trigBit,1))
 
         if passLEP:
-            for i in cat:
+            for i in channels:
                 cond = (   ( i=='all'    and pairtype<3  ) 
                         or ( i=='mutau'  and pairtype==0 ) 
                         or ( i=='etau'   and pairtype==1 )  
@@ -170,22 +188,22 @@ def getTriggerEffSig(indir, outdir, sample, fileName, channels, subtag, tprefix)
                         or ( i=='mumu'   and pairtype==3 and passMu) 
                         or ( i=='ee'     and pairtype==4 ))
                 if cond: 
-                    for j in var:
+                    for j in variables:
                         h_ALL[i][j].Fill(fillVar[j],evtW)
-                for j in var:
-                    for k in trg:
+                for j in variables:
+                    for k in triggers:
                         if cond and passReq[k]:
                             h_MET[i][j][k].Fill(fillVar[j],evtW)
         else:
-            for i in cat:
+            for i in channels:
                 cond = (   ( i=='all'    and pairtype<3  ) 
                         or ( i=='mutau'  and pairtype==0 ) 
                         or ( i=='etau'   and pairtype==1 )  
                         or ( i=='tautau' and pairtype==2 )
                         or ( i=='mumu'   and pairtype==3 and passMu ) 
                         or ( i=='ee'     and pairtype==4 ))
-                for j in var:
-                    for k in trg:
+                for j in variables:
+                    for k in triggers:
                         if cond and passReq[k]:
                             h_METonly[i][j][k].Fill(fillVar[j],evtW)
 
@@ -196,17 +214,15 @@ def getTriggerEffSig(indir, outdir, sample, fileName, channels, subtag, tprefix)
     f_out = ROOT.TFile(outName, 'RECREATE')
     f_out.cd()
 
-    for i in cat:
-        for j in var:
+    for i in channels:
+        for j in variables:
             h_ALL[i][j].Write('passALL_{}_{}'.format(i,j))
-            for k in trg:
-                h_MET[i][j][k].Write('pass{}_{}_{}'.format(k,i,j))
-                h_METonly[i][j][k].Write('pass{}only_{}_{}'.format(k,i,j))
+            for k in triggers:
+                h_MET[i][j][k].Write('passMET_{}_{}_{}'.format(i,j,k))
+                h_METonly[i][j][k].Write('passMETOnly_{}_{}_{}'.format(i,j,k))
 
     f_out.Close()
     f_in.Close()
-
-
 
 #Run example:
 #python3 /home/llr/cms/alves/METTriggerStudies/scripts/getTriggerEffSig.py --indir /data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_Radion_2018_fixedMETtriggers_mht_16Jun2021/ --outdir /data_CMS/cms/alves/FRAMEWORKTEST/ --sample MET2018A --file output_0.root --channels all etau mutau tautau mumu --subtag metnomu200cut
@@ -214,16 +230,23 @@ def getTriggerEffSig(indir, outdir, sample, fileName, channels, subtag, tprefix)
 # -- Parse input arguments
 parser = argparse.ArgumentParser(description='Command line parser')
 
-parser.add_argument('--indir',    dest='indir',    required=True, help='SKIM directory')
-parser.add_argument('--outdir',   dest='outdir',   required=True, help='output directory')
-parser.add_argument('--sample',   dest='sample',   required=True, help='Process name as in SKIM directory')
-parser.add_argument('--file',     dest='fileName', required=True, help='ID of input root file')
-parser.add_argument('--subtag',   dest='subtag',  required=True,
+parser.add_argument('--indir',    dest='indir',     required=True, help='SKIM directory')
+parser.add_argument('--outdir',   dest='outdir',    required=True, help='output directory')
+parser.add_argument('--sample',   dest='sample',    required=True, help='Process name as in SKIM directory')
+parser.add_argument('--isData',   dest='isData',    required=True, help='Whether it is data or MC', type=int)
+parser.add_argument('--file',     dest='fileName',  required=True, help='ID of input root file')
+parser.add_argument('--subtag',   dest='subtag',    required=True,
                     help='Additional (sub)tag to differentiate similar runs within the same tag.')
-parser.add_argument('--tprefix',   dest='tprefix',  required=True, help='Targets name prefix.')
-parser.add_argument('--channels', dest='channels', required=True, nargs='+', type=str,
+parser.add_argument('--tprefix',  dest='tprefix',   required=True, help='Targets name prefix.')
+parser.add_argument('--channels', dest='channels',  required=True, nargs='+', type=str,
                     help='Select the channels over which the workflow will be run.' )
+parser.add_argument('--triggers', dest='triggers',  required=True, nargs='+', type=str,
+                    help='Select the triggers over which the workflow will be run.' )
+parser.add_argument('--variables', dest='variables', required=True, nargs='+', type=str,
+                    help='Select the variables over which the workflow will be run.' )
 
 args = parser.parse_args()
 
-getTriggerEffSig(args.indir, args.outdir, args.sample, args.fileName, args.channels, args.subtag, args.tprefix)
+getTriggerEffSig(args.indir, args.outdir, args.sample, args.fileName,
+                 args.channels, args.variables, args.triggers,
+                 args.subtag, args.tprefix, args.isData)

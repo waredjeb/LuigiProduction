@@ -4,8 +4,7 @@ from utils import utils
 
 @utils.set_pure_input_namespace
 def haddTriggerEff_outputs(args):
-    target = os.path.join( args.indir , args.targetsPrefix + args.target_suffix + '.' + args.subtag + '.root' )
-   
+    target = os.path.join( args.indir , args.targetsPrefix + args.dataset_name + args.target_suffix + '.' + args.subtag + '.root' )
     return [target]
 
 @utils.set_pure_input_namespace
@@ -14,7 +13,7 @@ def haddTriggerEff(args):
     adds the ROOT histograms produced in the preceding step
     """
     target = haddTriggerEff_outputs(args)
-
+    
     command = 'hadd -f'
     inputs = ''
     for smpl in args.samples:

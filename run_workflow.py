@@ -79,8 +79,9 @@ class SubmitTriggerEff(ForceableEnsureRecentTarget):
 ### HADD TRIGGER EFFICIENCIES ##########################################
 ########################################################################
 class HaddTriggerEff(ForceableEnsureRecentTarget):
-    samples = luigi.ListParameter(significant=True)
-    target_suffix = luigi.Parameter(significant=True)
+    samples = luigi.ListParameter()
+    target_suffix = luigi.Parameter()
+    dataset_name = luigi.Parameter()
     args = utils.dotDict(lcfg.hadd_params)
     args.update( {'targetsPrefix': lcfg.targets_prefix,
                   'tag': lcfg.tag,
@@ -90,7 +91,9 @@ class HaddTriggerEff(ForceableEnsureRecentTarget):
     
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def output(self):
+        self.args['samples'] = luigi_to_raw( self.samples )
         self.args['target_suffix'] = self.target_suffix
+        self.args['dataset_name'] = self.dataset_name
         targets = []
         targets_list = haddTriggerEff_outputs( self.args )
 
@@ -110,10 +113,8 @@ class HaddTriggerEff(ForceableEnsureRecentTarget):
     def run(self):
         self.args['samples'] = luigi_to_raw( self.samples )
         self.args['target_suffix'] = self.target_suffix
-
+        self.args['dataset_name'] = self.dataset_name
         haddTriggerEff( self.args )
-        
-
         
 ########################################################################
 ### COMPARE TRIGGERS ###################################################
@@ -186,6 +187,16 @@ class DrawTriggerScaleFactors(ForceableEnsureRecentTarget):
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def run(self):
         drawTriggerSF( self.args )
+
+    @WorkflowDebugger(flag=FLAGS.debug_workflow)
+    def requires(self):
+        force_flag = FLAGS.force > self.args.hierarchy
+        return [ HaddTriggerEff(force=force_flag, samples=self.args.data,
+                                target_suffix=self.args.target_suffix,
+                                dataset_name=self.args.data_name),
+                 HaddTriggerEff(force=force_flag, samples=self.args.mc_processes,
+                                target_suffix=self.args.target_suffix,
+                                dataset_name=self.args.mc_name) ]
         
 ########################################################################
 ### MAIN ###############################################################
