@@ -29,12 +29,19 @@ Check the meaning of the arguments by adding ```--help```.
 
 - Running the ```luigi``` workflow
 
-TODO
+To run the submission workflow, please type the following:
+
+```shell
+LUIGI_CONFIG_PATH=luigi.cfg; python3 run_workflow.py --user alves --scheduler local --force 0 --workers 2 --tag v1 --data MET2018 --mc_process TT --triggers nonStandard 9 10 11 12 13 14 --submit
+```
+
+To run the remaining part of the (local) workflow, run the same command without the ```--submit``` flag.
+
 
 
 -------------------------------------
 
-### Luigi Workflow
+### Notes on the ```luigi```
 
 The advantages of using a workflow management system as ```luigi``` are the following:
 
@@ -45,12 +52,6 @@ The advantages of using a workflow management system as ```luigi``` are the foll
 - when two tasks do not share dependencies they can run in parallel
 
 A standard ```luigi.Task``` is run when its outputs do not yet exist. By subclassing it and overwrite its ```complete()``` method, one can control this behaviour. This is done in ```luigi_utils.py```.
-
-To run the workflow, please type the following:
-
-```shell
-LUIGI_CONFIG_PATH=luigi.cfg; python run_workflow.py --user <lxplus username> --scheduler <local|central> --force <#> --workers <#> --tag <some_tag>
-```
 
 If one chooses ```--scheduler central```, one has to run ```luigid &``` first, and can control the number of workers to be used via ```--workers <number_of_workers>```. 
 

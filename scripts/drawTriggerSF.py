@@ -1,7 +1,10 @@
 import os
 import argparse
+import ctypes
+import numpy as np
 from copy import copy
 
+import ROOT
 from ROOT import TCanvas
 from ROOT import TPad
 from ROOT import TStyle
@@ -48,17 +51,17 @@ def RedrawBorder():
   """
   this little macro redraws the axis tick marks and the pad border lines.
   """
-  gPad.Update();
-  gPad.RedrawAxis()
+  ROOT.gPad.Update();
+  ROOT.gPad.RedrawAxis()
   l = TLine()
   l.SetLineWidth(2)
 
-  l.DrawLine(gPad.GetUxmin(), gPad.GetUymax(), gPad.GetUxmax(), gPad.GetUymax()) #top border
-  l.DrawLine(gPad.GetUxmax(), gPad.GetUymin(), gPad.GetUxmax(), gPad.GetUymax()) #right border
-  l.DrawLine(gPad.GetUxmin(), gPad.GetUymin(), gPad.GetUxmin(), gPad.GetUymax()) #left border
-  l.DrawLine(gPad.GetUxmin(), gPad.GetUymin(), gPad.GetUxmax(), gPad.GetUymin()) #bottom border
+  l.DrawLine(ROOT.gPad.GetUxmin(), ROOT.gPad.GetUymax(), ROOT.gPad.GetUxmax(), ROOT.gPad.GetUymax()) #top border
+  l.DrawLine(ROOT.gPad.GetUxmax(), ROOT.gPad.GetUymin(), ROOT.gPad.GetUxmax(), ROOT.gPad.GetUymax()) #right border
+  l.DrawLine(ROOT.gPad.GetUxmin(), ROOT.gPad.GetUymin(), ROOT.gPad.GetUxmin(), ROOT.gPad.GetUymax()) #left border
+  l.DrawLine(ROOT.gPad.GetUxmin(), ROOT.gPad.GetUymin(), ROOT.gPad.GetUxmax(), ROOT.gPad.GetUymin()) #bottom border
 
-def check_trigger(args, proc, channel, variable, trig, save_names):
+def checkTrigger(args, proc, channel, variable, trig, save_names):
   _name = lambda a,b,c,d : a + b + c + '.' + d + '.root'
   fname = _name(args.targetsPrefix, args.mc_name,
                 args.target_suffix, args.subtag )
@@ -71,13 +74,16 @@ def check_trigger(args, proc, channel, variable, trig, save_names):
   f_in_name = os.path.join(args.indir, fname)
   f_in   = TFile( f_in_name, 'READ');
 
-  print('Open files:')
-  print( ' - Data: {}'.format(f_data_name))
-  print( ' - MC: {}'.format(f_in_name))
+  if args.debug:
+    print('Open files:')
+    print(' - Data: {}'.format(f_data_name))
+    print(' - MC: {}'.format(f_in_name))
+    print(' - Args: proc={proc}, channel={channel}, variable={variable}, trig={trig}'
+          .format(proc=proc, channel=channel, variable=variable, trig=trig))
     
   hname_all     = 'passALL_{}_{}'.format(channel, variable)
   hname_met     = 'passMET_{}_{}_{}'.format(channel, variable, trig)
-  hname_metonly = 'passMETonly_{}_{}_{}'.format(channel, variable, trig)
+  hname_metonly = 'passMETOnly_{}_{}_{}'.format(channel, variable, trig)
   hname_met.replace('_all_all','_all')
   hname_metonly.replace('_all_all','_all')
 
@@ -96,15 +102,16 @@ def check_trigger(args, proc, channel, variable, trig, save_names):
   #  d_passALL     .Rebin(3)
   #  d_passMETonly .Rebin(3)
 
-  print('effmc')
-  
+  if args.debug:
+    print('Calculating MC efficiency...')  
   effmc = TEfficiency(h_passMET, h_passALL)
   heffmc = h_passMET.Clone('h_eff')
   geffmc = TGraphAsymmErrors()
   geffmc.Divide(heffmc,h_passALL,'cp')
   heffmc.Divide(heffmc,h_passALL,1,1,'B')
-  
-  print('effdata')
+
+  if args.debug:
+    print('Calculating Data efficiency...')  
   eff = TEfficiency(d_passMET, d_passALL)
   heff = d_passMET.Clone('d_eff')
   geff = TGraphAsymmErrors()
@@ -119,11 +126,20 @@ def check_trigger(args, proc, channel, variable, trig, save_names):
   ye_up, ye_down = ( [[] for _ in range(sizelist)] for _ in range(2) )
   
   for i in range(sizelist):
+    #ctypes conversions needed
+    xp[i] = ctypes.c_double(0.)
+    yp[i] = ctypes.c_double(0.)
     geffmc.GetPoint(i, xp[i], yp[i])
+    xp[i] = xp[i].value
+    yp[i] = yp[i].value
+
     ye_up[i] = geffmc.GetErrorYhigh(i)
     ye_down[i] = geffmc.GetErrorYlow(i)
-    print('xp[{}] = {} - yp[{}] = {} +{}/-{}\n'.format(i,xp[i],i,yp[i],ye_up[i],ye_down[i]))
-  print('=======')
+    if args.debug:
+      print('xp[{}] = {} - yp[{}] = {} +{}/-{}\n'.format(i,xp[i],i,yp[i],ye_up[i],ye_down[i]))
+
+  if args.debug:
+    print('=======')
 
   dxp, dyp = ( [[] for _ in range(sizelist)] for _ in range(2) )
   dye_up, dye_down = ( [[] for _ in range(sizelist)] for _ in range(2) )
@@ -132,36 +148,48 @@ def check_trigger(args, proc, channel, variable, trig, save_names):
   sf_ye_up, sf_ye_down = ( [[] for _ in range(sizelist)] for _ in range(2) )
   
   for i in range(sizelist):
-    geff.GetPoint(i,dxp[i],dyp[i])
+    dxp[i] = ctypes.c_double(0.)
+    dyp[i] = ctypes.c_double(0.)
+    geff.GetPoint(i, dxp[i], dyp[i])
+    dxp[i] = dxp[i].value
+    dyp[i] = dyp[i].value
+    
     dye_up[i] = geff.GetErrorYhigh(i)
     dye_down[i] = geff.GetErrorYlow(i)
-    printf('xp[%d] = %g - yp[%d] = %g +%g/-%g\n',i,dxp[i],i,dyp[i],dye_up[i],dye_down[i])
+    if args.debug:
+      print('xp[{}] = {} - yp[{}] = {} +{}/-{}\n'.format(i,dxp[i],i,dyp[i],dye_up[i],dye_down[i]))
 
-  sf_xp[i] = xp[i]
-  sf_yp[i] = dyp[i]/yp[i]
-  sf_ye_up[i]   = np.sqrt( ye_up[i]*ye_up[i] + dye_up[i]*dye_up[i] )
-  sf_ye_down[i] = np.sqrt( ye_down[i]*ye_down[i] + dye_down[i]*dye_down[i] )
-    
-  print('=== SF ====')
-  for i in range(sizelist):
-    print('xp[{}] = [] - yp[{}] = {} +{}/-{}\n'.format(i,sf_xp[i],i,sf_yp[i],sf_ye_up[i],sf_ye_down[i]))
+    sf_xp[i] = xp[i]
+    sf_yp[i] = dyp[i]/yp[i]
+    sf_ye_up[i]   = np.sqrt( ye_up[i]*ye_up[i] + dye_up[i]*dye_up[i] )
+    sf_ye_down[i] = np.sqrt( ye_down[i]*ye_down[i] + dye_down[i]*dye_down[i] )
 
-  print('all good')
+  if args.debug:
+    print('=== Scale Factors ====')
+    for i in range(sizelist):
+      print('xp[{}] = {} - yp[{}] = {} +{}/-{}\n'.format(i,sf_xp[i],i,sf_yp[i],sf_ye_up[i],sf_ye_down[i]))
+
+    print('all good')
   
   effmc = TEfficiency(h_passMET, h_passALL)
   sf1 = heff.Clone('sf')
-  a = [50 for _ in range(sizelist)]
-  sf = TGraphAsymmErrors(sizelist, sf_xp, sf_yp, a, a, sf_ye_down, sf_ye_up)
-  sf.Divide(heffmc)
+  a = np.array([50 for _ in range(sizelist)])
+
+  sf = TGraphAsymmErrors(sizelist,
+                         np.array(sf_xp).astype(dtype=np.double), np.array(sf_yp).astype(dtype=np.double),
+                         a.astype(dtype=np.double), a.astype(dtype=np.double),
+                         np.array(sf_ye_down).astype(dtype=np.double), np.array(sf_ye_up).astype(dtype=np.double))
+  #sf.Divide(heffmc) COMMENT???
   sf.Divide(sf1, heffmc, 'cp')
-  print('all good 2')
+  if args.debug:
+    print('all good 2')
   
   #DRAW MET & TRIG EFF ON SAME CANVAS
   #c1 = TCanvas('c1','',600,400)
   
   canvas = TCanvas('canvas', '', 600, 600)
-  gStyle.SetOptStat(0)
-  gStyle.SetOptTitle(0)
+  ROOT.gStyle.SetOptStat(0)
+  ROOT.gStyle.SetOptTitle(0)
   canvas.cd()
   
   eff.SetLineColor(1)
@@ -170,17 +198,17 @@ def check_trigger(args, proc, channel, variable, trig, save_names):
   eff.SetMarkerSize(1.5)
   eff.SetMarkerStyle(20)
     
-  effmc.SetLineColor(kRed)
+  effmc.SetLineColor(ROOT.kRed)
   effmc.SetLineWidth(2)
-  effmc.SetMarkerColor(kRed)
+  effmc.SetMarkerColor(ROOT.kRed)
   effmc.SetMarkerSize(1.4)
   effmc.SetMarkerStyle(22)
   
-  sff.SetLineColor(kRed)
-  sff.SetLineWidth(2)
-  sff.SetMarkerColor(kRed)
-  sff.SetMarkerSize(1.4)
-  sff.SetMarkerStyle(22)
+  sf.SetLineColor(ROOT.kRed)
+  sf.SetLineWidth(2)
+  sf.SetMarkerColor(ROOT.kRed)
+  sf.SetMarkerSize(1.4)
+  sf.SetMarkerStyle(22)
   
   #  TH1D *line_sf      = (TH1D*)sf      . Clone( 'line_sf     ' )
   #  TH1D *line_eff     = (TH1D*)eff     . Clone( 'line_eff    ' )
@@ -191,8 +219,8 @@ def check_trigger(args, proc, channel, variable, trig, save_names):
   #    line_effmc   . SetBinError(i, 0.000000001 )
   #  }
   
-  
-  print('did it break')
+  if args.debug:
+    print('did it break')
   
   pad1 = TPad('pad1', 'pad1', 0, 0.35, 1, 1)
   pad1.SetBottomMargin(0.005)
@@ -226,7 +254,7 @@ def check_trigger(args, proc, channel, variable, trig, save_names):
   leg.SetTextFont(42)
   
   leg.AddEntry(eff, 'Data', 'p')
-  sprintf(message, proc)
+  #sprintf(message, proc)
   leg.AddEntry(effmc, proc, 'p')
   leg.Draw('same')
   
@@ -265,8 +293,8 @@ def check_trigger(args, proc, channel, variable, trig, save_names):
   axor2.GetYaxis().SetTitleOffset(0.45)
   axor2.GetYaxis().SetTitle('Data/MC')
   axor2.GetXaxis().SetTitle('MET [GeV]')
-  if strstr(args.subtag,'MET'):
-    axor2.GetXaxis().SetTitle('H_{T} [GeV]')
+  #if strstr(args.subtag,'MET'):
+  #  axor2.GetXaxis().SetTitle('H_{T} [GeV]')
     
   axor2.Draw()
   line = TLine(20,1,120,1)
@@ -321,7 +349,9 @@ def drawTriggerSF(args):
         for it,trig in enumerate(args.triggers):
           index = ip*dc + ic*dv + iv*dt + it
           names = ( outputs[index], outputs[index + dp] )
-          check_trigger( args, proc, ch, var, trig, names )
+          if args.debug:
+            print('Calling checkTrigger: ' + proc, ch, var, trig, names)
+          checkTrigger( args, proc, ch, var, trig, names )
         
 # check_trigger( 'MET2018_partial', i, 'HTcut600', j, 'all'     , true) #comb
 # check_trigger( 'MET2018_partial', i, 'HTcut600', j,  'etau'   , true) #mutau
@@ -353,7 +383,9 @@ if __name__ == '__main__':
     parser.add_argument('-i', '--indir', help='Inputs directory', required=True)
     parser.add_argument('-x', '--targetsPrefix', help='prefix to the names of the produced outputs (targets in luigi lingo)', required=True)
     parser.add_argument('-t', '--tag', help='string to diferentiate between different workflow runs', required=True)
+    parser.add_argument('-d', '--data', help='dataset to be analyzed/plotted', required=True)
     parser.add_argument('-p', '--mc_processes', help='MC processes to be analyzed: Radions, TT, ...', required=True)
+    parser.add_argument('--debug', action='store_true', help='debug verbosity')
     args = parser.parse_args()
 
     drawTriggerSF(args)

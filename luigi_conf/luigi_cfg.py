@@ -206,7 +206,8 @@ class cfg(luigi.Config):
                   'channels': FLAGS.channels,
                   'variables': FLAGS.variables,
                   'subtag': FLAGS.subtag,
-                  'target_suffix': '_Sum' } )
+                  'target_suffix': '_Sum',
+                  'debug': FLAGS.debug_workflow,} )
 
 """
 DATA:
