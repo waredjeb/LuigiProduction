@@ -32,7 +32,7 @@ Check the meaning of the arguments by adding ```--help```.
 To run the submission workflow, please type the following:
 
 ```shell
-LUIGI_CONFIG_PATH=luigi.cfg; python3 run_workflow.py --user alves --scheduler local --force 0 --workers 2 --tag v1 --data MET2018 --mc_process TT --triggers nonStandard 9 10 11 12 13 14 --submit
+LUIGI_CONFIG_PATH=luigi.cfg; python3 run_workflow.py --user alves --scheduler local --force 0 --workers 2 --tag testTriggerMap --data MET2018 --mc_process TT --triggers nonStandard HT500 METNoMu120 METNoMu120_HT60 MediumMET100 MediumMET110 MediumMET130 --submit
 ```
 
 To run the remaining part of the (local) workflow, run the same command without the ```--submit``` flag.

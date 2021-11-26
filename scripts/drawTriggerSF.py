@@ -5,6 +5,7 @@ import numpy as np
 from copy import copy
 
 import ROOT
+ROOT.gROOT.SetBatch(True)
 from ROOT import TCanvas
 from ROOT import TPad
 from ROOT import TStyle
@@ -19,25 +20,6 @@ from ROOT import TLegend
 from ROOT import TString
 
 from utils import utils
-
-'''
-0 - HLT_IsoMu24_v
-1 - HLT_IsoMu27_v
-2 - HLT_Ele32_WPTight_Gsf_v
-3 - HLT_Ele35_WPTight_Gsf_v
-4 - HLT_DoubleMediumChargedIsoPFTauHPS35_Trk1_eta2p1_Reg_v
-5 - HLT_IsoMu20_eta2p1_LooseChargedIsoPFTauHPS27_eta2p1_CrossL1_v
-6 - HLT_Ele24_eta2p1_WPTight_Gsf_LooseChargedIsoPFTauHPS30_eta2p1_CrossL1_v
-7 - HLT_VBF_DoubleLooseChargedIsoPFTau20_Trk1_eta2p1_v
-8 - HLT_VBF_DoubleLooseChargedIsoPFTauHPS20_Trk1_eta2p1_v
-
-9 - HLT_PFHT500_PFMET100_PFMHT100_IDTight_v
-10 - HLT_PFMET100_PFMHT100_IDTight_PFHT60_v
-11 - HLT_PFMET110_PFMHT110_IDTight_v
-12 - HLT_PFMET200_HBHECleaned_v
-13 - HLT_PFMETNoMu100_PFMHTNoMu100_IDTight_PFHT60_v
-14 - HLT_PFMETNoMu110_PFMHTNoMu110_IDTight_v
-'''
 
 def getHisto(name, afile):
   _keys = afile.GetListOfKeys()
@@ -87,21 +69,14 @@ def checkTrigger(args, proc, channel, variable, trig, save_names):
   hname_met.replace('_all_all','_all')
   hname_metonly.replace('_all_all','_all')
 
-  h_passMET     = getHisto(hname_met, f_in)
   h_passALL     = getHisto(hname_all, f_in)
+  h_passMET     = getHisto(hname_met, f_in)
   h_passMETonly = getHisto(hname_metonly, f_in)
-  
-  d_passMET     = getHisto(hname_met, f_data)
+
   d_passALL     = getHisto(hname_all, f_data)
+  d_passMET     = getHisto(hname_met, f_data)
   d_passMETonly = getHisto(hname_metonly, f_data)
   
-  #  h_passMET     .Rebin(3)
-  #  h_passALL     .Rebin(3)
-  #  h_passMETonly .Rebin(3)
-  #  d_passMET     .Rebin(3)
-  #  d_passALL     .Rebin(3)
-  #  d_passMETonly .Rebin(3)
-
   if args.debug:
     print('Calculating MC efficiency...')  
   effmc = TEfficiency(h_passMET, h_passALL)
@@ -116,8 +91,8 @@ def checkTrigger(args, proc, channel, variable, trig, save_names):
   heff = d_passMET.Clone('d_eff')
   geff = TGraphAsymmErrors()
   #heff.Divide(heff,d_passALL,1,1,'B')
-  geff.Divide(heff,d_passALL,'cp')
-  heff.Divide(heff,d_passALL,1,1,'B')
+  geff.Divide(heff, d_passALL, 'cp')
+  heff.Divide(heff, d_passALL, 1, 1, 'B')
   
   #loop on tgraphs to get errors
   npoint = geffmc.GetN()
@@ -187,7 +162,7 @@ def checkTrigger(args, proc, channel, variable, trig, save_names):
   #DRAW MET & TRIG EFF ON SAME CANVAS
   #c1 = TCanvas('c1','',600,400)
   
-  canvas = TCanvas('canvas', '', 600, 600)
+  canvas = TCanvas( os.path.basename(save_names[0]).split('.')[0], 'canvas', 600, 600)
   ROOT.gStyle.SetOptStat(0)
   ROOT.gStyle.SetOptTitle(0)
   canvas.cd()
@@ -272,11 +247,11 @@ def checkTrigger(args, proc, channel, variable, trig, save_names):
   latexChannel.replace('Tau','#tau_{h}')
   
   l.DrawLatex( lX, lY,        'Channel: '+latexChannel)
-  l.DrawLatex( lX, lY-lYstep, 'Trigger(s): '+trig)
+  l.DrawLatex( lX, lY-lYstep, 'Trigger: '+trig)
   
   canvas.cd()
   pad2 = TPad('pad2','pad2',0,0.0,1,0.35)
-  pad2.SetTopMargin(0.005)
+  pad2.SetTopMargin(0.01)
   pad2.SetBottomMargin(0.4)
   pad2.SetLeftMargin(0.2)
   pad2.Draw()
@@ -285,8 +260,8 @@ def checkTrigger(args, proc, channel, variable, trig, save_names):
   
   axor2 = TH2D('axor2','axor2',4,0,600,100,0.8,1.2)
   axor2.GetYaxis().SetNdivisions(507)
-  axor2.GetYaxis().SetLabelSize(0.13)
-  axor2.GetXaxis().SetLabelSize(0.13)
+  axor2.GetYaxis().SetLabelSize(0.12)
+  axor2.GetXaxis().SetLabelSize(0.12)
   axor2.SetTitleSize(0.15,'X')
   axor2.SetTitleSize(0.15,'Y')
   axor2.GetXaxis().SetTitleOffset(1.)
@@ -302,8 +277,8 @@ def checkTrigger(args, proc, channel, variable, trig, save_names):
   line.SetLineWidth(2)
   
   sf.GetYaxis().SetNdivisions(507)
-  sf.GetYaxis().SetLabelSize(0.13)
-  sf.GetXaxis().SetLabelSize(0.13)
+  sf.GetYaxis().SetLabelSize(0.12)
+  sf.GetXaxis().SetLabelSize(0.12)
   sf.GetXaxis().SetTitleSize(0.15)
   sf.GetYaxis().SetTitleSize(0.15)
   sf.GetXaxis().SetTitleOffset(1.)
@@ -315,25 +290,36 @@ def checkTrigger(args, proc, channel, variable, trig, save_names):
   sf.Draw('same P0')
   RedrawBorder()
 
-  canvas.SaveAs( save_names[0] )
-  canvas.SaveAs( save_names[1] )
+  for aname in save_names:
+    canvas.SaveAs( aname )
 
 @utils.set_pure_input_namespace
 def drawTriggerSF_outputs(args):
-  outputs_png, outputs_pdf = ([] for _ in range(2))
+  ext1, ext2, ext3 = 'png', 'pdf', 'C'
+  outputs_png, outputs_pdf, outputs_c = ([] for _ in range(3))
   for proc in args.mc_processes:
     for trig in args.triggers:
       canvas_name = 'triggerSF_' + args.data_name + '_' + proc + '_trig_' + trig + '.' + args.subtag
       for var in args.variables:
         for ch in args.channels:
-          basename = os.path.join(args.indir, 'fig', ch, var, 'png', '')
-          utils.create_single_dir(basename)
-          png_out = os.path.join(basename, canvas_name + '.png')
-          outputs_png.append(png_out)
-          pdf_out = os.path.join(args.indir, 'fig', ch, var, 'pdf', canvas_name +'.pdf')
-          outputs_pdf.append(pdf_out)
-  outputs_png.extend(outputs_pdf) #join all outputs in the same list
+          thisbase = os.path.join('/eos/home-b/bfontana/www/TriggerScaleFactors', 'fig', ch, var, '')
 
+          utils.create_single_dir( thisbase )
+          png_out = os.path.join( thisbase, canvas_name + '.' + ext1 )
+          outputs_png.append(png_out)
+          
+          utils.create_single_dir( thisbase )
+          pdf_out = os.path.join( thisbase, canvas_name + '.' + ext2)
+          outputs_pdf.append(pdf_out)
+
+          utils.create_single_dir( thisbase )
+          c_out = os.path.join( thisbase, canvas_name + '.' + ext3)
+          outputs_c.append(c_out)
+
+  #join all outputs in the same list
+  outputs_png.extend(outputs_pdf)
+  outputs_png.extend(outputs_c)
+  
   return outputs_png
     
 @utils.set_pure_input_namespace
@@ -348,36 +334,11 @@ def drawTriggerSF(args):
       for iv,var in enumerate(args.variables):
         for it,trig in enumerate(args.triggers):
           index = ip*dc + ic*dv + iv*dt + it
-          names = ( outputs[index], outputs[index + dp] )
+          names = ( outputs[index], outputs[index + dp], outputs[index + 2*dp] )
           if args.debug:
             print('Calling checkTrigger: ' + proc, ch, var, trig, names)
           checkTrigger( args, proc, ch, var, trig, names )
-        
-# check_trigger( 'MET2018_partial', i, 'HTcut600', j, 'all'     , true) #comb
-# check_trigger( 'MET2018_partial', i, 'HTcut600', j,  'etau'   , true) #mutau
-# check_trigger( 'MET2018_partial', i, 'HTcut600', j,  'mutau'  , true) #etau
-# check_trigger( 'MET2018_partial', i, 'HTcut600', j,  'tautau' , true) #tautau
-# check_trigger( 'MET2018_partial', i, 'HTcut600', j,  'mumu'   , true) #tautau
-# check_trigger( 'MET2018_partial', i, 'HTcut600', j,  'tautau' , true) #tautau
-# check_trigger( 'MET2018_sum', i, 'HTcut100', j, 'all'     , true) #comb
-# check_trigger( 'MET2018_sum', i, 'HTcut100', j,  'etau'   , true) #mutau
-# check_trigger( 'MET2018_sum', i, 'HTcut100', j,  'mutau'  , true) #etau
-# check_trigger( 'MET2018_sum', i, 'HTcut100', j,  'tautau' , true) #tautau
-# check_trigger( 'MET2018_sum', i, 'HTcut100', j,  'mumu'   , true) #tautau
-# check_trigger( 'MET2018_sum', i, 'HTcut100', j,  'tautau' , true) #tautau
-# check_trigger( 'MET2018_sum', i, 'noHTcut', j, 'all'     , true) #comb
-# check_trigger( 'MET2018_sum', i, 'noHTcut', j,  'etau'   , true) #mutau
-# check_trigger( 'MET2018_sum', i, 'noHTcut', j,  'mutau'  , true) #etau
-# check_trigger( 'MET2018_sum', i, 'noHTcut', j,  'tautau' , true) #tautau
-# check_trigger( 'MET2018_sum', i, 'noHTcut', j,  'mumu'   , true) #tautau
-# check_trigger( 'MET2018_sum', i, 'noHTcut', j,  'tautau' , true) #tautau
-# check_trigger( 'MET2018_sum', i, 'METcut200', j, 'all'     , true) #comb
-# check_trigger( 'MET2018_sum', i, 'METcut200', j,  'etau'   , true) #mutau
-# check_trigger( 'MET2018_sum', i, 'METcut200', j,  'mutau'  , true) #etau
-# check_trigger( 'MET2018_sum', i, 'METcut200', j,  'tautau' , true) #tautau
-# check_trigger( 'MET2018_sum', i, 'METcut200', j,  'mumu'   , true) #tautau
-# check_trigger( 'MET2018_sum', i, 'METcut200', j,  'tautau' , true) #tautau
-
+          
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Draw trigger scale factors')
     parser.add_argument('-i', '--indir', help='Inputs directory', required=True)

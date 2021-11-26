@@ -9,6 +9,8 @@ from array import array
 import numpy as np
 import ROOT
 
+from luigi_cfg.luigi_cfg import getTriggerBit
+
 def CheckBit(number,bitpos):
     bitdigit = 1
     res = bool(number&(bitdigit<<bitpos))
@@ -49,20 +51,6 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
     if not os.path.exists( os.path.join(outdir, sample) ):
         os.makedirs( os.path.join(outdir, sample) )
     outdir = os.path.join(outdir, sample)
-
-    # -- Shift triggers for the data (MC and data triggers do not match)
-    if isData:
-        shiftedTriggers = []
-        for t in triggers:
-            try:
-                shiftedTriggers.append(int(t)+5) #shift based on HLT trigger bits
-            except ValueError:
-                if t == 'nonStandard':
-                    shiftedTriggers.append('nonStandard')
-                else:
-                    raise
-    else:
-        shiftedTriggers = triggers
         
     # -- Define histograms
     h_MET, h_METonly, h_ALL= {},{},{}
@@ -157,19 +145,15 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
         passTAUMET = lf.getLeaf('isTauMETtrigger')
 
         trigBit = lf.getLeaf('pass_triggerbit')
-        if isData:
-            nonStandTrigBits = [CheckBit(trigBit, i) for i in range(14,20)]
-        else:
-            nonStandTrigBits = [CheckBit(trigBit, i) for i in range(9,15)]
         
         passReq = {}
         for trig in triggers:
             try:
-                passReq[trig] = CheckBit(trigBit, int(trig))
+                passReq[trig] = CheckBit(trigBit, getTriggerBit(trig, isData))
             except ValueError:
                 if trig == 'nonStandard':
                     passReq[trig] = functools.reduce(lambda x,y: x or y,
-                                                     nonStandTrigBits)
+                                                     getTriggerBit(trig, isData))
                 else:
                     raise
 

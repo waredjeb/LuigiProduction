@@ -7,10 +7,18 @@ from luigi.util import inherits
 ### ARGUMENT PARSING ###################################################
 ########################################################################
 _tasks = ( 'submit', 'hadd', 'comp', 'drawsf')
-_triggers = ('nonStandard', #>=9
-             '9', '10', '11', '12',     #single trig
-             '13', '14',
-             )
+
+_nonStandTriggers = ['HT500', 'METNoMu120', 'METNoMu200cut', 'MediumMET100', 'MediumMET110' 'MediumMET130']
+_trigger_custom = lambda x : {'mc': _nonStandTriggers, 'data': _nonStandTriggers}
+_trigger_shift = lambda x : {'mc': x, 'data': x+5}
+_triggers_map = {'nonStandard': _trigger_custom('nonStandard'), #>=9
+                 'HT500': _trigger_shift(9),
+                 'METNoMu120': _trigger_shift(10),
+                 'METNoMu120_HT60': _trigger_shift(11),
+                 'MediumMET100': _trigger_shift(12),
+                 'MediumMET110': _trigger_shift(13),
+                 'MediumMET130': _trigger_shift(14) }
+
 _variables = ['met_et', 'HT20', 'mht_et', 'metnomu_et', 'mhtnomu_et', 'dau1_pt', 'dau2_pt']
 _channels = ( 'all', 'etau', 'mutau', 'tautau', 'mumu' )
 _data = dict( MET2018 = ['MET2018A',
@@ -81,7 +89,7 @@ parser.add_argument(
     nargs='+', #1 or more arguments
     type=str,
     required=True,
-    choices=_triggers,
+    choices=_triggers_map.keys(),
     help='Select the processes over which the workflow will be run.'
 )
 parser.add_argument(
@@ -129,6 +137,13 @@ def set_task_name(n):
     "handles the setting of each task name"
     assert( n in _tasks )
     return n
+
+def getTriggerBit(trigger_name, isData):
+  """
+  Returns the trigger bit corresponding to '_triggers_map'
+  """
+  s = 'data' if isData else 'mc'
+  return _triggers_map[trigger_name][s]
 
 ########################################################################
 ### LUIGI CONFIGURATION ################################################
