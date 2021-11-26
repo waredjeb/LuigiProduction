@@ -9,8 +9,6 @@ from array import array
 import numpy as np
 import ROOT
 
-from luigi_cfg.luigi_cfg import getTriggerBit
-
 def CheckBit(number,bitpos):
     bitdigit = 1
     res = bool(number&(bitdigit<<bitpos))

@@ -7,6 +7,7 @@ from utils import utils
 
 from luigi_conf.luigi_utils import WorkflowDebugger
 from luigi_conf.luigi_utils import is_force_mistake, ForceableEnsureRecentTarget
+from luigi_conf.luigi_cfg import getTriggerBit
 
 from scripts.submitTriggerEff import submitTriggerEff, submitTriggerEff_outputs
 from scripts.haddTriggerEff import haddTriggerEff, haddTriggerEff_outputs
