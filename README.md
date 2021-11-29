@@ -1,4 +1,6 @@
 ## Trigger Scale Factor Studies
+--------------------
+--------------------
 
 Requirements:
 
@@ -6,42 +8,33 @@ Requirements:
 - ```luigi``` (available in ```CMSSW``` after running ```cmsenv``` and using ```python3```).
 
 
-## Tasks (steps of the study)
-
-- Running HTCondor jobs
-
-```shell
-#Example
-python3 /home/llr/cms/alves/CMSSW_12_2_0_pre1/src/METTriggerStudies/scripts/submit_triggerEff.py
-        --indir /data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_Radion_2018_fixedMETtriggers_mht_16Jun2021/
-	--outdir /data_CMS/cms/alves/TriggerScaleFactors
-	--tag v1
-	--proc MET2018A MET2018B MET2018C MET2018D
-	--channels all etau mutau tautau mumu
-```
-
-Output ```ROOT``` files: ```/data_CMS/cms/alves/TriggerScaleFactors/v1/```
-Submission files: ```$HOME/jobs/submission/```
-Job standard output and error streams: ```$HOME/jobs/outputs/```
-
-
-Check the meaning of the arguments by adding ```--help```.
+#### Tasks (steps of the study)
 
 - Running the ```luigi``` workflow
 
 To run the submission workflow, please type the following:
 
 ```shell
-LUIGI_CONFIG_PATH=luigi.cfg; python3 run_workflow.py --user alves --scheduler local --force 0 --workers 2 --tag testTriggerMap --data MET2018 --mc_process TT --triggers nonStandard HT500 METNoMu120 METNoMu120_HT60 MediumMET100 MediumMET110 MediumMET130 --submit
+LUIGI_CONFIG_PATH=luigi.cfg; python3 run_workflow.py --user alves --scheduler local --workers 2 --tag v1 --data MET2018 --mc_process TT --triggers nonStandard HT500 METNoMu120 METNoMu120_HT60 MediumMET100 MediumMET110 MediumMET130 --submit
 ```
 
 To run the remaining part of the (local) workflow, run the same command without the ```--submit``` flag.
 
+| Output files              | Destination folder                                  |
+|---------------------------|-----------------------------------------------------|
+| ```ROOT```                | ```/data_CMS/cms/alves/TriggerScaleFactors/v1/```    |
+| Submission                | ```$HOME/jobs/v1/<process>/submission/```           |
+| Condor (output and error) | ```$HOME/jobs/v1/<process>/outputs/```              |
+| Pictures (requires ```/eos/```) | /```eos/home-b/bfontana/www/TriggerScaleFactors/``` |
+
+
+Check the meaning of the arguments by adding ```--help```.
+You can also run each ```luigi``` task separately by running its corresponding ```python``` scripts (all support ```--help```)
 
 
 -------------------------------------
 
-### Notes on the ```luigi```
+#### Notes on ```luigi```
 
 The advantages of using a workflow management system as ```luigi``` are the following:
 
@@ -77,9 +70,7 @@ You should then be able to visualize the worflow in your browser by going to ```
 
 ------------------------------------
 
-## Future steps
-
-### Using ```law```
+#### Future steps: using ```law```
 
 In case [```law```](https://github.com/riga/law) is required (to manage ```htcondor``` jobs), one can install it as follows, using ```conda```:
 
