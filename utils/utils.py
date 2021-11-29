@@ -2,6 +2,8 @@ import os
 import argparse
 from types import SimpleNamespace
 
+from luigi_conf import _triggers_map
+
 def add_slash(s):
   """Adds single slash to path if absent"""
   s = s if s[-1] == '/' else s + '/'
@@ -32,6 +34,13 @@ def debug(message, flag=True):
   decorator = ' ============ '
   if flag:
     print( decorator + message + decorator )
+
+def getTriggerBit(trigger_name, isData):
+  """
+  Returns the trigger bit corresponding to '_triggers_map'
+  """
+  s = 'data' if isData else 'mc'
+  return _triggers_map[trigger_name][s]
 
 def remove(f):
   if os.path.exists( f ):

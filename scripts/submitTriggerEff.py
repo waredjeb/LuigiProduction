@@ -62,7 +62,7 @@ def submitTriggerEff(args):
 
         #### Write shell executable (python scripts must be wrapped in shell files to run on HTCondor)
         outSubmDir = 'submission'
-        jobDir = os.path.join(jobsDir, outSubmDir)
+        jobDir = os.path.join(jobsDir, args.tag, outSubmDir)
         jobFile = os.path.join(jobDir, 'job_{}.sh'.format(thisProc))
 
         command =  ( ( '{prog} --indir {indir} --outdir {outdir} --sample {sample} --isData {isData} '
@@ -91,7 +91,7 @@ def submitTriggerEff(args):
         os.system('chmod u+rwx '+ jobFile)
 
         #### Write submission file
-        submDir = os.path.join(jobsDir, outSubmDir)
+        submDir = os.path.join(jobsDir, args.tag, outSubmDir)
         submFile = os.path.join(submDir, 'job_' + thisProc + '.submit')
 
         outCheckDir = 'outputs'
@@ -104,7 +104,8 @@ def submitTriggerEff(args):
             s.write('Executable = {}\n'.format(jobFile))
             s.write('Arguments = $(filename) \n'.format(jobFile))
             s.write('input = /dev/null\n')
-            _outfile = '{}/{}/{}/Cluster$(Cluster)_Process$(Process)'.format(jobsDir, outCheckDir, thisProc)
+            _outfile = ( '{d}/{t}/{o}/{p}/Cluster$(Cluster)_Process$(Process)'
+                         .format(d=jobsDir, t=args.tag, o=outCheckDir, p=thisProc) )
             s.write('output = {}.o\n'.format(_outfile))
             s.write('error  = {}.e\n'.format(_outfile))
             s.write('getenv = true\n')
@@ -116,7 +117,7 @@ def submitTriggerEff(args):
             for listname in filelist:
                 s.write('  {}\n'.format( modstring(listname)))
             s.write(')\n')
-        os.system('mkdir -p {}'.format( os.path.join(jobsDir, outCheckDir, thisProc) ))
+        os.system('mkdir -p {}'.format( os.path.join(jobsDir, args.tag, outCheckDir, thisProc) ))
 
         os.system('condor_submit -name llrt3condor {}'.format(submFile))
 

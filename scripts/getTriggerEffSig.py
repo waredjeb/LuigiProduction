@@ -9,6 +9,11 @@ from array import array
 import numpy as np
 import ROOT
 
+import sys
+sys.path.append(os.path.join(os.environ['CMSSW_BASE'], 'src', 'METTriggerStudies'))
+from utils.utils import getTriggerBit
+
+
 def CheckBit(number,bitpos):
     bitdigit = 1
     res = bool(number&(bitdigit<<bitpos))
