@@ -25,7 +25,7 @@ To run the remaining part of the (local) workflow, run the same command without 
 | ```ROOT```                | ```/data_CMS/cms/alves/TriggerScaleFactors/v1/```    |
 | Submission                | ```$HOME/jobs/v1/<process>/submission/```           |
 | Condor (output and error) | ```$HOME/jobs/v1/<process>/outputs/```              |
-| Pictures (requires ```/eos/```) | /```eos/home-b/bfontana/www/TriggerScaleFactors/``` |
+| Pictures (requires ```/eos/```) | ```/eos/home-b/bfontana/www/TriggerScaleFactors/``` |
 
 
 Check the meaning of the arguments by adding ```--help```.

@@ -1,4 +1,4 @@
-_nonStandTriggers = ['HT500', 'METNoMu120', 'METNoMu200cut', 'MediumMET100', 'MediumMET110' 'MediumMET130']
+_nonStandTriggers = ['HT500', 'METNoMu120', 'METNoMu120_HT60', 'MediumMET100', 'MediumMET110', 'MediumMET130']
 _trigger_custom = lambda x : {'mc': _nonStandTriggers, 'data': _nonStandTriggers}
 _trigger_shift = lambda x : {'mc': x, 'data': x+5}
 _triggers_map = {'nonStandard': _trigger_custom('nonStandard'), #>=9
@@ -8,6 +8,8 @@ _triggers_map = {'nonStandard': _trigger_custom('nonStandard'), #>=9
                  'MediumMET100': _trigger_shift(12),
                  'MediumMET110': _trigger_shift(13),
                  'MediumMET130': _trigger_shift(14) }
+# check the keys are coherent
+assert( set(_nonStandTriggers).issubset( set(_triggers_map.keys()) ) )
 
 _variables = ['met_et', 'HT20', 'mht_et', 'metnomu_et', 'mhtnomu_et', 'dau1_pt', 'dau2_pt']
 _channels = ( 'all', 'etau', 'mutau', 'tautau', 'mumu' )

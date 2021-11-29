@@ -151,14 +151,13 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
         
         passReq = {}
         for trig in triggers:
-            try:
+            if trig == 'nonStandard':
+                passReq[trig] = functools.reduce(
+                    lambda x,y: x or y, #logic OR to join all triggers in this option
+                    [ CheckBit(trigBit, getTriggerBit(x, isData)) for x in getTriggerBit(trig, isData) ]
+                )
+            else:
                 passReq[trig] = CheckBit(trigBit, getTriggerBit(trig, isData))
-            except ValueError:
-                if trig == 'nonStandard':
-                    passReq[trig] = functools.reduce(lambda x,y: x or y,
-                                                     getTriggerBit(trig, isData))
-                else:
-                    raise
 
         passReq['MET'] = passMET
         passReq['Tau'] = passTAU
