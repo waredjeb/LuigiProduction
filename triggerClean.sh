@@ -44,14 +44,16 @@ if [[ -z "${TAG}" ]]; then
     echo "Select the tag via the '--tag' option."
     exit 1;
 fi
+
+echo "####### Arguments #####################"
 echo "TAG   = ${TAG}"
 echo "DEBUG = ${DEBUG}"
+echo "#######################################"
 
 ##### FUNCTION DEFINITION #####
 declare -a COMMANDS=( "rm -rf /eos/home-b/bfontana/www/TriggerScaleFactors/${TAG}/*"
-		      "rm -rf /data_CMS/cms/alves/TriggerScaleFactors/${TAG}/*"
-		      "rm -rf jobs/outputs/*"
-		      "rm -rf jobs/submission/*" )
+		      "rm -rf /data_CMS/cms/alves/TriggerScaleFactors/${TAG}/"
+		      "rm -rf jobs/${TAG}/" )
 
 for comm in "${COMMANDS[@]}"; do
     if $DEBUG; then
