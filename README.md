@@ -8,7 +8,7 @@ Requirements:
 - ```luigi``` (available in ```CMSSW``` after running ```cmsenv``` and using ```python3```).
 
 
-#### Tasks (steps of the study)
+#### Luigi Workflow
 
 - Running the ```luigi``` workflow
 
@@ -31,6 +31,13 @@ To run the remaining part of the (local) workflow, run the same command without 
 Check the meaning of the arguments by adding ```--help```.
 You can also run each ```luigi``` task separately by running its corresponding ```python``` scripts (all support ```--help```)
 
+#### Main scripts:
+
+- ```run_workflow.py```: the main script, where the luigi workflow is defined
+- **Submission Task** (```submitTriggerEff.py```): macro that launches all jobs to HTCondor 
+- ```getTriggerEffSig.py```: script that is launched in HTCondor (multiple times) to produce ROOT files
+- **Histogram joining task** (```haddTriggerEff.py```): adds the ROOT files produced in the previous step
+- **Draw scale factors task** (```drawTriggerSF.py```): macro which draws the scale factors
 
 -------------------------------------
 

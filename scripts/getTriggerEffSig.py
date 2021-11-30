@@ -40,7 +40,7 @@ class LeafManager():
             return getAttr(leaf)
         except ReferenceError:
             if leaf not in self.absent_leaves:
-                m = 'WARNING: leaf ' + leaf + ' does not exist in file ' + self.fname + '.'
+                m = 'WARNING: leaf ' + leaf + ' does not exist in file ' + self.fname
                 print(self.error_prefix + m)
                 self.absent_leaves.add(leaf)
             return 0.
