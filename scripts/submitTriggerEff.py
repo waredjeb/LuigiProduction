@@ -27,7 +27,7 @@ def submitTriggerEff_outputs(args):
     _all_processes = args.data + args.mc_processes
     for thisProc in _all_processes:
         folder = os.path.join( args.outdir, thisProc )
-        basename = args.targetsPrefix + thisProc + '_0.' + args.subtag + extension
+        basename = args.targetsPrefix + thisProc + '_0' + args.subtag + extension
         t.append( os.path.join(folder, basename) )
 
     return t

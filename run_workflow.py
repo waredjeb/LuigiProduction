@@ -170,7 +170,7 @@ class DrawTriggerScaleFactors(ForceableEnsureRecentTarget):
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def output(self):
         targets = []
-        targets_list = drawTriggerSF_outputs( self.args )
+        targets_list, _ = drawTriggerSF_outputs( self.args )
 
         #define luigi targets
         for t in targets_list:

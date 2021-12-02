@@ -84,8 +84,8 @@ parser.add_argument(
 parser.add_argument(
     '--subtag',
     type=str,
-    default='metnomu200cut',
-    help='Specifies a cut.'
+    default='',
+    help='Specifies a subtag, for instance an additional cut within the same tag. We force its first character to be an underscore.'
 )
 parser.add_argument(
     '--submit',
@@ -122,6 +122,7 @@ class cfg(luigi.Config):
     ### Define luigi parameters ###
     # general
     tag = FLAGS.tag
+    subtag = FLAGS.subtag if FLAGS.subtag=='' else ( '_' + FLAGS.subtag if FLAGS.subtag[0] != '_' else FLAGS.subtag )
     tag_folder = os.path.join(data_storage, tag)
     web_folder = os.path.join(web_storage, tag)
     targets_folder = os.path.join(data_storage, tag, 'targets')
@@ -144,7 +145,7 @@ class cfg(luigi.Config):
                   'triggers': FLAGS.triggers,
                   'channels': FLAGS.channels,
                   'variables': FLAGS.variables,
-                  'subtag': FLAGS.subtag} )
+                  'subtag': subtag} )
 
     ####
     #### haddTriggerEff
@@ -154,7 +155,7 @@ class cfg(luigi.Config):
         default={ 'taskname': _rawname,
                   'hierarchy': _tasks.index(_rawname)+1,
                   'indir': tag_folder,
-                  'subtag': FLAGS.subtag} )
+                  'subtag': subtag} )
     ####
     #### compareTriggers
     ####
@@ -186,7 +187,7 @@ class cfg(luigi.Config):
                   'triggers': FLAGS.triggers,
                   'channels': FLAGS.channels,
                   'variables': FLAGS.variables,
-                  'subtag': FLAGS.subtag,
+                  'subtag': subtag,
                   'target_suffix': '_Sum',
                   'debug': FLAGS.debug_workflow,} )
 
