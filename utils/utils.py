@@ -17,9 +17,15 @@ class dotDict(dict):
             
 def create_single_dir(p):
   """Creates a directory if it does not exist"""
-  if not os.path.exists(p): 
-    os.makedirs(p)
-
+  try:
+    if not os.path.exists(p): 
+      os.makedirs(p)
+  except PermissionError:
+    m = ( "You tried to create folder {}. Make sure you have the rights!"
+          "Are you sure the path is correct?".format(p) )
+    print(m)
+    raise
+    
 def create_single_file(f):
   """Creates a dummy file if it does not exist"""
   try:

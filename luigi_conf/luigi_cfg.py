@@ -70,6 +70,12 @@ parser.add_argument(
     help='Select the variables over which the workflow will be run.'
 )
 parser.add_argument(
+    '--outuser',
+    type=str,
+    default=os.environ['USER'],
+    help='The username required to write the output scale factor plots.'
+)
+parser.add_argument(
     '--tag',
     type=str,
     required=True,
@@ -110,11 +116,14 @@ class cfg(luigi.Config):
     user = os.environ['USER']
     data_storage = os.path.join(data_base, user, base_name)
     data_target = 'MET2018_sum'
-
+    web_storage = os.path.join('/eos/', 'home-b',
+                               FLAGS.outuser, 'www', base_name)
+    
     ### Define luigi parameters ###
     # general
     tag = FLAGS.tag
     tag_folder = os.path.join(data_storage, tag)
+    web_folder = os.path.join(web_storage, tag)
     targets_folder = os.path.join(data_storage, tag, 'targets')
     targets_default_name = 'DefaultTarget.txt'
     targets_prefix = 'hist_eff_'
@@ -173,6 +182,7 @@ class cfg(luigi.Config):
                   'data': _selected_data,
                   'mc_processes': _selected_mc_process,
                   'indir': tag_folder,
+                  'outdir': web_folder,
                   'triggers': FLAGS.triggers,
                   'channels': FLAGS.channels,
                   'variables': FLAGS.variables,

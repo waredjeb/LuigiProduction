@@ -267,7 +267,7 @@ def checkTrigger(args, proc, channel, variable, trig, save_names):
   axor2.GetXaxis().SetTitleOffset(1.)
   axor2.GetYaxis().SetTitleOffset(0.45)
   axor2.GetYaxis().SetTitle('Data/MC')
-  axor2.GetXaxis().SetTitle('MET [GeV]')
+  axor2.GetXaxis().SetTitle('<fill variable>')
   #if strstr(args.subtag,'MET'):
   #  axor2.GetXaxis().SetTitle('H_{T} [GeV]')
     
@@ -284,7 +284,7 @@ def checkTrigger(args, proc, channel, variable, trig, save_names):
   sf.GetXaxis().SetTitleOffset(1.)
   sf.GetYaxis().SetTitleOffset(0.45)
   sf.GetYaxis().SetTitle('Data/MC')
-  sf.GetXaxis().SetTitle('MET [GeV]')
+  sf.GetXaxis().SetTitle('<fill variable>')
   
   ##line.Draw()
   sf.Draw('same P0')
@@ -295,36 +295,27 @@ def checkTrigger(args, proc, channel, variable, trig, save_names):
 
 @utils.set_pure_input_namespace
 def drawTriggerSF_outputs(args):
-  ext1, ext2, ext3 = 'png', 'pdf', 'C'
-  outputs_png, outputs_pdf, outputs_c = ([] for _ in range(3))
+  extensions = ( 'png', 'pdf', 'C' )
+  outputs = [[] for _ in range(len(extensions))]
   for proc in args.mc_processes:
     for trig in args.triggers:
       canvas_name = 'triggerSF_' + args.data_name + '_' + proc + '_trig_' + trig + '.' + args.subtag
       for var in args.variables:
         for ch in args.channels:
-          thisbase = os.path.join('/eos/home-b/bfontana/www/TriggerScaleFactors', 'fig', ch, var, '')
+          thisbase = os.path.join(args.outdir, ch, var, '')
 
           utils.create_single_dir( thisbase )
-          png_out = os.path.join( thisbase, canvas_name + '.' + ext1 )
-          outputs_png.append(png_out)
-          
-          utils.create_single_dir( thisbase )
-          pdf_out = os.path.join( thisbase, canvas_name + '.' + ext2)
-          outputs_pdf.append(pdf_out)
 
-          utils.create_single_dir( thisbase )
-          c_out = os.path.join( thisbase, canvas_name + '.' + ext3)
-          outputs_c.append(c_out)
+          for ext,out in zip(extensions, outputs):
+            out.append( os.path.join( thisbase, canvas_name + '.' + ext ) )
 
   #join all outputs in the same list
-  outputs_png.extend(outputs_pdf)
-  outputs_png.extend(outputs_c)
-  
-  return outputs_png
+  return sum(outputs, [])
     
 @utils.set_pure_input_namespace
 def drawTriggerSF(args):
   outputs = drawTriggerSF_outputs(args)
+
   dt = len(args.triggers)
   dv = len(args.variables) * dt
   dc = len(args.channels) * dv
