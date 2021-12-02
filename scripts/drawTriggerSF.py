@@ -298,12 +298,12 @@ def drawTriggerSF_outputs(args):
   extensions = ( 'png', 'pdf', 'C' )
   outputs = [[] for _ in range(len(extensions))]
   for proc in args.mc_processes:
-    for trig in args.triggers:
-      canvas_name = 'triggerSF_' + args.data_name + '_' + proc + '_trig_' + trig + '.' + args.subtag
+    for ch in args.channels:
       for var in args.variables:
-        for ch in args.channels:
+        for trig in args.triggers:
+          add = proc + '_' + ch + '_' + var + '_' + trig
+          canvas_name = 'trigSF_' + args.data_name + '_' + add + '_' + args.subtag
           thisbase = os.path.join(args.outdir, ch, var, '')
-
           utils.create_single_dir( thisbase )
 
           for ext,out in zip(extensions, outputs):
@@ -327,8 +327,13 @@ def drawTriggerSF(args):
           index = ip*dc + ic*dv + iv*dt + it
           names = ( outputs[index], outputs[index + dp], outputs[index + 2*dp] )
           if args.debug:
-            print('Calling checkTrigger: ' + proc, ch, var, trig, names)
-          checkTrigger( args, proc, ch, var, trig, names )
+            print(names[0])
+            print(names[1])
+            print(names[2])
+            print("process={}, channel={}, variable={}, trigger={}".format(proc, ch, var, trig))
+            print()
+          else:
+            checkTrigger( args, proc, ch, var, trig, names )
           
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Draw trigger scale factors')
