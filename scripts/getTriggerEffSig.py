@@ -78,7 +78,6 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
     f_in = ROOT.TFile( fname )
     t_in = f_in.Get('HTauTauTree')
 
-    sumweights=0
     fillVar = {}
     lf = LeafManager( fname, t_in )
 
@@ -128,10 +127,10 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
         if np.isnan(idandiso): idandiso=1
 
         evtW = pureweight*trigsf*lumi*idandiso
-        if np.isnan(evtW): evtW=1
+        if np.isnan(evtW):
+            evtW = 1
         if isData:
-            evtW=1.
-        sumweights+=evtW
+            evtW = 1
 
         MET    = lf.getLeaf('met_et')
         HTfull = lf.getLeaf('HT20')

@@ -15,7 +15,7 @@ Requirements:
 To run the submission workflow, please type the following:
 
 ```shell
-LUIGI_CONFIG_PATH=luigi.cfg; python3 run_workflow.py --user alves --scheduler local --workers 2 --tag v1 --data MET2018 --mc_process TT --triggers nonStandard HT500 METNoMu120 METNoMu120_HT60 MediumMET100 MediumMET110 MediumMET130 --submit
+LUIGI_CONFIG_PATH=luigi.cfg; python3 run_workflow.py --outuser bfontana --scheduler local --workers 2 --tag v1 --data MET2018 --mc_process TT --triggers nonStandard HT500 METNoMu120 METNoMu120_HT60 MediumMET100 MediumMET110 MediumMET130 --submit
 ```
 
 To run the remaining part of the (local) workflow, run the same command without the ```--submit``` flag.

@@ -43,6 +43,7 @@ def RedrawBorder():
   l.DrawLine(ROOT.gPad.GetUxmin(), ROOT.gPad.GetUymin(), ROOT.gPad.GetUxmin(), ROOT.gPad.GetUymax()) #left border
   l.DrawLine(ROOT.gPad.GetUxmin(), ROOT.gPad.GetUymin(), ROOT.gPad.GetUxmax(), ROOT.gPad.GetUymin()) #bottom border
 
+#ROOT.RooMsgService.instance().setGlobalKillBelow(ROOT.RooFit.)
 def checkTrigger(args, proc, channel, variable, trig, save_names):
   _name = lambda a,b,c,d : a + b + c + '.' + d + '.root'
 
@@ -55,10 +56,10 @@ def checkTrigger(args, proc, channel, variable, trig, save_names):
   file_mc   = TFile( name_mc, 'READ');
 
   if args.debug:
-    print('Open files:')
-    print(' - Data: {}'.format(name_data))
-    print(' - MC: {}'.format(name_mc))
-    print(' - Args: proc={proc}, channel={channel}, variable={variable}, trig={trig}'
+    print('[=debug=] Open files:')
+    print('[=debug=]  - Data: {}'.format(name_data))
+    print('[=debug=]  - MC: {}'.format(name_mc))
+    print('[=debug=]  - Args: proc={proc}, channel={channel}, variable={variable}, trig={trig}'
           .format(proc=proc, channel=channel, variable=variable, trig=trig))
 
   histo_names = { 'all': 'passALL_{}_{}'.format(channel, variable),
@@ -70,84 +71,108 @@ def checkTrigger(args, proc, channel, variable, trig, save_names):
   histos_data = { k: getHisto(v, file_data) for k,v in histo_names.items() }
   
   if args.debug:
-    print('MC efficiency...')  
-  eff_mc = TEfficiency( histos_mc['met'], histos_mc['all'] )
-  eff_mc_clone = histos_mc['all'].Clone('eff_mc_')
+    print('[=debug=] MC efficiency...')  
+  #eff_mc = TEfficiency( histos_mc['met'], histos_mc['all'] )
+  #SetConfidenceLevel, SetStatisticOption
+  eff_mc = TGraphAsymmErrors( histos_mc['met'], histos_mc['all'] )
+  eff_mc_clone = histos_mc['met'].Clone('eff_mc_')
   # geffmc = TGraphAsymmErrors()
   # geffmc.Divide(heffmc,h_passALL,'cp')
-  eff_mc_clone.Divide(eff_mc_clone, histos_mc['all'], 1, 1, 'B')
+  flag = eff_mc_clone.Divide(eff_mc_clone, histos_mc['all'], 1, 1, 'B')
+  if not flag:
+    raise RuntimeError('[drawTriggerSF.py] MC division failed!')
 
   if args.debug:
-    print('Data efficiency...')  
-  eff_data = TEfficiency( histos_data['met'], histos_data['all'])
+    print('[=debug=] Data efficiency...')  
+  #eff_data = TEfficiency( histos_data['met'], histos_data['all'])
+  eff_data = TGraphAsymmErrors( histos_data['met'], histos_data['all'])
   eff_data_clone = histos_data['met'].Clone('eff_data_')
   # geff = TGraphAsymmErrors()
   # geff.Divide(heff, d_passALL, 'cp')
-  eff_data_clone.Divide(eff_data_clone, histos_data['all'], 1, 1, 'B')
-  
-  # #loop on tgraphs to get errors
-  # npoint = geffmc.GetN()
-  # sizelist = 6
-  # xp, yp = ( [[] for _ in range(sizelist)] for _ in range(2) )
-  # ye_up, ye_down = ( [[] for _ in range(sizelist)] for _ in range(2) )
-  
-  # for i in range(sizelist):
-  #   #ctypes conversions needed
-  #   xp[i] = ctypes.c_double(0.)
-  #   yp[i] = ctypes.c_double(0.)
-  #   geffmc.GetPoint(i, xp[i], yp[i])
-  #   xp[i] = xp[i].value
-  #   yp[i] = yp[i].value
+  flag = eff_data_clone.Divide(eff_data_clone, histos_data['all'], 1, 1, 'B')
+  if not flag:
+    raise RuntimeError('[drawTriggerSF.py] Data division failed!')
 
-  #   ye_up[i] = geffmc.GetErrorYhigh(i)
-  #   ye_down[i] = geffmc.GetErrorYlow(i)
-  #   if args.debug:
-  #     print('xp[{}] = {} - yp[{}] = {} +{}/-{}\n'.format(i,xp[i],i,yp[i],ye_up[i],ye_down[i]))
 
-  # if args.debug:
-  #   print('=======')
+  if args.debug:
+    print('[=debug=] Scale Factors...')  
 
-  # dxp, dyp = ( [[] for _ in range(sizelist)] for _ in range(2) )
-  # dye_up, dye_down = ( [[] for _ in range(sizelist)] for _ in range(2) )
+  npoints = eff_mc.GetN()
+  x_mc, y_mc   = ( [[] for _ in range(npoints)] for _ in range(2) )
+  eu_mc, ed_mc = ( [[] for _ in range(npoints)] for _ in range(2) )
   
-  # sf_xp, sf_yp = ( [[] for _ in range(sizelist)] for _ in range(2) )
-  # sf_ye_up, sf_ye_down = ( [[] for _ in range(sizelist)] for _ in range(2) )
+  for i in range(npoints):
+    #ctypes conversions needed
+    x_mc[i] = ctypes.c_double(0.)
+    y_mc[i] = ctypes.c_double(0.)
+    eff_mc.GetPoint(i, x_mc[i], y_mc[i])
+    x_mc[i] = x_mc[i].value
+    y_mc[i] = y_mc[i].value
+
+    eu_mc[i] = eff_mc.GetErrorYhigh(i)
+    ed_mc[i] = eff_mc.GetErrorYlow(i)
+    if args.debug:
+      print('xp[{}] = {} - yp[{}] = {} +{}/-{}\n'.format(i,x_mc[i],i,y_mc[i],eu_mc[i],ed_mc[i]))
+
+  x_data, y_data   = ( [[] for _ in range(npoints)] for _ in range(2) )
+  eu_data, ed_data = ( [[] for _ in range(npoints)] for _ in range(2) )
   
-  # for i in range(sizelist):
-  #   dxp[i] = ctypes.c_double(0.)
-  #   dyp[i] = ctypes.c_double(0.)
-  #   geff.GetPoint(i, dxp[i], dyp[i])
-  #   dxp[i] = dxp[i].value
-  #   dyp[i] = dyp[i].value
+  x_sf, y_sf   = ( [[] for _ in range(npoints)] for _ in range(2) )
+  eu_sf, ed_sf = ( [[] for _ in range(npoints)] for _ in range(2) )
+  
+  for i in range(npoints):
+    x_data[i] = ctypes.c_double(0.)
+    y_data[i] = ctypes.c_double(0.)
+    eff_data.GetPoint(i, x_data[i], y_data[i])
+    x_data[i] = x_data[i].value
+    y_data[i] = y_data[i].value
     
-  #   dye_up[i] = geff.GetErrorYhigh(i)
-  #   dye_down[i] = geff.GetErrorYlow(i)
-  #   if args.debug:
-  #     print('xp[{}] = {} - yp[{}] = {} +{}/-{}\n'.format(i,dxp[i],i,dyp[i],dye_up[i],dye_down[i]))
+    eu_data[i] = eff_data.GetErrorYhigh(i)
+    ed_data[i] = eff_data.GetErrorYlow(i)
+    if args.debug:
+      print('xp[{}] = {} - yp[{}] = {} +{}/-{}\n'.format(i,x_data[i],i,y_data[i],eu_data[i],ed_data[i]))
 
-  #   sf_xp[i] = xp[i]
-  #   sf_yp[i] = dyp[i]/yp[i]
-  #   sf_ye_up[i]   = np.sqrt( ye_up[i]*ye_up[i] + dye_up[i]*dye_up[i] )
-  #   sf_ye_down[i] = np.sqrt( ye_down[i]*ye_down[i] + dye_down[i]*dye_down[i] )
+    x_sf[i] = x_mc[i]
+    
+    try:
+      y_sf[i]  = y_data[i] / y_mc[i]
+    except ZeroDivisionError:
+      print('WARNING: THere was a division by zero!')
+      y_sf[i] = 0
 
-  # if args.debug:
-  #   print('=== Scale Factors ====')
-  #   for i in range(sizelist):
-  #     print('xp[{}] = {} - yp[{}] = {} +{}/-{}\n'.format(i,sf_xp[i],i,sf_yp[i],sf_ye_up[i],sf_ye_down[i]))
+    if y_sf[i] == 0:
+      eu_sf[i] = 0
+      ed_sf[i] = 0
+    else:
+      eu_sf[i] = np.sqrt( eu_mc[i]**2 + eu_data[i]**2 )
+      ed_sf[i] = np.sqrt( ed_mc[i]**2 + ed_data[i]**2 )
+
+  if args.debug:
+    print('=== Scale Factors ====')
+    for i in range(npoints):
+      print('xp[{}] = {} - yp[{}] = {} +{}/-{}\n'.format(i,x_sf[i],i,y_sf[i],eu_sf[i],ed_sf[i]))
   
-  # effmc = TEfficiency(h_passMET, h_passALL)
-  # a = np.array([50 for _ in range(sizelist)])
+  a = [50 for _ in range(npoints)]
+  darr = lambda x : np.array(x).astype(dtype=np.double)
+  sf = TGraphAsymmErrors(npoints,
+                         darr(x_sf),
+                         darr(y_sf),
+                         darr(a),
+                         darr(a),
+                         darr(ed_sf),
+                         darr(eu_sf))
 
-  # sf = TGraphAsymmErrors(sizelist,
-  #                        np.array(sf_xp).astype(dtype=np.double), np.array(sf_yp).astype(dtype=np.double),
-  #                        a.astype(dtype=np.double), a.astype(dtype=np.double),
-  #                        np.array(sf_ye_down).astype(dtype=np.double), np.array(sf_ye_up).astype(dtype=np.double))
+  # sf_ = eff_data_clone.Clone('sf_')
 
-  sf_ = eff_data_clone.Clone('sf_')
-  sf = TGraphAsymmErrors()
-  sf.Divide(sf_, eff_mc_clone, 'cp')
-  
-  canvas = TCanvas( os.path.basename(save_names[0]).split('.')[0], 'canvas', 600, 600)
+  # nbins = sf_.GetNbinsX()
+  # assert(nbins == eff_mc_clone.GetNbinsX())
+
+  # sf = TGraphAsymmErrors(nbins)
+  # sf.Divide(sf_, eff_mc_clone, 'n') #before was set to 'cp': Clopper-Pearson
+
+  if args.debug:
+    print('[=debug=] Plotting...')  
+  canvas = TCanvas( os.path.basename(save_names[0]).split('.')[0], 'canvas', 600, 600 )
   ROOT.gStyle.SetOptStat(0)
   ROOT.gStyle.SetOptTitle(0)
   canvas.cd()
@@ -295,14 +320,15 @@ def drawTriggerSF(args):
       for iv,var in enumerate(args.variables):
         for it,trig in enumerate(args.triggers):
           index = ip*dc + ic*dv + iv*dt + it
-          names = ( outputs[index + dp*x] for x in range(len(extensions)) )
+          names = [ outputs[index + dp*x] for x in range(len(extensions)) ]
+
           if args.debug:
-            for names in names:
-              print(name)
+            for name in names:
+              print('[=debug=] {}'.format(name))
             print("process={}, channel={}, variable={}, trigger={}".format(proc, ch, var, trig))
             print()
-          else:
-            checkTrigger( args, proc, ch, var, trig, names )
+
+          checkTrigger( args, proc, ch, var, trig, names )
           
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Draw trigger scale factors')
