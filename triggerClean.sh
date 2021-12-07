@@ -60,8 +60,8 @@ echo "#######################################"
 
 ##### FUNCTION DEFINITION #####
 declare -a COMMANDS=( "rm -rf /eos/home-b/bfontana/www/TriggerScaleFactors/${TAG}/*"
-		      "rm -rf /data_CMS/cms/alves/TriggerScaleFactors/v1/targets/DefaultTarget_hadd.txt"
-		      "rm -rf /data_CMS/cms/alves/TriggerScaleFactors/v1/targets/DefaultTarget_drawsf.txt"
+		      "rm -rf /data_CMS/cms/alves/TriggerScaleFactors/${TAG}/targets/DefaultTarget_hadd.txt"
+		      "rm -rf /data_CMS/cms/alves/TriggerScaleFactors/${TAG}/targets/DefaultTarget_drawsf.txt"
 		      "rm -rf jobs/${TAG}/" )
 if $FULL; then
     COMMANDS+=( "rm -rf /data_CMS/cms/alves/TriggerScaleFactors/${TAG}/" )

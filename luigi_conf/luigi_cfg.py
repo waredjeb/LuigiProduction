@@ -84,7 +84,7 @@ parser.add_argument(
 parser.add_argument(
     '--subtag',
     type=str,
-    default='',
+    default='default',
     help='Specifies a subtag, for instance an additional cut within the same tag. We force its first character to be an underscore.'
 )
 parser.add_argument(
