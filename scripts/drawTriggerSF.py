@@ -62,9 +62,9 @@ def checkTrigger(args, proc, channel, variable, trig, save_names):
     print('[=debug=]  - Args: proc={proc}, channel={channel}, variable={variable}, trig={trig}'
           .format(proc=proc, channel=channel, variable=variable, trig=trig))
 
-  histo_names = { 'all': 'passALL_{}_{}'.format(channel, variable),
-                  'met': 'passMET_{}_{}_{}'.format(channel, variable, trig)
-                  # 'passMETOnly_{}_{}_{}'.format(channel, variable, trig)
+  histo_names = { 'ref': 'Ref_{}_{}'.format(channel, variable),
+                  'trig': 'Trig_{}_{}_{}'.format(channel, variable, trig)
+                  # 'noref' : 'NoRef_{}_{}_{}'.format(channel, variable, trig)
                  }
   
   histos_mc   = { k: getHisto(v, file_mc)   for k,v in histo_names.items() }
@@ -72,24 +72,24 @@ def checkTrigger(args, proc, channel, variable, trig, save_names):
   
   if args.debug:
     print('[=debug=] MC efficiency...')  
-  #eff_mc = TEfficiency( histos_mc['met'], histos_mc['all'] )
+  #eff_mc = TEfficiency( histos_mc['trig'], histos_mc['ref'] )
   #SetConfidenceLevel, SetStatisticOption
-  eff_mc = TGraphAsymmErrors( histos_mc['met'], histos_mc['all'] )
-  eff_mc_clone = histos_mc['met'].Clone('eff_mc_')
+  eff_mc = TGraphAsymmErrors( histos_mc['trig'], histos_mc['ref'] )
+  eff_mc_clone = histos_mc['trig'].Clone('eff_mc_')
   # geffmc = TGraphAsymmErrors()
   # geffmc.Divide(heffmc,h_passALL,'cp')
-  flag = eff_mc_clone.Divide(eff_mc_clone, histos_mc['all'], 1, 1, 'B')
+  flag = eff_mc_clone.Divide(eff_mc_clone, histos_mc['ref'], 1, 1, 'B')
   if not flag:
     raise RuntimeError('[drawTriggerSF.py] MC division failed!')
 
   if args.debug:
     print('[=debug=] Data efficiency...')  
-  #eff_data = TEfficiency( histos_data['met'], histos_data['all'])
-  eff_data = TGraphAsymmErrors( histos_data['met'], histos_data['all'])
-  eff_data_clone = histos_data['met'].Clone('eff_data_')
+  #eff_data = TEfficiency( histos_data['trig'], histos_data['ref'])
+  eff_data = TGraphAsymmErrors( histos_data['trig'], histos_data['ref'])
+  eff_data_clone = histos_data['trig'].Clone('eff_data_')
   # geff = TGraphAsymmErrors()
   # geff.Divide(heff, d_passALL, 'cp')
-  flag = eff_data_clone.Divide(eff_data_clone, histos_data['all'], 1, 1, 'B')
+  flag = eff_data_clone.Divide(eff_data_clone, histos_data['ref'], 1, 1, 'B')
   if not flag:
     raise RuntimeError('[drawTriggerSF.py] Data division failed!')
 

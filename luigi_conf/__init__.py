@@ -8,10 +8,16 @@ _triggers_map = {'nonStandard': _trigger_custom('nonStandard'), #>=9
                  'MediumMET100': _trigger_shift(12),
                  'MediumMET110': _trigger_shift(13),
                  'MediumMET130': _trigger_shift(14) }
-# check the keys are coherent
 assert( set(_nonStandTriggers).issubset( set(_triggers_map.keys()) ) )
 
 _variables = ['met_et', 'HT20', 'mht_et', 'metnomu_et', 'mhtnomu_et', 'dau1_pt', 'dau2_pt']
+_cuts = {'METNoMu120':      {'met_et': ('>', 200), 'mht_et': ('>', 200)},
+         'METNoMu120_HT60': {'met_et': ('>', 200), 'mht_et': ('>', 200), 'HT20': ('>', 80)}
+         }
+assert( set(_cuts.keys()).issubset(set(_triggers_map.keys())) )
+for x in _cuts.values():
+    assert( set(x.keys()).issubset(set(_variables)) )
+
 _channels = ( 'all', 'etau', 'mutau', 'tautau', 'mumu' )
 _data = dict( MET2018 = ['MET2018A',
                          'MET2018B',

@@ -1,13 +1,21 @@
 ###### DOCSTRING ####################################################
 # Submits all the jobs required to obtain the trigger scale factors
 # Run example:
-# python3 submit_triggerEff.py
-#         --indir /data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_Radion_2018_fixedMETtriggers_mht_16Jun2021/
-#         --outdir /data_CMS/cms/alves/TriggerScaleFactors
-#         --tag v1
-#         --proc MET2018A MET2018B MET2018C MET2018D
-#         --channels all etau mutau tautau mumu
+# python3 -m scripts.submitTriggerEff
+# --indir /data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_Radion_2018_fixedMETtriggers_mht_16Jun2021/
+# --outdir .
+# --tag test_cuts
+# --mc_processes TT_fullyHad
+# --data MET2018A
+# --triggers METNoMu120 METNoMu120_HT60 HT500
+# --variables met_et HT20 mht_et metnomu_et mhtnomu_et
+# --channels mutau
+# --subtag SUBTAG
+# --targetsPrefix hist_eff_
 ####################################################################
+
+import sys
+sys.path.append("..")
 
 import os
 import argparse
@@ -85,7 +93,9 @@ def submitTriggerEff(args):
             s.write('export EXTRA_CLING_ARGS=-O2\n')
             s.write('source /cvmfs/cms.cern.ch/cmsset_default.sh\n')
             s.write('cd /home/llr/cms/alves/CMSSW_12_2_0_pre1/src/\n')
-            s.write('eval `scramv1 runtime -sh`\n')            
+            s.write('eval `scramv1 runtime -sh`\n')
+            if args.debug:
+                command += ' --debug'
             s.write(command)
             s.write('echo "Process {} done."\n'.format(thisProc))
         os.system('chmod u+rwx '+ jobFile)
@@ -125,19 +135,22 @@ def submitTriggerEff(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Command line parser')
 
-    parser.add_argument('-a', '--indir',     dest='indir',        required=True, help='in directory')
-    parser.add_argument('-o', '--outdir',    dest='outdir',       required=True, help='out directory')
-    parser.add_argument('-t', '--tag',       dest='tag',          required=True, help='tag')
-    parser.add_argument('--mc_processes',    dest='mc_processes', required=True, nargs='+', type=str,
+    parser.add_argument('-a', '--indir',     dest='indir',         required=True, help='in directory')
+    parser.add_argument('-o', '--outdir',    dest='outdir',        required=True, help='out directory')
+    parser.add_argument('-t', '--tag',       dest='tag',           required=True, help='tag')
+    parser.add_argument('--subtag',          dest='subtag',        required=True, help='subtag')
+    parser.add_argument('--targetsPrefix',   dest='targetsPrefix', required=True, help='subtag')
+    parser.add_argument('--mc_processes',    dest='mc_processes',  required=True, nargs='+', type=str,
                         help='list of MC process names')
-    parser.add_argument('--data',            dest='data',         required=True, nargs='+', type=str,
+    parser.add_argument('--data',            dest='data',          required=True, nargs='+', type=str,
                         help='list of datasets')
-    parser.add_argument('-c', '--channels',  dest='channels',  required=True, nargs='+', type=str,
+    parser.add_argument('-c', '--channels',  dest='channels',      required=True, nargs='+', type=str,
                         help='Select the channels over which the workflow will be run.' )
-    parser.add_argument('--triggers', dest='triggers', required=True, nargs='+', type=str,
+    parser.add_argument('--triggers', dest='triggers',             required=True, nargs='+', type=str,
                         help='Select the triggers over which the workflow will be run.' )
-    parser.add_argument('--variables', dest='variables', required=True, nargs='+', type=str,
+    parser.add_argument('--variables', dest='variables',           required=True, nargs='+', type=str,
                         help='Select the variables over which the workflow will be run.' )
+    parser.add_argument('--debug', action='store_true', help='debug verbosity')
     args = parser.parse_args()
 
     submitTriggerEff( args )

@@ -1,3 +1,20 @@
+###### DOCSTRING ####################################################
+# Script which calculates the trigger scale factors.
+# On production mode should run in the grid via scripts/submitTriggerEff.py. 
+# Local run example:
+# python3 -m scripts.getTriggerEffSig
+# --indir /data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_Radion_2018_fixedMETtriggers_mht_16Jun2021/
+# --outdir .
+# --sample MET2018A
+# --isData 1
+# --triggers METNoMu120 METNoMu120_HT60 HT500
+# --variables met_et HT20 mht_et metnomu_et mhtnomu_et
+# --channels mutau
+# --subtag SUBTAG
+# --tprefix hist_eff_
+# --file output_0.root
+# --debug
+####################################################################
 import re
 import os
 import sys
@@ -13,7 +30,9 @@ import sys
 sys.path.append(os.path.join(os.environ['CMSSW_BASE'], 'src', 'METTriggerStudies'))
 from utils.utils import getTriggerBit
 
-def CheckBit(number,bitpos):
+from luigi_conf import _cuts
+
+def checkBit(number, bitpos):
     bitdigit = 1
     res = bool(number&(bitdigit<<bitpos))
     return res
@@ -44,6 +63,40 @@ class LeafManager():
                 self.absent_leaves.add(leaf)
             return 0.
 
+def isChannelConsistent(chn, passMu, pairtype):
+    return ( ( chn=='all'    and pairtype<3  )           or
+             ( chn=='mutau'  and pairtype==0 )           or
+             ( chn=='etau'   and pairtype==1 )           or
+             ( chn=='tautau' and pairtype==2 )           or
+             ( chn=='mumu'   and pairtype==3 and passMu) or
+             ( chn=='ee'     and pairtype==4 ) )
+
+def passCut(trig, var, leavesmanager, debug):
+    if debug:
+        print('Trigger={}; Variable={}'.format(trig, var))
+    flag = True
+    try:
+        trig_cuts = _cuts[trig]
+        for avar,acut in trig_cuts.items():
+            if avar!=var: #do not cut on the variable being plotted
+                value = leavesmanager.getLeaf(avar) 
+                if acut[0]=='>':
+                    flag = flag and value > acut[1]
+                    if debug:
+                        print("Cut: {} > {}".format(avar, acut[1]))
+                elif acut[0]=='<':
+                    flag = flag and value < acut[1]
+                    if debug:
+                        print("Cut: {} < {}".format(avar, acut[1]))
+                else:
+                    raise ValueError("The operator for the cut is currently not supported: Use '>' or '<'.")
+    except KeyError: #the trigger has no cut associated
+        if debug:
+            print('KeyError')            
+        flag = True
+
+    return flag
+    
 def getTriggerEffSig(indir, outdir, sample, fileName,
                      channels, variables, triggers,
                      subtag, tprefix, isData):
@@ -54,27 +107,31 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
         os.makedirs( os.path.join(outdir, sample) )
     outdir = os.path.join(outdir, sample)
         
-    # -- Define histograms
-    h_MET, h_METonly, h_ALL= {},{},{}
+    # -- Define histograms:
+    #  hRef: pass the reference trigger
+    #  hTrig: pass the reference trigger + trigger under study
+    #  hNoRef: does not pass the reference trigger BUT passes the trigger under study
+    hRef, hNoRef, hTrig= ({} for _ in range(3))
 
     for i in channels:
-
-        h_MET[i] = {}
-        h_METonly[i] = {}
-        h_ALL[i] = {}
+        hRef[i], hTrig[i], hNoRef[i] = ({} for _ in range(3))
+        
         for j in variables:
-            hall_name = 'passALL_{}_{}'.format(i,j)
-            h_MET[i][j]={}
-            h_METonly[i][j] = {}
+            href_name = 'Ref_{}_{}'.format(i,j)
+            hTrig[i][j]={}
+            hNoRef[i][j] = {}
                 
-            h_ALL[i][j] = ROOT.TH1D(hall_name,'', 6, 0., 600.)
+            hRef[i][j] = ROOT.TH1D(href_name,'', 6, 0., 600.)
             for k in triggers:
-                hmet_name = 'passMET_{}_{}_{}'.format(i,j,k)
-                h_MET[i][j][k] = ROOT.TH1D(hmet_name, '', 6, 0., 600.)
-                hmetonly_name = 'passMETOnly_{}_{}_{}'.format(i,j,k)
-                h_METonly[i][j][k] = ROOT.TH1D(hmetonly_name, '', 6, 0., 600.)
+                htrig_name = 'Trig_{}_{}_{}'.format(i,j,k)
+                hTrig[i][j][k] = ROOT.TH1D(htrig_name, '', 6, 0., 600.)
+                hnoref_name = 'NoRef_{}_{}_{}'.format(i,j,k)
+                hNoRef[i][j][k] = ROOT.TH1D(hnoref_name, '', 6, 0., 600.)
 
     fname = os.path.join(indir, 'SKIM_'+sample, fileName)
+    if not os.path.exists(fname):
+        raise ValueError('[' + os.path.basename(__file__) + '] The input files does not exist.')
+    
     f_in = ROOT.TFile( fname )
     t_in = f_in.Get('HTauTauTree')
 
@@ -140,56 +197,43 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
         for j in variables:
             if fillVar[j]>600: fillVar[j]=599. # include overflow
 
-        passMET = lf.getLeaf(   'isMETtrigger')
-        passLEP = lf.getLeaf(   'isLeptrigger')
-        passTAU = lf.getLeaf(   'isSingleTautrigger')
+        passMET = lf.getLeaf('isMETtrigger')
+        passLEP = lf.getLeaf('isLeptrigger')
+        passTAU = lf.getLeaf('isSingleTautrigger')
         passTAUMET = lf.getLeaf('isTauMETtrigger')
 
         trigBit = lf.getLeaf('pass_triggerbit')
         
-        passReq = {}
+        passRequirements = {}
         for trig in triggers:
-            if trig == 'nonStandard':
-                passReq[trig] = functools.reduce(
-                    lambda x,y: x or y, #logic OR to join all triggers in this option
-                    [ CheckBit(trigBit, getTriggerBit(x, isData)) for x in getTriggerBit(trig, isData) ]
-                )
-            else:
-                passReq[trig] = CheckBit(trigBit, getTriggerBit(trig, isData))
+            passRequirements[trig] = {}
+            for var in variables:
+                if trig == 'nonStandard':
+                    #AT SOME POINT I SHOULD ADD THE CUTS LIKE IN THE 'ELSE' CLAUSE
+                    passRequirements[trig][var] = functools.reduce(
+                        lambda x,y: x or y, #logic OR to join all triggers in this option
+                        [ checkBit(trigBit, getTriggerBit(x, isData)) for x in getTriggerBit(trig, isData) ]
+                    )
+                else:
+                    passRequirements[trig][var] = ( checkBit(trigBit, getTriggerBit(trig, isData)) and
+                                                    passCut(trig, var, lf, args.debug) )
 
-        passReq['MET'] = passMET
-        passReq['Tau'] = passTAU
-        passReq['TauMET'] = passTAUMET
-        
-        passMu = passLEP and (CheckBit(trigBit,0) or CheckBit(trigBit,1))
+        passMu = passLEP and (checkBit(trigBit,0) or checkBit(trigBit,1))
 
-        if passLEP:
-            for i in channels:
-                cond = (   ( i=='all'    and pairtype<3  ) 
-                        or ( i=='mutau'  and pairtype==0 ) 
-                        or ( i=='etau'   and pairtype==1 )  
-                        or ( i=='tautau' and pairtype==2 )
-                        or ( i=='mumu'   and pairtype==3 and passMu) 
-                        or ( i=='ee'     and pairtype==4 ))
-                if cond: 
-                    for j in variables:
-                        h_ALL[i][j].Fill(fillVar[j],evtW)
+        for i in channels:
+            if isChannelConsistent(i, passMu, pairtype):
                 for j in variables:
-                    for k in triggers:
-                        if cond and passReq[k]:
-                            h_MET[i][j][k].Fill(fillVar[j],evtW)
-        else:
-            for i in channels:
-                cond = (   ( i=='all'    and pairtype<3  ) 
-                        or ( i=='mutau'  and pairtype==0 ) 
-                        or ( i=='etau'   and pairtype==1 )  
-                        or ( i=='tautau' and pairtype==2 )
-                        or ( i=='mumu'   and pairtype==3 and passMu ) 
-                        or ( i=='ee'     and pairtype==4 ))
-                for j in variables:
-                    for k in triggers:
-                        if cond and passReq[k]:
-                            h_METonly[i][j][k].Fill(fillVar[j],evtW)
+                    
+                    if passLEP:
+                        hRef[i][j].Fill(fillVar[j], evtW)
+                        for k in triggers:
+                            if passRequirements[k][j]:
+                                hTrig[i][j][k].Fill(fillVar[j], evtW)
+
+                    else:
+                        for k in triggers:
+                            if passRequirements[k][j]:
+                                hNoRef[i][j][k].Fill(fillVar[j], evtW)
 
 
     file_id = ''.join( c for c in fileName[-10:] if c.isdigit() ) 
@@ -200,10 +244,10 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
 
     for i in channels:
         for j in variables:
-            h_ALL[i][j].Write('passALL_{}_{}'.format(i,j))
+            hRef[i][j].Write('Ref_{}_{}'.format(i,j))
             for k in triggers:
-                h_MET[i][j][k].Write('passMET_{}_{}_{}'.format(i,j,k))
-                h_METonly[i][j][k].Write('passMETOnly_{}_{}_{}'.format(i,j,k))
+                hTrig[i][j][k].Write('Trig_{}_{}_{}'.format(i,j,k))
+                hNoRef[i][j][k].Write('NoRef_{}_{}_{}'.format(i,j,k))
 
     f_out.Close()
     f_in.Close()
@@ -228,6 +272,7 @@ parser.add_argument('--triggers', dest='triggers',  required=True, nargs='+', ty
                     help='Select the triggers over which the workflow will be run.' )
 parser.add_argument('--variables', dest='variables', required=True, nargs='+', type=str,
                     help='Select the variables over which the workflow will be run.' )
+parser.add_argument('--debug', action='store_true', help='debug verbosity')
 
 args = parser.parse_args()
 

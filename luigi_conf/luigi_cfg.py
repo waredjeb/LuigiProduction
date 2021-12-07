@@ -145,7 +145,9 @@ class cfg(luigi.Config):
                   'triggers': FLAGS.triggers,
                   'channels': FLAGS.channels,
                   'variables': FLAGS.variables,
-                  'subtag': subtag} )
+                  'targetsPrefix': targets_prefix,
+                  'subtag': subtag,
+                  'debug': FLAGS.debug_workflow} )
 
     ####
     #### haddTriggerEff
