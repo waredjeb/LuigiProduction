@@ -237,7 +237,7 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
 
 
     file_id = ''.join( c for c in fileName[-10:] if c.isdigit() ) 
-    outName = os.path.join(outdir, tprefix + sample + '_' + file_id + '.' + subtag + '.root')
+    outName = os.path.join(outdir, tprefix + sample + '_' + file_id + subtag + '.root')
     print('Saving file {} at {} '.format(file_id, outName) )
     f_out = ROOT.TFile(outName, 'RECREATE')
     f_out.cd()

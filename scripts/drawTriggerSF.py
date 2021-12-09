@@ -45,14 +45,14 @@ def RedrawBorder():
 
 #ROOT.RooMsgService.instance().setGlobalKillBelow(ROOT.RooFit.)
 def checkTrigger(args, proc, channel, variable, trig, save_names):
-  _name = lambda a,b,c,d : a + b + c + '.' + d + '.root'
+  _name = lambda a,b,c,d : a + b + c + d + '.root'
 
   name_data = os.path.join(args.indir, _name( args.targetsPrefix, args.data_name,
                                                 args.target_suffix, args.subtag ) )
   file_data = TFile( name_data, 'READ');
   
   name_mc = os.path.join(args.indir, _name( args.targetsPrefix, args.mc_name,
-                                           args.target_suffix, args.subtag ))
+                                            args.target_suffix, args.subtag ))
   file_mc   = TFile( name_mc, 'READ');
 
   if args.debug:

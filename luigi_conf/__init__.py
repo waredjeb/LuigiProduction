@@ -11,8 +11,8 @@ _triggers_map = {'nonStandard': _trigger_custom('nonStandard'), #>=9
 assert( set(_nonStandTriggers).issubset( set(_triggers_map.keys()) ) )
 
 _variables = ['met_et', 'HT20', 'mht_et', 'metnomu_et', 'mhtnomu_et', 'dau1_pt', 'dau2_pt']
-_cuts = {'METNoMu120':      {'met_et': ('>', 200), 'mht_et': ('>', 200)},
-         'METNoMu120_HT60': {'met_et': ('>', 200), 'mht_et': ('>', 200), 'HT20': ('>', 80)}
+_cuts = {'METNoMu120':      {'metnomu_et': ('>', 200), 'mhtnomu_et': ('>', 200)},
+         'METNoMu120_HT60': {'metnomu_et': ('>', 200), 'mhtnomu_et': ('>', 200), 'HT20': ('>', 80)}
          }
 assert( set(_cuts.keys()).issubset(set(_triggers_map.keys())) )
 for x in _cuts.values():
@@ -42,7 +42,6 @@ _mc_processes = dict( Radions = ['Radion_m300',
                                     'TT_semiLep',],
                       
                       DY =         ['DY',
-                                    'DYall',
-                                    'DY_lowMass',],
+                                    ],
                      )
 
