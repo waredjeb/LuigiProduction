@@ -1,20 +1,25 @@
-###### DOCSTRING ####################################################
-# Script which calculates the trigger scale factors.
-# On production mode should run in the grid via scripts/submitTriggerEff.py. 
-# Local run example:
-# python3 -m scripts.getTriggerEffSig
-# --indir /data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_Radion_2018_fixedMETtriggers_mht_16Jun2021/
-# --outdir .
-# --sample MET2018A
-# --isData 1
-# --triggers METNoMu120 METNoMu120_HT60 HT500
-# --variables met_et HT20 mht_et metnomu_et mhtnomu_et
-# --channels mutau
-# --subtag SUBTAG
-# --tprefix hist_eff_
-# --file output_0.root
-# --debug
-####################################################################
+
+"""
+Script which calculates the trigger scale factors.
+On production mode should run in the grid via scripts/submitTriggerEff.py. 
+Local run example:
+python3 -m scripts.getTriggerEffSig
+--indir /data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_Radion_2018_fixedMETtriggers_mht_16Jun2021/
+--outdir .
+--sample MET2018A
+--isData 1
+--triggers METNoMu120 METNoMu120_HT60 HT500
+--variables met_et HT20 mht_et metnomu_et mhtnomu_et
+--channels mutau
+--subtag SUBTAG
+--tprefix hist_eff_
+--file output_0.root
+--debug
+
+TODO: - Rewrite the nested loops so that the trigger loop
+        comes before the variabe loop
+"""
+
 import re
 import os
 import sys
@@ -71,14 +76,18 @@ def isChannelConsistent(chn, passMu, pairtype):
              ( chn=='mumu'   and pairtype==3 and passMu) or
              ( chn=='ee'     and pairtype==4 ) )
 
-def passCut(trig, var, leavesmanager, debug):
+def passesCut(trig, variables, leavesmanager, debug):
+    """
+    Handles cuts on trigger variables.
+    Works for both 1D and 2D efficiencies.
+    """
     if debug:
-        print('Trigger={}; Variable={}'.format(trig, var))
+        print('Trigger={}; Variables={}'.format(trig, variables))
     flag = True
     try:
         trig_cuts = _cuts[trig]
         for avar,acut in trig_cuts.items():
-            if avar!=var: #do not cut on the variable being plotted
+            if avar not in variables: #do not cut on the variable(s) being plotted
                 value = leavesmanager.getLeaf(avar) 
                 if acut[0]=='>':
                     flag = flag and value > acut[1]
@@ -107,7 +116,7 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
         os.makedirs( os.path.join(outdir, sample) )
     outdir = os.path.join(outdir, sample)
         
-    # -- Define histograms:
+    # Define 1D histograms:
     #  hRef: pass the reference trigger
     #  hTrig: pass the reference trigger + trigger under study
     #  hNoRef: does not pass the reference trigger BUT passes the trigger under study
@@ -127,6 +136,24 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
                 hTrig[i][j][k] = ROOT.TH1D(htrig_name, '', 6, 0., 600.)
                 hnoref_name = 'NoRef_{}_{}_{}'.format(i,j,k)
                 hNoRef[i][j][k] = ROOT.TH1D(hnoref_name, '', 6, 0., 600.)
+
+    # Define 2D efficiencies:
+    #  effRefVsTrig: efficiency for passing the reference trigger
+    effRefVsTrig, = ({} for _ in range(1))
+    addVarNames = lambda var1,var2 : var1 + '_VERSUS_' + var2
+    
+    for i in channels:
+        effRefVsTrig[i], = ({} for _ in range(1))                        
+
+        for k in triggers:
+            if k in _2Dpairs.keys():
+                for j in _2Dpairs[k]:
+                    vname = addVarNames(j[0],j[1])
+                    if vname not in effRefVsTrig[i]: #creates subdictionary if it does not exist
+                        effRefVsTrig[i][vname] = {}
+                    
+                    effRefVsTrig_name = 'effRefVsTrig_{}_{}_{}'.format(i,k,vname)
+                    effRefVsTrig[i][vname][k] = ROOT.TEfficiency(effRefVsTrig_name, '', 6, 0., 600., 6, 0., 600.)
 
     fname = os.path.join(indir, 'SKIM_'+sample, fileName)
     if not os.path.exists(fname):
@@ -203,25 +230,31 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
         passTAUMET = lf.getLeaf('isTauMETtrigger')
 
         trigBit = lf.getLeaf('pass_triggerbit')
-        
-        passRequirements = {}
+
+        passTriggerBits, passRequirements = ({} for _ in range(2))
         for trig in triggers:
             passRequirements[trig] = {}
             for var in variables:
                 if trig == 'nonStandard':
+                    if trig not in passTriggerBits:
+                        passTriggerBits[trig] = functools.reduce(
+                            lambda x,y: x or y, #logic OR to join all triggers in this option
+                            [ checkBit(trigBit, getTriggerBit(x, isData)) for x in getTriggerBit(trig, isData) ]
+                        )
                     #AT SOME POINT I SHOULD ADD THE CUTS LIKE IN THE 'ELSE' CLAUSE
-                    passRequirements[trig][var] = functools.reduce(
-                        lambda x,y: x or y, #logic OR to join all triggers in this option
-                        [ checkBit(trigBit, getTriggerBit(x, isData)) for x in getTriggerBit(trig, isData) ]
-                    )
+                    passRequirements[trig][var] = passTriggerBits[trig]
                 else:
-                    passRequirements[trig][var] = ( checkBit(trigBit, getTriggerBit(trig, isData)) and
-                                                    passCut(trig, var, lf, args.debug) )
+                    if trig not in passTriggerBits:
+                        passTriggerBits[trig] = checkBit(trigBit, getTriggerBit(trig, isData))
+                    passRequirements[trig][var] =  ( passTriggerBits[trig] and
+                                                     passesCut(trig, [var], lf, args.debug) )
 
         passMu = passLEP and (checkBit(trigBit,0) or checkBit(trigBit,1))
 
         for i in channels:
             if isChannelConsistent(i, passMu, pairtype):
+
+                # fill histograms for 1D efficiencies
                 for j in variables:
                     
                     if passLEP:
@@ -229,11 +262,23 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
                         for k in triggers:
                             if passRequirements[k][j]:
                                 hTrig[i][j][k].Fill(fillVar[j], evtW)
-
                     else:
                         for k in triggers:
                             if passRequirements[k][j]:
                                 hNoRef[i][j][k].Fill(fillVar[j], evtW)
+
+                # fill 2D efficiencies (currently only reference vs trigger, i.e.,
+                # all events pass the reference cut)
+                for k in triggers:
+                    if k in _2Dpairs.keys():
+                        for j in _2Dpairs[k]:
+                            vname = addVarNames(j[0],j[1])
+
+                            if passLEP:
+                                trigger_flag = ( passTriggerBits[k] and
+                                                 passesCut(k, [j[0], j[1]], lf, args.debug) )
+                                effRefVsTrig[i][vname][k].Fill(trigger_flag,
+                                                               fillVar[j[0]], fillVar[j[1]])
 
 
     file_id = ''.join( c for c in fileName[-10:] if c.isdigit() ) 
@@ -242,12 +287,19 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
     f_out = ROOT.TFile(outName, 'RECREATE')
     f_out.cd()
 
+    # Writing histograms to the current file
     for i in channels:
         for j in variables:
             hRef[i][j].Write('Ref_{}_{}'.format(i,j))
             for k in triggers:
                 hTrig[i][j][k].Write('Trig_{}_{}_{}'.format(i,j,k))
                 hNoRef[i][j][k].Write('NoRef_{}_{}_{}'.format(i,j,k))
+
+    # Writing 2D efficiencies to the current file
+    for i in channels:
+        for _,j in effRefVsTrig[i].items():
+            for _,k in j.items():
+                k.Write()
 
     f_out.Close()
     f_in.Close()

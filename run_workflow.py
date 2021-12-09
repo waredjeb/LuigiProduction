@@ -11,6 +11,7 @@ from luigi_conf.luigi_utils import is_force_mistake, ForceableEnsureRecentTarget
 from scripts.submitTriggerEff import submitTriggerEff, submitTriggerEff_outputs
 from scripts.haddTriggerEff import haddTriggerEff, haddTriggerEff_outputs
 from scripts.drawTriggerSF import drawTriggerSF, drawTriggerSF_outputs
+from scripts.draw2DTriggerSF import draw2DTriggerSF, draw2DTriggerSF_outputs
 
 from luigi_conf.luigi_cfg import cfg, FLAGS
 
@@ -158,9 +159,9 @@ class HaddTriggerEff(ForceableEnsureRecentTarget):
 #         return HaddTriggerEff(force=force_flag)
 
 ########################################################################
-### DRAW TRIGGER SCALE FACTORS #########################################
+### DRAW 1D TRIGGER SCALE FACTORS #######################################
 ########################################################################
-class DrawTriggerScaleFactors(ForceableEnsureRecentTarget):
+class Draw1DTriggerScaleFactors(ForceableEnsureRecentTarget):
     args = utils.dotDict(lcfg.drawsf_params)
     args.update( {'targetsPrefix': lcfg.targets_prefix,
                   'tag': lcfg.tag,
@@ -197,7 +198,48 @@ class DrawTriggerScaleFactors(ForceableEnsureRecentTarget):
                  HaddTriggerEff(force=force_flag, samples=self.args.mc_processes,
                                 target_suffix=self.args.target_suffix,
                                 dataset_name=self.args.mc_name) ]
-        
+
+########################################################################
+### DRAW 2D TRIGGER SCALE FACTORS #######################################
+########################################################################
+class Draw2DTriggerScaleFactors(ForceableEnsureRecentTarget):
+    args = utils.dotDict(lcfg.drawsf_params)
+    args.update( {'targetsPrefix': lcfg.targets_prefix,
+                  'tag': lcfg.tag,
+                  } )
+    target_path = get_target_path( args.taskname )
+    
+    @WorkflowDebugger(flag=FLAGS.debug_workflow)
+    def output(self):
+        targets = []
+        targets_list, _ = draw2DTriggerSF_outputs( self.args )
+
+        #define luigi targets
+        for t in targets_list:
+            targets.append( luigi.LocalTarget(t) )
+
+        #write the target files for debugging
+        utils.remove( self.target_path )
+        with open( self.target_path, 'w' ) as f:
+            for t in targets_list:
+                f.write( t )
+                
+        return targets
+
+    @WorkflowDebugger(flag=FLAGS.debug_workflow)
+    def run(self):
+        draw2DTriggerSF( self.args )
+
+    @WorkflowDebugger(flag=FLAGS.debug_workflow)
+    def requires(self):
+        force_flag = FLAGS.force > self.args.hierarchy
+        return [ HaddTriggerEff(force=force_flag, samples=self.args.data,
+                                target_suffix=self.args.target_suffix,
+                                dataset_name=self.args.data_name),
+                 HaddTriggerEff(force=force_flag, samples=self.args.mc_processes,
+                                target_suffix=self.args.target_suffix,
+                                dataset_name=self.args.mc_name) ]
+
 ########################################################################
 ### MAIN ###############################################################
 ########################################################################
@@ -226,11 +268,14 @@ if __name__ == "__main__":
     if FLAGS.submit:
         last_task = SubmitTriggerEff(force=FLAGS.force>0)
     else:
-        last_task = DrawTriggerScaleFactors(force=FLAGS.force>0)
+        last_tasks = [ Draw1DTriggerScaleFactors(force=FLAGS.force>0),
+                       Draw2DTriggerScaleFactors(force=FLAGS.force>0) ]
     if FLAGS.scheduler == 'central':
-        luigi.build([last_task], workers=FLAGS.workers, local_scheduler=False, log_level='INFO')
+        luigi.build([last_task] if FLAGS.submit else last_tasks,
+                    workers=FLAGS.workers, local_scheduler=False, log_level='INFO')
     if FLAGS.scheduler == 'local':
-        luigi.build([last_task], local_scheduler=True, log_level='INFO')
+        luigi.build([last_task] if FLAGS.submit else last_tasks,
+                    local_scheduler=True, log_level='INFO')
 
 else:
     raise RuntimeError('This script can only be run directly from the command line.')

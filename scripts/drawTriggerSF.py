@@ -21,7 +21,7 @@ from ROOT import TString
 
 from utils import utils
 
-def getHisto(name, afile):
+def getROOTObject(name, afile):
   _keys = afile.GetListOfKeys()
   if name not in _keys:
     print('Name={}'.format(name))
@@ -43,7 +43,6 @@ def RedrawBorder():
   l.DrawLine(ROOT.gPad.GetUxmin(), ROOT.gPad.GetUymin(), ROOT.gPad.GetUxmin(), ROOT.gPad.GetUymax()) #left border
   l.DrawLine(ROOT.gPad.GetUxmin(), ROOT.gPad.GetUymin(), ROOT.gPad.GetUxmax(), ROOT.gPad.GetUymin()) #bottom border
 
-#ROOT.RooMsgService.instance().setGlobalKillBelow(ROOT.RooFit.)
 def checkTrigger(args, proc, channel, variable, trig, save_names):
   _name = lambda a,b,c,d : a + b + c + d + '.root'
 
@@ -67,8 +66,8 @@ def checkTrigger(args, proc, channel, variable, trig, save_names):
                   # 'noref' : 'NoRef_{}_{}_{}'.format(channel, variable, trig)
                  }
   
-  histos_mc   = { k: getHisto(v, file_mc)   for k,v in histo_names.items() }
-  histos_data = { k: getHisto(v, file_data) for k,v in histo_names.items() }
+  histos_mc   = { k: getROOTObject(v, file_mc)   for k,v in histo_names.items() }
+  histos_data = { k: getROOTObject(v, file_data) for k,v in histo_names.items() }
   
   if args.debug:
     print('[=debug=] MC efficiency...')  

@@ -31,6 +31,20 @@ To run the remaining part of the (local) workflow, run the same command without 
 Check the meaning of the arguments by adding ```--help```.
 You can also run each ```luigi``` task separately by running its corresponding ```python``` scripts (all support ```--help```)
 
+#### Cleanup
+
+In order to avoid cluttering the local area with output files, a ```bash``` script was written to effortlessly delete them:
+
+```
+bash triggerClean.sh -d -f --tag v1
+```
+
+where:
+
+- ```-d```: debug mode, where all commands are printed to the screen and nothing is run
+- ```-f```: full delete, including data produced by the HTCondor jobs (this flag is required to avoid data deletions by mistake)
+- ```-t```: tag used when producing the files
+
 #### Main scripts:
 
 - ```run_workflow.py```: the main script, where the luigi workflow is defined
