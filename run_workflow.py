@@ -216,13 +216,15 @@ class Draw2DTriggerScaleFactors(ForceableEnsureRecentTarget):
 
         #define luigi targets
         for t in targets_list:
-            targets.append( luigi.LocalTarget(t) )
+            for elem in t:
+                targets.append( luigi.LocalTarget(elem) )
 
         #write the target files for debugging
         utils.remove( self.target_path )
         with open( self.target_path, 'w' ) as f:
             for t in targets_list:
-                f.write( t )
+                for elem in t:
+                    f.write( elem )
                 
         return targets
 

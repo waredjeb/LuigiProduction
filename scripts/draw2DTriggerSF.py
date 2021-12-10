@@ -23,6 +23,19 @@ from utils import utils
 from luigi_conf import _2Dpairs
 from scripts.drawTriggerSF import getROOTObject, RedrawBorder
 
+def paintChannelAndTrigger(channel, trig):
+  lX, lY, lYstep = 0.01, 0.94, 0.045
+  l = TLatex()
+  l.SetNDC()
+  l.SetTextFont(72)
+  l.SetTextColor(1)
+
+  latexChannel = copy(channel)
+  latexChannel.replace('mu','#mu')
+  latexChannel.replace('tau','#tau_{h}')
+  latexChannel.replace('Tau','#tau_{h}')
+  l.DrawLatex( lX, lY,        'Channel: '+latexChannel+' / Trigger: '+trig)
+
 def check2DTrigger(args, proc, channel, variables, trig, save_names):
   _name = lambda a,b,c,d : a + b + c + d + '.root'
 
@@ -51,49 +64,40 @@ def check2DTrigger(args, proc, channel, variables, trig, save_names):
 
   if args.debug:
     print('[=debug=] Plotting...')  
-  canvas = TCanvas( os.path.basename(save_names[0]).split('.')[0], 'canvas', 600, 600 )
+  canvas_data = TCanvas( os.path.basename(save_names[0][0]).split('.')[0], 'canvas_data', 600, 600 )
   ROOT.gStyle.SetOptStat(0)
   ROOT.gStyle.SetOptTitle(0)
-  canvas.cd()
-
-  pad1 = TPad('pad1', 'pad1', 0., 0., .5, 1.)
-  pad1.SetBottomMargin(0.1)
-  pad1.SetLeftMargin(0.1)
-  pad1.SetRightMargin(0.15)
-  pad1.Draw()
-  pad1.cd()
+  canvas_data.cd()
 
   eff2D_data['ref_vs_trig'].Draw('colz')
   ROOT.gPad.Update()
-  histo = eff2D_data['ref_vs_trig'].GetPaintedHistogram()
-  histo.GetYaxis().SetNdivisions(5)
-  histo.GetXaxis().SetNdivisions(5)
-  histo.GetYaxis().SetLabelSize(0.04)
-  histo.GetXaxis().SetLabelSize(0.04)
-  histo.GetXaxis().SetTitleSize(0.15)
-  histo.GetYaxis().SetTitleSize(0.15)
-  histo.GetYaxis().SetTitle('TEST')
-  histo.GetXaxis().SetTitle('TEST')
-  histo.GetXaxis().SetTitleOffset(0.45)
-  histo.GetYaxis().SetTitleOffset(0.45)
+  histo_data = eff2D_data['ref_vs_trig'].GetPaintedHistogram()
+  histo_data.GetYaxis().SetNdivisions(5)
+  histo_data.GetXaxis().SetNdivisions(5)
+  histo_data.GetYaxis().SetLabelSize(0.04)
+  histo_data.GetXaxis().SetLabelSize(0.04)
+  histo_data.GetXaxis().SetTitleSize(0.15)
+  histo_data.GetYaxis().SetTitleSize(0.15)
+  histo_data.GetYaxis().SetTitle('TEST')
+  histo_data.GetXaxis().SetTitle('TEST')
+  histo_data.GetXaxis().SetTitleOffset(0.45)
+  histo_data.GetYaxis().SetTitleOffset(0.45)
   ROOT.gPad.Update();
-  ROOT.gPad.Modified()
-  #pad1.RedrawAxis()
 
-  lX, lY, lYstep = 0.12, 0.87, 0.045
+  lX, lY, lYstep = 0.12, 0.85, 0.045
   l_data = TLatex()
   l_data.SetNDC()
   l_data.SetTextFont(72)
   l_data.SetTextColor(1)
   l_data.DrawLatex(lX, lY, 'Data')
 
-  canvas.cd()
-  pad2 = TPad('pad2', 'pad2', .5, 0., 1., 1.)
-  pad2.SetBottomMargin(0.1)
-  pad2.SetLeftMargin(0.1)
-  pad2.SetRightMargin(0.15)
-  pad2.Draw()
-  pad2.cd()
+  paintChannelAndTrigger(channel, trig)
+  RedrawBorder()
+
+  canvas_mc = TCanvas( os.path.basename(save_names[0][1]).split('.')[0], 'canvas_mc', 600, 600 )
+  ROOT.gStyle.SetOptStat(0)
+  ROOT.gStyle.SetOptTitle(0)
+  canvas_mc.cd()
 
   eff2D_mc['ref_vs_trig'].Draw('colz')
   ROOT.gPad.Update()
@@ -108,8 +112,7 @@ def check2DTrigger(args, proc, channel, variables, trig, save_names):
   histo_mc.GetYaxis().SetTitleOffset(-0.5)
   histo_mc.GetYaxis().SetTitle('TEST')
   histo_mc.GetXaxis().SetTitle('TEST')
-  ROOT.gPad.Update(); 
-  pad2.RedrawAxis()
+  ROOT.gPad.Update();
 
   l_mc = TLatex()
   l_mc.SetNDC()
@@ -117,26 +120,33 @@ def check2DTrigger(args, proc, channel, variables, trig, save_names):
   l_mc.SetTextColor(1)
   l_mc.DrawLatex(lX, lY, proc)
 
+  paintChannelAndTrigger(channel, trig)
   RedrawBorder()
 
-  canvas.cd()
-  lX, lY, lYstep = 0.01, 0.94, 0.045
-  l = TLatex()
-  l.SetNDC()
-  l.SetTextFont(72)
-  l.SetTextColor(1)
+  canvas_sf = TCanvas( os.path.basename(save_names[0][2]).split('.')[0], 'canvas_sf', 600, 600 )
+  ROOT.gStyle.SetOptStat(0)
+  ROOT.gStyle.SetOptTitle(0)
+  canvas_sf.cd()
 
-  latexChannel = copy(channel)
-  latexChannel.replace('mu','#mu')
-  latexChannel.replace('tau','#tau_{h}')
-  latexChannel.replace('Tau','#tau_{h}')
-  l.DrawLatex( lX, lY,        'Channel: '+latexChannel+' / Trigger: '+trig)
-    
+  histo_sf = histo_data.Clone('sf')
+  histo_sf.Divide(histo_mc)
+  ROOT.gPad.SetLogz(1);
+  histo_sf.Draw('colz')
+
+  l_mc = TLatex()
+  l_mc.SetNDC()
+  l_mc.SetTextFont(72)
+  l_mc.SetTextColor(1)
+  l_mc.DrawLatex(lX, lY, 'Data / {}'.format(proc))
+
+  paintChannelAndTrigger(channel, trig)
   RedrawBorder()
 
   for aname in save_names:
-    canvas.SaveAs( aname )
-
+    canvas_data.SaveAs( aname[0]  )
+    canvas_mc.SaveAs(   aname[1]  )
+    canvas_sf.SaveAs(   aname[2]  )
+  
 @utils.set_pure_input_namespace
 def draw2DTriggerSF_outputs(args):
   extensions = ( 'png',
@@ -151,12 +161,16 @@ def draw2DTriggerSF_outputs(args):
         if trig in _2Dpairs.keys():
           for variables in _2Dpairs[trig]:
             add = proc + '_' + ch + '_' + trig + '_' + variables[0] + '_VS_' + variables[1]
-            canvas_name = 'Eff_' + args.data_name + '_' + add + args.subtag
+            canvas_data_name = 'EffData_' + args.data_name + '_' + add + args.subtag
+            canvas_mc_name = 'EffMC_' + args.data_name + '_' + add + args.subtag
+            canvas_sf_name = 'SF_' + args.data_name + '_' + add + args.subtag
             thisbase = os.path.join(args.outdir, ch, '')
             utils.create_single_dir( thisbase )
 
             for ext,out in zip(extensions, outputs):
-              out.append( os.path.join( thisbase, canvas_name + '.' + ext ) )
+              out.append( ( os.path.join( thisbase, canvas_data_name + '.' + ext ),
+                            os.path.join( thisbase, canvas_mc_name   + '.' + ext ),
+                            os.path.join( thisbase, canvas_sf_name   + '.' + ext )) )
 
   #join all outputs in the same list
   return sum(outputs, []), extensions
