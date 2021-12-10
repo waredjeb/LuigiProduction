@@ -23,18 +23,32 @@ from utils import utils
 from luigi_conf import _2Dpairs
 from scripts.drawTriggerSF import getROOTObject, RedrawBorder
 
+def setHistoProperties(histo, variables):
+  histo.GetYaxis().SetNdivisions(6)
+  histo.GetXaxis().SetNdivisions(6)
+  histo.GetYaxis().SetLabelSize(0.04)
+  histo.GetXaxis().SetLabelSize(0.04)
+  histo.GetXaxis().SetTitleSize(0.04)
+  histo.GetYaxis().SetTitleSize(0.04)
+  histo.GetXaxis().SetTitleOffset(0.)
+  histo.GetYaxis().SetTitleOffset(1.25)
+  histo.GetXaxis().SetTitle(variables[0])
+  histo.GetYaxis().SetTitle(variables[1])
+
 def paintChannelAndTrigger(channel, trig):
-  lX, lY, lYstep = 0.01, 0.94, 0.045
+  lX, lY, lYstep = 0.06, 0.96, 0.03
   l = TLatex()
   l.SetNDC()
   l.SetTextFont(72)
+  l.SetTextSize(0.03)
   l.SetTextColor(1)
 
   latexChannel = copy(channel)
   latexChannel.replace('mu','#mu')
   latexChannel.replace('tau','#tau_{h}')
   latexChannel.replace('Tau','#tau_{h}')
-  l.DrawLatex( lX, lY,        'Channel: '+latexChannel+' / Trigger: '+trig)
+  l.DrawLatex( lX, lY, 'Channel: '+latexChannel)
+  l.DrawLatex( lX, lY-lYstep, 'Trigger: '+trig)
 
 def check2DTrigger(args, proc, channel, variables, trig, save_names):
   _name = lambda a,b,c,d : a + b + c + d + '.root'
@@ -65,78 +79,64 @@ def check2DTrigger(args, proc, channel, variables, trig, save_names):
   if args.debug:
     print('[=debug=] Plotting...')  
   canvas_data = TCanvas( os.path.basename(save_names[0][0]).split('.')[0], 'canvas_data', 600, 600 )
-  ROOT.gStyle.SetOptStat(0)
-  ROOT.gStyle.SetOptTitle(0)
+  canvas_data.SetLeftMargin(0.10);
+  canvas_data.SetRightMargin(0.15);
   canvas_data.cd()
 
   eff2D_data['ref_vs_trig'].Draw('colz')
   ROOT.gPad.Update()
   histo_data = eff2D_data['ref_vs_trig'].GetPaintedHistogram()
-  histo_data.GetYaxis().SetNdivisions(5)
-  histo_data.GetXaxis().SetNdivisions(5)
-  histo_data.GetYaxis().SetLabelSize(0.04)
-  histo_data.GetXaxis().SetLabelSize(0.04)
-  histo_data.GetXaxis().SetTitleSize(0.15)
-  histo_data.GetYaxis().SetTitleSize(0.15)
-  histo_data.GetYaxis().SetTitle('TEST')
-  histo_data.GetXaxis().SetTitle('TEST')
-  histo_data.GetXaxis().SetTitleOffset(0.45)
-  histo_data.GetYaxis().SetTitleOffset(0.45)
+  setHistoProperties(histo_data, variables)
+  histo_data.Draw('colz text')
   ROOT.gPad.Update();
 
-  lX, lY, lYstep = 0.12, 0.85, 0.045
+  lX, lY, lYstep = 0.8, 0.92, 0.045
   l_data = TLatex()
   l_data.SetNDC()
   l_data.SetTextFont(72)
-  l_data.SetTextColor(1)
+  l_data.SetTextColor(2)
   l_data.DrawLatex(lX, lY, 'Data')
 
   paintChannelAndTrigger(channel, trig)
   RedrawBorder()
 
   canvas_mc = TCanvas( os.path.basename(save_names[0][1]).split('.')[0], 'canvas_mc', 600, 600 )
-  ROOT.gStyle.SetOptStat(0)
-  ROOT.gStyle.SetOptTitle(0)
+  canvas_mc.SetLeftMargin(0.10);
+  canvas_mc.SetRightMargin(0.15);
   canvas_mc.cd()
 
   eff2D_mc['ref_vs_trig'].Draw('colz')
   ROOT.gPad.Update()
   histo_mc = eff2D_mc['ref_vs_trig'].GetPaintedHistogram()
-  histo_mc.GetYaxis().SetNdivisions(5)
-  histo_mc.GetXaxis().SetNdivisions(5)
-  histo_mc.GetYaxis().SetLabelSize(0.04)
-  histo_mc.GetXaxis().SetLabelSize(0.04)
-  histo_mc.GetXaxis().SetTitleSize(0.6)
-  histo_mc.GetYaxis().SetTitleSize(0.6)
-  histo_mc.GetXaxis().SetTitleOffset(0.5)
-  histo_mc.GetYaxis().SetTitleOffset(-0.5)
-  histo_mc.GetYaxis().SetTitle('TEST')
-  histo_mc.GetXaxis().SetTitle('TEST')
+  setHistoProperties(histo_mc, variables)
+  histo_mc.Draw('colz text')
   ROOT.gPad.Update();
 
+  lX, lY, lYstep = 0.7, 0.92, 0.045
   l_mc = TLatex()
   l_mc.SetNDC()
   l_mc.SetTextFont(72)
-  l_mc.SetTextColor(1)
+  l_mc.SetTextColor(2)
   l_mc.DrawLatex(lX, lY, proc)
 
   paintChannelAndTrigger(channel, trig)
   RedrawBorder()
 
   canvas_sf = TCanvas( os.path.basename(save_names[0][2]).split('.')[0], 'canvas_sf', 600, 600 )
-  ROOT.gStyle.SetOptStat(0)
-  ROOT.gStyle.SetOptTitle(0)
+  canvas_sf.SetLeftMargin(0.10);
+  canvas_sf.SetRightMargin(0.15);
   canvas_sf.cd()
 
   histo_sf = histo_data.Clone('sf')
   histo_sf.Divide(histo_mc)
-  ROOT.gPad.SetLogz(1);
-  histo_sf.Draw('colz')
+  histo_sf.SetAxisRange(-0.5, 2.5, 'Z');
+  histo_sf.Draw('colz text')
 
+  lX, lY, lYstep = 0.6, 0.92, 0.045
   l_mc = TLatex()
   l_mc.SetNDC()
   l_mc.SetTextFont(72)
-  l_mc.SetTextColor(1)
+  l_mc.SetTextColor(2)
   l_mc.DrawLatex(lX, lY, 'Data / {}'.format(proc))
 
   paintChannelAndTrigger(channel, trig)
@@ -177,6 +177,10 @@ def draw2DTriggerSF_outputs(args):
     
 @utils.set_pure_input_namespace
 def draw2DTriggerSF(args):
+  ROOT.gStyle.SetOptStat(0)
+  ROOT.gStyle.SetOptTitle(0)
+  ROOT.gStyle.SetPaintTextFormat("4.2f")
+
   outputs, extensions = draw2DTriggerSF_outputs(args)
 
   # loop through variables, triggers, channels and processes
