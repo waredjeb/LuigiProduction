@@ -35,7 +35,7 @@ import sys
 sys.path.append(os.path.join(os.environ['CMSSW_BASE'], 'src', 'METTriggerStudies'))
 from utils.utils import getTriggerBit
 
-from luigi_conf import _cuts
+from luigi_conf import _cuts, _2Dpairs
 
 def checkBit(number, bitpos):
     bitdigit = 1
@@ -115,7 +115,41 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
     if not os.path.exists( os.path.join(outdir, sample) ):
         os.makedirs( os.path.join(outdir, sample) )
     outdir = os.path.join(outdir, sample)
-        
+
+    fname = os.path.join(indir, 'SKIM_'+sample, fileName)
+    if not os.path.exists(fname):
+        raise ValueError('[' + os.path.basename(__file__) + '] The input files does not exist.')
+
+    f_in = ROOT.TFile( fname )
+    t_in = f_in.Get('HTauTauTree')
+
+    fillVar = {}
+    lf = LeafManager( fname, t_in )
+
+    # Determine histogram quantiles
+    quant_down, quant_up = 0.05, 0.95
+    var_vectors = {k: [] for k in variables}
+    for entry in range(0,t_in.GetEntries()):
+        t_in.GetEntry(entry)
+
+        for var in variables:
+            var_vectors[var].append( lf.getLeaf(var) )
+
+    for var in variables:
+        vsize = len(var_vectors[var])
+        var_vectors[var].sort()
+        var_vectors[var] = var_vectors[var][int(quant_down*vsize):int(quant_up*vsize)]
+        var_vectors[var] = (var_vectors[var][0], var_vectors[var][-1])
+        if args.debug:
+            print('Quantiles of {} variable.'.format(var))
+            print('Q({qup})={qupval}; Q({qdown})={qdownval} (array size = {size})'.format(qup=quant_up,
+                                                                                      qupval=int(quant_up*vsize),
+                                                                                      qdown=quant_down,
+                                                                                      qdownval=int(quant_down*vsize),
+                                                                                      size=vsize))
+            print('Maximum={}; Minimum={}'.format(var_vectors[var][1],var_vectors[var][0]))
+
+    nbins = 10
     # Define 1D histograms:
     #  hRef: pass the reference trigger
     #  hTrig: pass the reference trigger + trigger under study
@@ -130,12 +164,12 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
             hTrig[i][j]={}
             hNoRef[i][j] = {}
                 
-            hRef[i][j] = ROOT.TH1D(href_name,'', 6, 0., 600.)
+            hRef[i][j] = ROOT.TH1D(href_name,'', 10, var_vectors[j][0], var_vectors[j][1])
             for k in triggers:
                 htrig_name = 'Trig_{}_{}_{}'.format(i,j,k)
-                hTrig[i][j][k] = ROOT.TH1D(htrig_name, '', 6, 0., 600.)
+                hTrig[i][j][k] = ROOT.TH1D(htrig_name, '', nbins, var_vectors[j][0], var_vectors[j][1])
                 hnoref_name = 'NoRef_{}_{}_{}'.format(i,j,k)
-                hNoRef[i][j][k] = ROOT.TH1D(hnoref_name, '', 6, 0., 600.)
+                hNoRef[i][j][k] = ROOT.TH1D(hnoref_name, '', nbins, var_vectors[j][0], var_vectors[j][1])
 
     # Define 2D efficiencies:
     #  effRefVsTrig: efficiency for passing the reference trigger
@@ -153,18 +187,11 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
                         effRefVsTrig[i][vname] = {}
                     
                     effRefVsTrig_name = 'effRefVsTrig_{}_{}_{}'.format(i,k,vname)
-                    effRefVsTrig[i][vname][k] = ROOT.TEfficiency(effRefVsTrig_name, '', 6, 0., 600., 6, 0., 600.)
-
-    fname = os.path.join(indir, 'SKIM_'+sample, fileName)
-    if not os.path.exists(fname):
-        raise ValueError('[' + os.path.basename(__file__) + '] The input files does not exist.')
+                    effRefVsTrig[i][vname][k] = ROOT.TEfficiency(effRefVsTrig_name, '',
+                                                                 nbins, var_vectors[j[0]][0], var_vectors[j[0]][1],
+                                                                 nbins, var_vectors[j[1]][0], var_vectors[j[1]][1])
     
-    f_in = ROOT.TFile( fname )
-    t_in = f_in.Get('HTauTauTree')
-
-    fillVar = {}
-    lf = LeafManager( fname, t_in )
-
+    
     for entry in range(0,t_in.GetEntries()):
         t_in.GetEntry(entry)
 
@@ -222,7 +249,7 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
         for v in variables:
             fillVar[v] = lf.getLeaf(v)
         for j in variables:
-            if fillVar[j]>600: fillVar[j]=599. # include overflow
+            if fillVar[j]>var_vectors[j][1]: fillVar[j]=var_vectors[j][1] # include overflow
 
         passMET = lf.getLeaf('isMETtrigger')
         passLEP = lf.getLeaf('isLeptrigger')
