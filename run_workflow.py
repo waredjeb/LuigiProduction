@@ -41,6 +41,36 @@ def luigi_to_raw( param ):
         raise NotImplementedError('[' + inspect.stack()[0][3] + ']: ' + 'only tuples/lsits implemented so far!')
 
 ########################################################################
+### CALCULATE THE MOST ADEQUATE BINNING BASED ON DATA ##################
+########################################################################
+class DefineBinning(ForceableEnsureRecentTarget):
+    args = utils.dotDict(lcfg.bins_params)
+    args.update( {'tag': lcfg.tag} )
+    
+    target_path = get_target_path( args.taskname )
+    
+    @WorkflowDebugger(flag=FLAGS.debug_workflow)
+    def output(self):
+        targets = []
+        targets_list = defineBinning_outputs( self.args )
+
+        #define luigi targets
+        for t in targets_list:
+            targets.append( luigi.LocalTarget(t) )
+
+        #write the target files for debugging
+        utils.remove( self.target_path )
+        with open( self.target_path, 'w' ) as f:
+            for t in targets_list:
+                f.write( t + '\n' )
+
+        return targets
+
+    @WorkflowDebugger(flag=FLAGS.debug_workflow)
+    def run(self):
+        defineBinning( self.args )
+
+########################################################################
 ### SUBMIT TRIGGER EFFICIENCIES USING HTCONDOR #########################
 ########################################################################
 class SubmitTriggerEff(ForceableEnsureRecentTarget):
@@ -74,7 +104,12 @@ class SubmitTriggerEff(ForceableEnsureRecentTarget):
 
         time.sleep(1.0)
         os.system('condor_q')
-        
+
+    @WorkflowDebugger(flag=FLAGS.debug_workflow)
+    def requires(self):
+        force_flag = FLAGS.force > self.args.hierarchy
+        return DefineBinning(force=force_flag)
+
 
 ########################################################################
 ### HADD TRIGGER EFFICIENCIES ##########################################

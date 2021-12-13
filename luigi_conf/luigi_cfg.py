@@ -9,7 +9,7 @@ from . import _nonStandTriggers, _trigger_custom, _trigger_shift, _triggers_map
 ######################################################################## 
 ### ARGUMENT PARSING ###################################################
 ########################################################################
-_tasks = ( 'submit', 'hadd', 'comp', 'drawsf')
+_tasks = ( 'bins', 'submit', 'hadd', 'comp', 'drawsf')
     
 parser = argparse.ArgumentParser()
 choices = [x for x in range(len(_tasks)+1)]
@@ -19,6 +19,12 @@ parser.add_argument(
     choices=choices,
     default=0,
     help="Force running a certain number of tasks, even if the corresponding targets exist.\n The value '" + str(choices) + "' runs the highest-level task and so on up to '" + str(choices[-1]) + "').\n It values follow the hierarchies defined in the cfg() class."
+)
+parser.add_argument(
+    '--nbins',
+    type=int,
+    default=10,
+    help="Number of histogram bins. If fine-grained control is required modify the variable `_bins` in the luigi configuration file."
 )
 parser.add_argument(
     '--workers',
@@ -107,6 +113,9 @@ def set_task_name(n):
     assert( n in _tasks )
     return n
 
+def get_binning(nbins):
+    assert(nbins is None or len(nbins)==2)
+    return nbins[0], nbins[1]
 ########################################################################
 ### LUIGI CONFIGURATION ################################################
 ########################################################################
@@ -131,6 +140,25 @@ class cfg(luigi.Config):
 
     data_input = '/data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_Radion_2018_fixedMETtriggers_mht_16Jun2021/'
 
+    binedges_dataset = ps.path.join(tag_folder, 'binedges.hdf5')
+
+    ####
+    #### defineBinning
+    ####
+    _bins = get_binning( FLAGS.nbins )
+    _rawname = set_task_name('bins')
+    bins_params = luigi.DictParameter(
+        default={ 'taskname': _rawname,
+                  'hierarchy': _tasks.index(_rawname)+1,
+                  'nbinsx': _bins,
+                  'binedges_dataset': binedges_dataset,
+                  'indir': data_input,
+                  'outdir': tag_folder,
+                  'data': _data[FLAGS.data],
+                  'variables': FLAGS.variables,
+                  'subtag': subtag,
+                  'debug': FLAGS.debug_workflow} )
+
     ####
     #### submitTriggerEff
     ####
@@ -138,6 +166,7 @@ class cfg(luigi.Config):
     submit_params = luigi.DictParameter(
         default={ 'taskname': _rawname,
                   'hierarchy': _tasks.index(_rawname)+1,
+                  'binedges_dataset': binedges_dataset,
                   'indir': data_input,
                   'outdir': tag_folder,
                   'data': _data[FLAGS.data],

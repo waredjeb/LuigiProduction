@@ -48,6 +48,32 @@ def getTriggerBit(trigger_name, isData):
   s = 'data' if isData else 'mc'
   return _triggers_map[trigger_name][s]
 
+class LeafManager():
+    """
+    Class to manage TTree branch leafs, making sure they exist.
+    """
+    def __init__(self, fname, t_in):
+        self.fname = fname
+        self.tree = t_in
+        self.absent_leaves = set()
+        self.error_prefix = '[LeafManager]: '
+        
+    def getLeaf(self, leaf):
+        if not isinstance(leaf, str):
+            m = 'The leaf must be a string.'
+            raise TypeError(self.error_prefix + m)
+        try:
+            obj = self.tree.GetListOfBranches().FindObject(leaf)
+            name = obj.GetName()
+            getAttr = lambda x : getattr(self.tree, x)
+            return getAttr(leaf)
+        except ReferenceError:
+            if leaf not in self.absent_leaves:
+                m = 'WARNING: leaf ' + leaf + ' does not exist in file ' + self.fname
+                print(self.error_prefix + m)
+                self.absent_leaves.add(leaf)
+            return 0.
+
 def remove(f):
   if os.path.exists( f ):
     os.remove( f )

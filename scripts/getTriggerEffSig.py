@@ -33,7 +33,7 @@ import ROOT
 
 import sys
 sys.path.append(os.path.join(os.environ['CMSSW_BASE'], 'src', 'METTriggerStudies'))
-from utils.utils import getTriggerBit
+from utils.utils import getTriggerBit, LeafManager
 
 from luigi_conf import _cuts, _2Dpairs
 
@@ -41,32 +41,6 @@ def checkBit(number, bitpos):
     bitdigit = 1
     res = bool(number&(bitdigit<<bitpos))
     return res
-
-class LeafManager():
-    """
-    Class to manage TTree branch leafs, making sure they exist.
-    """
-    def __init__(self, fname, t_in):
-        self.fname = fname
-        self.tree = t_in
-        self.absent_leaves = set()
-        self.error_prefix = '[LeafManager]: '
-        
-    def getLeaf(self, leaf):
-        if not isinstance(leaf, str):
-            m = 'The leaf must be a string.'
-            raise TypeError(self.error_prefix + m)
-        try:
-            obj = self.tree.GetListOfBranches().FindObject(leaf)
-            name = obj.GetName()
-            getAttr = lambda x : getattr(self.tree, x)
-            return getAttr(leaf)
-        except ReferenceError:
-            if leaf not in self.absent_leaves:
-                m = 'WARNING: leaf ' + leaf + ' does not exist in file ' + self.fname
-                print(self.error_prefix + m)
-                self.absent_leaves.add(leaf)
-            return 0.
 
 def isChannelConsistent(chn, passMu, pairtype):
     return ( ( chn=='all'    and pairtype<3  )           or
@@ -108,7 +82,7 @@ def passesCut(trig, variables, leavesmanager, debug):
     
 def getTriggerEffSig(indir, outdir, sample, fileName,
                      channels, variables, triggers,
-                     subtag, tprefix, isData):
+                     subtag, tprefix, isData, binedges_dset):
     # -- Check if outdir exists, if not create it
     if not os.path.exists(outdir):
         os.makedirs(outdir)
@@ -126,30 +100,10 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
     fillVar = {}
     lf = LeafManager( fname, t_in )
 
-    # Determine histogram quantiles
-    quant_down, quant_up = 0.05, 0.95
-    var_vectors = {k: [] for k in variables}
-    for entry in range(0,t_in.GetEntries()):
-        t_in.GetEntry(entry)
-
-        for var in variables:
-            var_vectors[var].append( lf.getLeaf(var) )
-
-    for var in variables:
-        vsize = len(var_vectors[var])
-        var_vectors[var].sort()
-        var_vectors[var] = var_vectors[var][int(quant_down*vsize):int(quant_up*vsize)]
-        var_vectors[var] = (var_vectors[var][0], var_vectors[var][-1])
-        if args.debug:
-            print('Quantiles of {} variable.'.format(var))
-            print('Q({qup})={qupval}; Q({qdown})={qdownval} (array size = {size})'.format(qup=quant_up,
-                                                                                      qupval=int(quant_up*vsize),
-                                                                                      qdown=quant_down,
-                                                                                      qdownval=int(quant_down*vsize),
-                                                                                      size=vsize))
-            print('Maximum={}; Minimum={}'.format(var_vectors[var][1],var_vectors[var][0]))
-
-    nbins = 10
+    with h5py.File(binedges_dset, 'r') as f:
+        g = f['group']['binedges'][:]
+        print(g)
+    NBINS!!!!!!!!!
     # Define 1D histograms:
     #  hRef: pass the reference trigger
     #  hTrig: pass the reference trigger + trigger under study
@@ -337,19 +291,20 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
 # -- Parse input arguments
 parser = argparse.ArgumentParser(description='Command line parser')
 
-parser.add_argument('--indir',    dest='indir',     required=True, help='SKIM directory')
-parser.add_argument('--outdir',   dest='outdir',    required=True, help='output directory')
-parser.add_argument('--sample',   dest='sample',    required=True, help='Process name as in SKIM directory')
-parser.add_argument('--isData',   dest='isData',    required=True, help='Whether it is data or MC', type=int)
-parser.add_argument('--file',     dest='fileName',  required=True, help='ID of input root file')
-parser.add_argument('--subtag',   dest='subtag',    required=True,
-                    help='Additional (sub)tag to differentiate similar runs within the same tag.')
-parser.add_argument('--tprefix',  dest='tprefix',   required=True, help='Targets name prefix.')
-parser.add_argument('--channels', dest='channels',  required=True, nargs='+', type=str,
-                    help='Select the channels over which the workflow will be run.' )
-parser.add_argument('--triggers', dest='triggers',  required=True, nargs='+', type=str,
-                    help='Select the triggers over which the workflow will be run.' )
-parser.add_argument('--variables', dest='variables', required=True, nargs='+', type=str,
+parser.add_argument('binedges_dset', dest='binedges_dset',     required=True, help='where the bin edges are stored')
+parser.add_argument('--indir',       dest='indir',             required=True, help='SKIM directory')
+parser.add_argument('--outdir',      dest='outdir',            required=True, help='output directory')
+parser.add_argument('--sample',      dest='sample',            required=True, help='Process name as in SKIM directory')
+parser.add_argument('--isData',      dest='isData',            required=True, help='Whether it is data or MC', type=int)
+parser.add_argument('--file',        dest='fileName',          required=True, help='ID of input root file')
+parser.add_argument('--subtag',      dest='subtag',            required=True,
+                    help='Additional (sub)tag to differ        entiate similar runs within the same tag.')
+parser.add_argument('--tprefix',     dest='tprefix',           required=True, help='Targets name prefix.')
+parser.add_argument('--channels',    dest='channels',          required=True, nargs='+', type=str,  
+                    help='Select t   he channels over w        hich the workflow will be run.' )
+parser.add_argument('--triggers',    dest='triggers',          required=True, nargs='+', type=str,
+                    help='Select t   he triggers over w        hich the workflow will be run.' )
+parser.add_argument('--variables',   dest='variables',         required=True, nargs='+', type=str,
                     help='Select the variables over which the workflow will be run.' )
 parser.add_argument('--debug', action='store_true', help='debug verbosity')
 
@@ -357,4 +312,4 @@ args = parser.parse_args()
 
 getTriggerEffSig(args.indir, args.outdir, args.sample, args.fileName,
                  args.channels, args.variables, args.triggers,
-                 args.subtag, args.tprefix, args.isData)
+                 args.subtag, args.tprefix, args.isData, args.binedges_dataset)

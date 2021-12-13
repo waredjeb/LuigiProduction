@@ -75,14 +75,16 @@ def submitTriggerEff(args):
 
         command =  ( ( '{prog} --indir {indir} --outdir {outdir} --sample {sample} --isData {isData} '
                        '--file ${{1}} --subtag {subtag} --channels {channels} '
-                       '--triggers {triggers} --variables {variables} --tprefix {tprefix}\n' )
+                       '--triggers {triggers} --variables {variables} --tprefix {tprefix} '
+                       '--binedges_dset {bedset}\n' )
                      .format( prog=prog, indir=args.indir, outdir=args.outdir,
                               sample=thisProc, isData=int(thisProc in args.data),
                               subtag=args.subtag,
                               channels=' '.join(args.channels,),
                               triggers=' '.join(args.triggers,),
                               variables=' '.join(args.variables,),
-                              tprefix=args.targetsPrefix)
+                              tprefix=args.targetsPrefix,
+                              bedset=args.binedges_dataset),
                     )
 
         os.system('mkdir -p {}'.format(jobDir))
