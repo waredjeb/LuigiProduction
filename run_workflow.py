@@ -8,6 +8,7 @@ from utils import utils
 from luigi_conf.luigi_utils import WorkflowDebugger
 from luigi_conf.luigi_utils import is_force_mistake, ForceableEnsureRecentTarget
 
+from scripts.defineBinning import defineBinning, defineBinning_outputs
 from scripts.submitTriggerEff import submitTriggerEff, submitTriggerEff_outputs
 from scripts.haddTriggerEff import haddTriggerEff, haddTriggerEff_outputs
 from scripts.drawTriggerSF import drawTriggerSF, drawTriggerSF_outputs
@@ -51,20 +52,14 @@ class DefineBinning(ForceableEnsureRecentTarget):
     
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def output(self):
-        targets = []
-        targets_list = defineBinning_outputs( self.args )
-
-        #define luigi targets
-        for t in targets_list:
-            targets.append( luigi.LocalTarget(t) )
-
+        target = defineBinning_outputs( self.args )
+        
         #write the target files for debugging
         utils.remove( self.target_path )
         with open( self.target_path, 'w' ) as f:
-            for t in targets_list:
-                f.write( t + '\n' )
+            f.write( target + '\n' )
 
-        return targets
+        return luigi.LocalTarget(target)
 
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def run(self):

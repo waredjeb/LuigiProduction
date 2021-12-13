@@ -17,7 +17,7 @@ python3 -m scripts.getTriggerEffSig
 --debug
 
 TODO: - Rewrite the nested loops so that the trigger loop
-        comes before the variabe loop
+        comes before the variable loop
 """
 
 import re
@@ -100,10 +100,14 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
     fillVar = {}
     lf = LeafManager( fname, t_in )
 
+    # Recover binning
+    binvals, nbins = ({} for _ in range(2))
     with h5py.File(binedges_dset, 'r') as f:
-        g = f['group']['binedges'][:]
-        print(g)
-    NBINS!!!!!!!!!
+        group = f[subtag]
+        for v in variables:
+            binvals[var] = np.array(group[v][:])
+            nbins[var] = len(xbins[var])
+    
     # Define 1D histograms:
     #  hRef: pass the reference trigger
     #  hTrig: pass the reference trigger + trigger under study
@@ -117,13 +121,14 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
             href_name = 'Ref_{}_{}'.format(i,j)
             hTrig[i][j]={}
             hNoRef[i][j] = {}
-                
-            hRef[i][j] = ROOT.TH1D(href_name,'', 10, var_vectors[j][0], var_vectors[j][1])
+
+            binning = (nbins[j], binvals[j])
+            hRef[i][j] = ROOT.TH1D(href_name,'', *binning)
             for k in triggers:
                 htrig_name = 'Trig_{}_{}_{}'.format(i,j,k)
-                hTrig[i][j][k] = ROOT.TH1D(htrig_name, '', nbins, var_vectors[j][0], var_vectors[j][1])
+                hTrig[i][j][k] = ROOT.TH1D(htrig_name, '', *binning)
                 hnoref_name = 'NoRef_{}_{}_{}'.format(i,j,k)
-                hNoRef[i][j][k] = ROOT.TH1D(hnoref_name, '', nbins, var_vectors[j][0], var_vectors[j][1])
+                hNoRef[i][j][k] = ROOT.TH1D(hnoref_name, '', *binning)
 
     # Define 2D efficiencies:
     #  effRefVsTrig: efficiency for passing the reference trigger
@@ -141,9 +146,9 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
                         effRefVsTrig[i][vname] = {}
                     
                     effRefVsTrig_name = 'effRefVsTrig_{}_{}_{}'.format(i,k,vname)
-                    effRefVsTrig[i][vname][k] = ROOT.TEfficiency(effRefVsTrig_name, '',
-                                                                 nbins, var_vectors[j[0]][0], var_vectors[j[0]][1],
-                                                                 nbins, var_vectors[j[1]][0], var_vectors[j[1]][1])
+                    effRefVsTrig[i][vname][k] = ROOT.TEfficiency( effRefVsTrig_name, '',
+                                                                  nbins[j[0]], binvals[j[0]],
+                                                                  nbins[j[1]], binvals[j[1]] )
     
     
     for entry in range(0,t_in.GetEntries()):
@@ -291,7 +296,7 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
 # -- Parse input arguments
 parser = argparse.ArgumentParser(description='Command line parser')
 
-parser.add_argument('binedges_dset', dest='binedges_dset',     required=True, help='where the bin edges are stored')
+parser.add_argument('--binedges_dset', dest='binedges_dset',     required=True, help='where the bin edges are stored')
 parser.add_argument('--indir',       dest='indir',             required=True, help='SKIM directory')
 parser.add_argument('--outdir',      dest='outdir',            required=True, help='output directory')
 parser.add_argument('--sample',      dest='sample',            required=True, help='Process name as in SKIM directory')

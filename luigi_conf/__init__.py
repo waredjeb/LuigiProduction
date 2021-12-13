@@ -27,7 +27,7 @@ for x in _2Dpairs.values():
         assert( pair[0] in _variables and pair[1] in _variables )
 
 _binedges = {} #Example: {'met_et': [100,200,300,400,500,600],}
-assert( set(_binedges.keys()).issubset(set(variables)) )
+assert( set(_binedges.keys()).issubset(set(_variables)) )
 for x in _binedges.values():
     assert( len(x) == len(list(_binedges.values())[0]) )
 

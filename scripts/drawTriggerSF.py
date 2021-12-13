@@ -200,7 +200,7 @@ def checkTrigger(args, proc, channel, variable, trig, save_names):
   pad1.Draw()
   pad1.cd()
   
-  axor = TH2D('axor','axor',4,0,600,100,-0.1,1.7)
+  axor = TH2D('axor','axor', 4, 0, 600, 100, -0.1, 1.7)
   axor.GetYaxis().SetTitle('Efficiency')
   axor.GetXaxis().SetLabelOffset(1)
   axor.GetXaxis().SetLabelOffset(1.)
@@ -251,7 +251,7 @@ def checkTrigger(args, proc, channel, variable, trig, save_names):
   pad2.cd()
   pad2.SetGridy()
   
-  axor2 = TH2D('axor2','axor2',4,0,600,100,0.8,1.2)
+  axor2 = TH2D('axor2', 'axor2', 4, 0, 600, 100, 0.8, 1.2)
   axor2.GetYaxis().SetNdivisions(507)
   axor2.GetYaxis().SetLabelSize(0.12)
   axor2.GetXaxis().SetLabelSize(0.12)
