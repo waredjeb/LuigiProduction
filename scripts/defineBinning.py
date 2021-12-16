@@ -77,9 +77,15 @@ def defineBinning(args):
             treesize = chain.GetEntries()
             nTotEntries += treesize
 
-            ROOT.EnableImplicitMT()
-            rdframe = ROOT.RDataFrame(chain)
-            
+            #ROOT.EnableImplicitMT()
+            rdf = ROOT.RDataFrame(chain)
+            rdf_counts = rdf.Count()
+            arr = rdf.AsNumpy('met_et')
+            print(arr)
+            #rdf = rdf.Display({"met_et", "HT20"}, 30)
+            #rdf.Print()
+            quit()
+
             # for entry in range(0,treesize):
             #     chain.GetEntry(entry)
             #     if entry % 50000 == 0:
