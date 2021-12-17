@@ -152,13 +152,13 @@ def checkTrigger(args, proc, channel, variable, trig, save_names, binedges, nbin
     for i in range(npoints):
       print('xp[{}] = {} - yp[{}] = {} +{}/-{}\n'.format(i,x_sf[i],i,y_sf[i],eu_sf[i],ed_sf[i]))
   
-  a = [50 for _ in range(npoints)]
+  halfbinwidths = (binedges[1:]-binedges[:-1])/2
   darr = lambda x : np.array(x).astype(dtype=np.double)
   sf = TGraphAsymmErrors(npoints,
                          darr(x_sf),
                          darr(y_sf),
-                         darr(a),
-                         darr(a),
+                         darr(halfbinwidths),
+                         darr(halfbinwidths),
                          darr(ed_sf),
                          darr(eu_sf))
 
@@ -201,7 +201,7 @@ def checkTrigger(args, proc, channel, variable, trig, save_names, binedges, nbin
   pad1.Draw()
   pad1.cd()
   
-  axor = TH2D('axor','axor', nbins, binedges[0], binedges[1], 100, -0.1, 1.7)
+  axor = TH2D('axor','axor', nbins, binedges[0], binedges[-1], 100, -0.1, 1.7)
   axor.GetYaxis().SetTitle('Efficiency')
   axor.GetXaxis().SetLabelOffset(1)
   axor.GetXaxis().SetLabelOffset(1.)
@@ -252,7 +252,7 @@ def checkTrigger(args, proc, channel, variable, trig, save_names, binedges, nbin
   pad2.cd()
   pad2.SetGridy()
   
-  axor2 = TH2D('axor2', 'axor2', nbins, binedges[0], binedges[1], 100, 0.8, 1.2)
+  axor2 = TH2D('axor2', 'axor2', nbins, binedges[0], binedges[-1], 100, 0.55, 1.45)
   axor2.GetYaxis().SetNdivisions(507)
   axor2.GetYaxis().SetLabelSize(0.12)
   axor2.GetXaxis().SetLabelSize(0.12)
@@ -317,7 +317,6 @@ def drawTriggerSF(args):
     group = f[args.subtag]
     for var in args.variables:
       binedges[var] = group[var][:]
-      binedges[var] = (binedges[var][0], binedges[var][-1])
       nbins[var] = len(binedges[var]) - 1
 
   dt = len(args.triggers)
