@@ -14,7 +14,8 @@
 
 import os
 import h5py
-import ROOT
+import uproot as up
+import pandas as pd
 import argparse
 
 from utils.utils import getTriggerBit, LeafManager, set_pure_input_namespace
@@ -62,67 +63,35 @@ def defineBinning(args):
                     if '.root' in line:
                         if not os.path.exists(line[:-1]):
                             raise ValueError('[' + os.path.basename(__file__) + '] The input file does not exist: {}'.format(line))
-                        filelist.append(line[:-1])
+                        filelist.append(line[:-1] + ':HTauTauTree')
 
-            #create chain of trees
-            chain = ROOT.TChain('HTauTauTree')
-            for line in filelist[:5]: #only looks at the first five files to speedup (accuracy loss)
-                if args.debug:
-                    print("Adding file: " + line)
-                chain.Add(line)
-
-            lf = LeafManager( 'Chain_HTauTauTree', chain )
-
-            var_vectors = {k: [] for k in args.variables}
-            treesize = chain.GetEntries()
+            treesize = 0
+            quantiles = []
+            for ib,batch in enumerate(up.iterate(files=filelist, expressions=args.variables,
+                                                 step_size='10 GB', library='pd')):
+                print('{}/{} files\r'.format(ib+1,len(filelist)), end="", flush=True)
+                treesize += batch.shape[0]
+                quantiles.append( batch.quantile([quant_down, quant_up]) )
+                if ib>2: break
+            
+            quantiles = pd.concat(quantiles, axis=0).groupby(level=0).mean()
             nTotEntries += treesize
 
-            #ROOT.EnableImplicitMT()
-            rdf = ROOT.RDataFrame(chain)
-            rdf_counts = rdf.Count()
-            arr = rdf.AsNumpy('met_et')
-            print(arr)
-            #rdf = rdf.Display({"met_et", "HT20"}, 30)
-            #rdf.Print()
-            quit()
-
-            # for entry in range(0,treesize):
-            #     chain.GetEntry(entry)
-            #     if entry % 50000 == 0:
-            #         print('Chain processing entry {}'.format(entry))
-            #     for var in args.variables:
-            #         var_vectors[var].append( lf.getLeaf(var) )
-                    
             for var in args.variables:
                 if var not in _binedges:
-                    print('VAR::::::::::: {}'.format(var))
-                    var_vectors[var] = rdframe.Take('std::vector<float>')(var)
-                    print(var_vectors[var])
-                    quit()
+                    _minedge[var][sample] = treesize*quantiles.loc[quant_down, var]
+                    _maxedge[var][sample] = treesize*quantiles.loc[quant_up, var]
 
-                    vsize = len(var_vectors[var])
-                    assert(vsize == treesize)
-                    var_vectors[var].sort()
-                    var_vectors[var] = var_vectors[var][int(quant_down*vsize):int(quant_up*vsize)]
-                    var_vectors[var] = (var_vectors[var][0], var_vectors[var][-1])
-                    # multiply by the size of each sample (averaged at the end)
-                    _minedge[var][sample] = treesize*var_vectors[var][0]
-                    _maxedge[var][sample] = treesize*var_vectors[var][1]
                     if args.debug:
-                        print('Quantiles of {} variable.'.format(var))
-                        print('Q({qup})={qupval}; Q({qdown})={qdownval} (array size = {size})'.format(qup=quant_up,
-                                                                                                  qupval=int(quant_up*vsize),
-                                                                                                  qdown=quant_down,
-                                                                                                  qdownval=int(quant_down*vsize),
-                                                                                                  size=vsize))
-                        print('Maximum={}; Minimum={}'.format(var_vectors[var][1],var_vectors[var][0]))
+                        print( '{} quantiles:  Q({})={}, Q({})={}'
+                               .format(var, quant_down, _minedge[var][sample], quant_up, _maxedge[var][sample]) )
                 else:
                     if args.debug:
                         print('Quantiles were not calculated. The custom bins for variable {} were instead used'
                               .format(var))
 
         # Do weighted average based on the number of events in each dataset
-        maxmin = {}
+        maxedge, minedge = ({} for _ in range(2))
         for var in args.variables:
             maxedge[var] = sum(_maxedge[var].values()) / nTotEntries
             minedge[var] = sum(_minedge[var].values()) / nTotEntries
@@ -139,7 +108,7 @@ def defineBinning(args):
                 print('The HD5 group already existed. Skipping binning definition...')
                 break
             for v in args.variables:
-                dset = group.create_filename(v, dtype=float, shape=(args.nbins+1,))
+                dset = group.create_dataset(v, dtype=float, shape=(args.nbins+1,))
                 if v in _binedges:
                     if args.debug:
                         print( '[' + os.path.basename(__file__) + '] Using custom binning for variable {}: {}'

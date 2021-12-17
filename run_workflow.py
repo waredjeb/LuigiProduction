@@ -53,7 +53,7 @@ class DefineBinning(ForceableEnsureRecentTarget):
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def output(self):
         target = defineBinning_outputs( self.args )
-        
+
         #write the target files for debugging
         utils.remove( self.target_path )
         with open( self.target_path, 'w' ) as f:

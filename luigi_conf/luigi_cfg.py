@@ -9,10 +9,12 @@ from . import _nonStandTriggers, _trigger_custom, _trigger_shift, _triggers_map
 ######################################################################## 
 ### ARGUMENT PARSING ###################################################
 ########################################################################
-_tasks = ( 'bins', 'submit', 'hadd', 'comp', 'drawsf')
-    
+_tasks_before_htcondor = ( 'bins', 'submit' )
+_tasks_after_htcondor = ('hadd', 'comp', 'drawsf')
+max_task_number = len(_tasks_after_htcondor) if len(_tasks_after_htcondor) > len(_tasks_after_htcondor) else len(_tasks_after_htcondor)
+
 parser = argparse.ArgumentParser()
-choices = [x for x in range(len(_tasks)+1)]
+choices = [x for x in range(max_task_number+1)]
 parser.add_argument(
     '--force',
     type=int,
@@ -110,7 +112,7 @@ FLAGS, _ = parser.parse_known_args()
 ########################################################################
 def set_task_name(n):
     "handles the setting of each task name"
-    assert( n in _tasks )
+    assert( n in _tasks_before_htcondor or n in _tasks_after_htcondor  )
     return n
 
 ########################################################################
@@ -145,7 +147,7 @@ class cfg(luigi.Config):
     _rawname = set_task_name('bins')
     bins_params = luigi.DictParameter(
         default={ 'taskname': _rawname,
-                  'hierarchy': _tasks.index(_rawname)+1,
+                  'hierarchy': _tasks_before_htcondor.index(_rawname)+1,
                   'nbins': FLAGS.nbins,
                   'binedges_filename': binedges_filename,
                   'indir': data_input,
@@ -161,8 +163,8 @@ class cfg(luigi.Config):
     _rawname = set_task_name('submit')
     submit_params = luigi.DictParameter(
         default={ 'taskname': _rawname,
-                  'hierarchy': _tasks.index(_rawname)+1,
-                  'binedges_filename': binedges_filename,
+                  'hierarchy': _tasks_before_htcondor.index(_rawname)+1,
+                  'binedges_dataset': binedges_filename,
                   'indir': data_input,
                   'outdir': tag_folder,
                   'data': _data[FLAGS.data],
@@ -180,7 +182,7 @@ class cfg(luigi.Config):
     _rawname = set_task_name('hadd')
     hadd_params = luigi.DictParameter(
         default={ 'taskname': _rawname,
-                  'hierarchy': _tasks.index(_rawname)+1,
+                  'hierarchy': _tasks_after_htcondor.index(_rawname)+1,
                   'indir': tag_folder,
                   'subtag': subtag} )
     ####
@@ -189,7 +191,7 @@ class cfg(luigi.Config):
     _rawname = set_task_name('comp')
     comp_params = luigi.DictParameter(
         default={ 'taskname': _rawname,
-                  'hierarchy': _tasks.index(_rawname)+1,
+                  'hierarchy': _tasks_after_htcondor.index(_rawname)+1,
                   'indir': tag_folder } )
 
     ####
@@ -204,7 +206,7 @@ class cfg(luigi.Config):
     
     drawsf_params = luigi.DictParameter(
         default={ 'taskname': _rawname,
-                  'hierarchy': _tasks.index(_rawname)+1,
+                  'hierarchy': _tasks_after_htcondor.index(_rawname)+1,
                   'data_name': FLAGS.data,
                   'mc_name': FLAGS.mc_process,
                   'data': _selected_data,
