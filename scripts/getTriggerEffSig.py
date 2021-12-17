@@ -83,7 +83,7 @@ def passesCut(trig, variables, leavesmanager, debug):
     
 def getTriggerEffSig(indir, outdir, sample, fileName,
                      channels, variables, triggers,
-                     subtag, tprefix, isData, binedges_dset):
+                     subtag, tprefix, isData, binedges_fname):
     # -- Check if outdir exists, if not create it
     if not os.path.exists(outdir):
         os.makedirs(outdir)
@@ -103,7 +103,7 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
 
     # Recover binning
     binedges, nbins = ({} for _ in range(2))
-    with h5py.File(binedges_dset, 'r') as f:
+    with h5py.File(binedges_fname, 'r') as f:
         group = f[subtag]
         for var in variables:
             binedges[var] = np.array(group[var][:])
@@ -297,7 +297,7 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
 # -- Parse input arguments
 parser = argparse.ArgumentParser(description='Command line parser')
 
-parser.add_argument('--binedges_dset', dest='binedges_dset',     required=True, help='where the bin edges are stored')
+parser.add_argument('--binedges_fname', dest='binedges_fname', required=True, help='where the bin edges are stored')
 parser.add_argument('--indir',       dest='indir',             required=True, help='SKIM directory')
 parser.add_argument('--outdir',      dest='outdir',            required=True, help='output directory')
 parser.add_argument('--sample',      dest='sample',            required=True, help='Process name as in SKIM directory')
@@ -318,4 +318,4 @@ args = parser.parse_args()
 
 getTriggerEffSig(args.indir, args.outdir, args.sample, args.fileName,
                  args.channels, args.variables, args.triggers,
-                 args.subtag, args.tprefix, args.isData, args.binedges_dset)
+                 args.subtag, args.tprefix, args.isData, args.binedges_fname)

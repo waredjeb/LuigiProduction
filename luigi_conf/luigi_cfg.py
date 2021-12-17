@@ -25,7 +25,7 @@ parser.add_argument(
 parser.add_argument(
     '--nbins',
     type=int,
-    default=10,
+    default=8,
     help="Number of histogram bins. If fine-grained control is required modify the variable `_bins` in the luigi configuration file."
 )
 parser.add_argument(
@@ -164,7 +164,7 @@ class cfg(luigi.Config):
     submit_params = luigi.DictParameter(
         default={ 'taskname': _rawname,
                   'hierarchy': _tasks_before_htcondor.index(_rawname)+1,
-                  'binedges_dataset': binedges_filename,
+                  'binedges_filename': binedges_filename,
                   'indir': data_input,
                   'outdir': tag_folder,
                   'data': _data[FLAGS.data],
@@ -216,6 +216,7 @@ class cfg(luigi.Config):
                   'triggers': FLAGS.triggers,
                   'channels': FLAGS.channels,
                   'variables': FLAGS.variables,
+                  'binedges_filename': binedges_filename,
                   'subtag': subtag,
                   'target_suffix': '_Sum',
                   'debug': FLAGS.debug_workflow,} )

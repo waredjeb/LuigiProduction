@@ -2,6 +2,7 @@ import os
 import argparse
 import ctypes
 import numpy as np
+import h5py
 from copy import copy
 
 import ROOT
@@ -43,7 +44,7 @@ def RedrawBorder():
   l.DrawLine(ROOT.gPad.GetUxmin(), ROOT.gPad.GetUymin(), ROOT.gPad.GetUxmin(), ROOT.gPad.GetUymax()) #left border
   l.DrawLine(ROOT.gPad.GetUxmin(), ROOT.gPad.GetUymin(), ROOT.gPad.GetUxmax(), ROOT.gPad.GetUymin()) #bottom border
 
-def checkTrigger(args, proc, channel, variable, trig, save_names):
+def checkTrigger(args, proc, channel, variable, trig, save_names, binedges, nbins):
   _name = lambda a,b,c,d : a + b + c + d + '.root'
 
   name_data = os.path.join(args.indir, _name( args.targetsPrefix, args.data_name,
@@ -200,7 +201,7 @@ def checkTrigger(args, proc, channel, variable, trig, save_names):
   pad1.Draw()
   pad1.cd()
   
-  axor = TH2D('axor','axor', 4, 0, 600, 100, -0.1, 1.7)
+  axor = TH2D('axor','axor', nbins, binedges[0], binedges[1], 100, -0.1, 1.7)
   axor.GetYaxis().SetTitle('Efficiency')
   axor.GetXaxis().SetLabelOffset(1)
   axor.GetXaxis().SetLabelOffset(1.)
@@ -251,7 +252,7 @@ def checkTrigger(args, proc, channel, variable, trig, save_names):
   pad2.cd()
   pad2.SetGridy()
   
-  axor2 = TH2D('axor2', 'axor2', 4, 0, 600, 100, 0.8, 1.2)
+  axor2 = TH2D('axor2', 'axor2', nbins, binedges[0], binedges[1], 100, 0.8, 1.2)
   axor2.GetYaxis().SetNdivisions(507)
   axor2.GetYaxis().SetLabelSize(0.12)
   axor2.GetXaxis().SetLabelSize(0.12)
@@ -310,6 +311,15 @@ def drawTriggerSF_outputs(args):
 def drawTriggerSF(args):
   outputs, extensions = drawTriggerSF_outputs(args)
 
+  # Recover binning
+  binedges, nbins = ({} for _ in range(2))
+  with h5py.File(args.binedges_filename, 'r') as f:
+    group = f[args.subtag]
+    for var in args.variables:
+      binedges[var] = group[var][:]
+      binedges[var] = (binedges[var][0], binedges[var][-1])
+      nbins[var] = len(binedges[var]) - 1
+
   dt = len(args.triggers)
   dv = len(args.variables) * dt
   dc = len(args.channels) * dv
@@ -327,15 +337,18 @@ def drawTriggerSF(args):
             print("process={}, channel={}, variable={}, trigger={}".format(proc, ch, var, trig))
             print()
 
-          checkTrigger( args, proc, ch, var, trig, names )
+          checkTrigger( args, proc, ch, var, trig, names,
+                        binedges[var], nbins[var] )
           
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Draw trigger scale factors')
+
     parser.add_argument('-i', '--indir', help='Inputs directory', required=True)
     parser.add_argument('-x', '--targetsPrefix', help='prefix to the names of the produced outputs (targets in luigi lingo)', required=True)
     parser.add_argument('-t', '--tag', help='string to diferentiate between different workflow runs', required=True)
     parser.add_argument('-d', '--data', help='dataset to be analyzed/plotted', required=True)
     parser.add_argument('-p', '--mc_processes', help='MC processes to be analyzed: Radions, TT, ...', required=True)
+    parser.add_argument('--binedges_filename', dest='binedges_filename', required=True, help='in directory')
     parser.add_argument('--debug', action='store_true', help='debug verbosity')
     args = parser.parse_args()
 
