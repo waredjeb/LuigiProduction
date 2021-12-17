@@ -52,7 +52,7 @@ def paintChannelAndTrigger(channel, trig):
 
 def check2DTrigger(args, proc, channel, variables, trig, save_names):
   _name = lambda a,b,c,d : a + b + c + d + '.root'
-
+  histo_options = 'colz text e'
   name_data = os.path.join(args.indir, _name( args.targetsPrefix, args.data_name,
                                                 args.target_suffix, args.subtag ) )
   file_data = TFile( name_data, 'READ');
@@ -87,7 +87,7 @@ def check2DTrigger(args, proc, channel, variables, trig, save_names):
   ROOT.gPad.Update()
   histo_data = eff2D_data['ref_vs_trig'].GetPaintedHistogram()
   setHistoProperties(histo_data, variables)
-  histo_data.Draw('colz text')
+  histo_data.Draw(histo_options)
   ROOT.gPad.Update();
 
   lX, lY, lYstep = 0.8, 0.92, 0.045
@@ -109,7 +109,7 @@ def check2DTrigger(args, proc, channel, variables, trig, save_names):
   ROOT.gPad.Update()
   histo_mc = eff2D_mc['ref_vs_trig'].GetPaintedHistogram()
   setHistoProperties(histo_mc, variables)
-  histo_mc.Draw('colz text')
+  histo_mc.Draw(histo_options)
   ROOT.gPad.Update();
 
   lX, lY, lYstep = 0.7, 0.92, 0.045
@@ -130,7 +130,7 @@ def check2DTrigger(args, proc, channel, variables, trig, save_names):
   histo_sf = histo_data.Clone('sf')
   histo_sf.Divide(histo_mc)
   histo_sf.SetAxisRange(-0.5, 2.5, 'Z');
-  histo_sf.Draw('colz text')
+  histo_sf.Draw(histo_options)
 
   lX, lY, lYstep = 0.6, 0.92, 0.045
   l_mc = TLatex()

@@ -154,6 +154,7 @@ class cfg(luigi.Config):
                   'outdir': tag_folder,
                   'data': _data[FLAGS.data],
                   'variables': FLAGS.variables,
+                  'channels': FLAGS.channels,
                   'subtag': subtag,
                   'debug': FLAGS.debug_workflow} )
 

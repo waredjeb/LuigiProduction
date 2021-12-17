@@ -316,8 +316,11 @@ def drawTriggerSF(args):
   with h5py.File(args.binedges_filename, 'r') as f:
     group = f[args.subtag]
     for var in args.variables:
-      binedges[var] = group[var][:]
-      nbins[var] = len(binedges[var]) - 1
+      subgroup = group[var]
+      binedges[var], nbins[var] = ({} for _ in range(2))
+      for chn in args.channels:
+        binedges[var][chn] = subgroup[chn][:]
+        nbins[var][chn] = len(binedges[var][chn]) - 1
 
   dt = len(args.triggers)
   dv = len(args.variables) * dt
@@ -337,7 +340,7 @@ def drawTriggerSF(args):
             print()
 
           checkTrigger( args, proc, ch, var, trig, names,
-                        binedges[var], nbins[var] )
+                        binedges[var][chn], nbins[var][chn] )
           
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Draw trigger scale factors')

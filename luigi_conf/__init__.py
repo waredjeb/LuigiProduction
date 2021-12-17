@@ -1,4 +1,10 @@
 _nonStandTriggers = ['HT500', 'METNoMu120', 'METNoMu120_HT60', 'MediumMET100', 'MediumMET110', 'MediumMET130']
+_sel = { 'all':    {'pairType': ('<',  3),},
+         'mutau':  {'pairType': ('==', 0),},
+         'etau':   {'pairType': ('==', 1),},
+         'tautau': {'pairType': ('==', 2),},
+         'mumu':   {'pairType': ('==', 3),}, # passMu missing for the mumu channel
+         'ee':     {'pairType': ('==', 4),} }
 _trigger_custom = lambda x : {'mc': _nonStandTriggers, 'data': _nonStandTriggers}
 _trigger_shift = lambda x : {'mc': x, 'data': x+5}
 _triggers_map = {'nonStandard': _trigger_custom('nonStandard'), #>=9
@@ -10,7 +16,7 @@ _triggers_map = {'nonStandard': _trigger_custom('nonStandard'), #>=9
                  'MediumMET130': _trigger_shift(14) }
 assert( set(_nonStandTriggers).issubset( set(_triggers_map.keys()) ) )
 
-_variables = ['met_et', 'HT20', 'mht_et', 'metnomu_et', 'mhtnomu_et', 'dau1_pt', 'dau2_pt']
+_variables = ['HT20', 'met_et', 'mht_et', 'metnomu_et', 'mhtnomu_et', 'dau1_pt', 'dau2_pt']
 _cuts = {'METNoMu120':      {'metnomu_et': ('>', 200), 'mhtnomu_et': ('>', 200)},
          'METNoMu120_HT60': {'metnomu_et': ('>', 200), 'mhtnomu_et': ('>', 200), 'HT20': ('>', 80)}
          }
@@ -26,7 +32,7 @@ for x in _2Dpairs.values():
     for pair in x:
         assert( pair[0] in _variables and pair[1] in _variables )
 
-_binedges = {} #Example: {'met_et': [100,200,300,400,500,600],}
+_binedges = {} #Example: {'met_et': {'mumu': [100,200,300,400,500,600]},}
 assert( set(_binedges.keys()).issubset(set(_variables)) )
 for x in _binedges.values():
     assert( len(x) == len(list(_binedges.values())[0]) )
@@ -57,4 +63,3 @@ _mc_processes = dict( Radions = ['Radion_m300',
                       DY =         ['DY',
                                     ],
                      )
-

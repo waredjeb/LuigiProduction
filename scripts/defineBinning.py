@@ -19,7 +19,7 @@ import pandas as pd
 import argparse
 
 from utils.utils import getTriggerBit, LeafManager, set_pure_input_namespace
-from luigi_conf import _binedges
+from luigi_conf import _binedges, _sel
 
 def skipDataLoop(args):
     for var in args.variables:
@@ -44,6 +44,8 @@ def defineBinning(args):
     _maxedge, _minedge = ({} for _ in range(2))
     for var in args.variables:
         _maxedge[var], _minedge[var] = ({} for _ in range(2))
+        for chn in args.channels:
+            _maxedge[var][chn], _minedge[var][chn] = ({} for _ in range(2))
 
     ###############################################
     ############## Data Loop: Start ###############
@@ -66,36 +68,51 @@ def defineBinning(args):
                         filelist.append(line[:-1] + ':HTauTauTree')
 
             treesize = 0
-            quantiles = []
-            for ib,batch in enumerate(up.iterate(files=filelist, expressions=args.variables,
+            quantiles = {k: [] for k in args.channels }
+            branches = args.variables + ('pairType',)
+            for ib,batch in enumerate(up.iterate(files=filelist, expressions=branches,
                                                  step_size='10 GB', library='pd')):
-                print('{}/{} {} files\r'.format(ib+1,len(filelist),sample), end="", flush=True)
-                print('\n')
+                print('{}/{} {} files\r'.format(ib+1,len(filelist),sample),
+                      end='' if ib+1!=len(filelist) else '\n', flush=True)
                 treesize += batch.shape[0]
-                quantiles.append( batch.quantile([quant_down, quant_up]) )
-            
-            quantiles = pd.concat(quantiles, axis=0).groupby(level=0).mean()
+                df_chn = {}
+                for chn in args.channels:
+                    if chn == 'all':
+                        sel_chn = batch['pairType']<_sel[chn]['pairType'][1]
+                    else:
+                        sel_chn = batch['pairType']==_sel[chn]['pairType'][1]
+                        
+                    df_chn = batch[ sel_chn ]
+                    quantiles[chn].append( df_chn.quantile([quant_down, quant_up]) )
+                
+            for chn in args.channels:
+                quantiles[chn] = pd.concat(quantiles[chn], axis=0).groupby(level=0).mean()
             nTotEntries += treesize
 
             for var in args.variables:
-                if var not in _binedges:
-                    _minedge[var][sample] = treesize*quantiles.loc[quant_down, var]
-                    _maxedge[var][sample] = treesize*quantiles.loc[quant_up, var]
+                for chn in args.channels:
+                    if var not in _binedges or chn not in _binedges[var]:
+                        _minedge[var][chn][sample] = treesize*quantiles[chn].loc[quant_down, var]
+                        _maxedge[var][chn][sample] = treesize*quantiles[chn].loc[quant_up, var]
 
-                    if args.debug:
-                        print( '{} quantiles:  Q({})={}, Q({})={}'
-                               .format(var, quant_down, _minedge[var][sample], quant_up, _maxedge[var][sample]) )
-                else:
-                    if args.debug:
-                        print('Quantiles were not calculated. The custom bins for variable {} were instead used'
-                              .format(var))
+                        if args.debug:
+                            print( '{} quantiles in channel {}:  Q({})={}, Q({})={}'
+                                   .format(var, chn,
+                                           quant_down[chn], _minedge[var][chn][sample],
+                                           quant_up[chn],   _maxedge[var][chn][sample]) )
+                    else:
+                        if args.debug:
+                            print('Quantiles were not calculated. Custom bins for variable {} and channel {} were instead used.'
+                                  .format(var, chn))
 
         # Do weighted average based on the number of events in each dataset
         maxedge, minedge = ({} for _ in range(2))
         for var in args.variables:
-            maxedge[var] = sum(_maxedge[var].values()) / nTotEntries
-            minedge[var] = sum(_minedge[var].values()) / nTotEntries
-            assert(maxedge[var] > minedge[var])
+            maxedge[var], minedge[var] = ({} for _ in range(2))
+            for chn in args.channels:
+                maxedge[var].update({chn: sum(_maxedge[var][chn].values()) / nTotEntries})
+                minedge[var].update({chn: sum(_minedge[var][chn].values()) / nTotEntries})
+                assert(maxedge[var][chn] > minedge[var][chn])
     ###############################################
     ############## Data Loop: End #################
     ###############################################
@@ -108,19 +125,28 @@ def defineBinning(args):
                 print('The HD5 group already existed. Skipping binning definition...')
                 break
             for v in args.variables:
-                dset = group.create_dataset(v, dtype=float, shape=(args.nbins+1,))
-                if v in _binedges:
-                    if args.debug:
-                        print( '[' + os.path.basename(__file__) + '] Using custom binning for variable {}: {}'
-                               .format(v, _binedges[v]) )
-                    dset[:] = _binedges[v]
-                else:
-                    _binwidth = (maxedge[v]-minedge[v])/args.nbins
-                    _data = [minedge[v]+k*_binwidth for k in range(args.nbins+1)]
-                    if args.debug:
-                        print( '[' + os.path.basename(__file__) + '] Using regular binning for variable {}: {}'
-                               .format(v, _data) )
-                    dset[:] = _data
+                vargroup = group.create_group(v)
+                for chn in args.channels:
+
+                    try:
+                        if chn in _binedges[v]:
+                            dset = vargroup.create_dataset(chn, dtype=float, shape=(len(_binedges[v][chn]),))
+                            if args.debug:
+                                print( '[' + os.path.basename(__file__) + '] Using custom binning for variable {}: {}'
+                                       .format(v, _binedges[v][chn]) )
+                            dset[:] = _binedges[v][chn]
+                        else:
+                            raise KeyError #a "go-to" to the except clause
+
+                    except KeyError:
+                        dset = vargroup.create_dataset(chn, dtype=float, shape=(args.nbins+1,))
+                        _binwidth = (maxedge[v][chn]-minedge[v][chn])/args.nbins
+                        _data = [minedge[v][chn]+k*_binwidth for k in range(args.nbins+1)]
+                        if args.debug:
+                            print( '[' + os.path.basename(__file__) + '] Using regular binning for variable {}: {}'
+                                   .format(v, _data) )
+                        dset[:] = _data
+                        
 
 # -- Parse options
 if __name__ == '__main__':
@@ -136,6 +162,8 @@ if __name__ == '__main__':
                         help='list of datasets')                          
     parser.add_argument('--variables',        dest='variables',          required=True, nargs='+', type=str,
                         help='Select the variables to calculate the binning' )
+    parser.add_argument('-c', '--channels',   dest='channels',         required=True, nargs='+', type=str,
+                        help='Select the channels over which the workflow will be run.' )
     parser.add_argument('--debug', action='store_true', help='debug verbosity')
     args = parser.parse_args()
 

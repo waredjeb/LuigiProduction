@@ -79,7 +79,8 @@ class WorkflowDebugger():
 def is_force_mistake(f):
     """
     The parameter '--force' may delete a lot of data.
-    This function acts as a barrier to a potential running mistake
+    This function acts as a barrier to a potential running mistake.
+    Currently not being used ('boundaries' and 'alt_str' must be adapted).
     """
     def yes_no(s):
         if s == 'y': return False
@@ -96,8 +97,8 @@ def is_force_mistake(f):
                 pass
 
     base_str = 'Are you sure you want to delete the '
-    boundaries = (1, 4)
-    alt_str = ('training model?', 'preprocessed data?')
+    boundaries = (3, 4)
+    alt_str = ('<fill one>', '<fill two>')
     for b,s in zip(boundaries,alt_str):
         if f > b:
             print(base_str + s + ' [y/n] ')

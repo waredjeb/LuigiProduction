@@ -47,7 +47,7 @@ def getTriggerBit(trigger_name, isData):
   """
   s = 'data' if isData else 'mc'
   return _triggers_map[trigger_name][s]
-
+        
 class LeafManager():
     """
     Class to manage TTree branch leafs, making sure they exist.

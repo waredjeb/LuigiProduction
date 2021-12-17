@@ -36,7 +36,7 @@ import sys
 sys.path.append(os.path.join(os.environ['CMSSW_BASE'], 'src', 'METTriggerStudies'))
 from utils.utils import getTriggerBit, LeafManager
 
-from luigi_conf import _cuts, _2Dpairs
+from luigi_conf import _cuts, _2Dpairs, _sel
 
 def checkBit(number, bitpos):
     bitdigit = 1
@@ -44,12 +44,12 @@ def checkBit(number, bitpos):
     return res
 
 def isChannelConsistent(chn, passMu, pairtype):
-    return ( ( chn=='all'    and pairtype<3  )           or
-             ( chn=='mutau'  and pairtype==0 )           or
-             ( chn=='etau'   and pairtype==1 )           or
-             ( chn=='tautau' and pairtype==2 )           or
-             ( chn=='mumu'   and pairtype==3 and passMu) or
-             ( chn=='ee'     and pairtype==4 ) )
+    return ( ( chn=='all'    and pairtype<_sel['all']['pairType'][1]  ) or
+             ( chn=='mutau'  and pairtype==_sel['mutau']['pairType'][1] ) or
+             ( chn=='etau'   and pairtype==_sel['etau']['pairType'][1] )  or
+             ( chn=='tautau' and pairtype==_sel['tautau']['pairType'][1] ) or
+             ( chn=='mumu'   and pairtype==_sel['mumu']['pairType'][1] ) or
+             ( chn=='ee'     and pairtype==_sel['ee']['pairType'][1] ) )
 
 def passesCut(trig, variables, leavesmanager, debug):
     """
@@ -106,8 +106,11 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
     with h5py.File(binedges_fname, 'r') as f:
         group = f[subtag]
         for var in variables:
-            binedges[var] = np.array(group[var][:])
-            nbins[var] = len(binedges[var]) - 1
+            subgroup = group[var]
+            binedges[var], nbins[var] = ({} for _ in range(2))
+            for chn in args.channels:
+                binedges[var][chn] = np.array(subgroup[chn][:])
+                nbins[var][chn] = len(binedges[var][chn]) - 1
 
     # Define 1D histograms:
     #  hRef: pass the reference trigger
@@ -123,7 +126,7 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
             hTrig[i][j]={}
             hNoRef[i][j] = {}
 
-            binning = (nbins[j], binedges[j])
+            binning = (nbins[j][i], binedges[j][i])
             hRef[i][j] = ROOT.TH1D(href_name,'', *binning)
             for k in triggers:
                 htrig_name = 'Trig_{}_{}_{}'.format(i,j,k)
@@ -148,8 +151,8 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
                     
                     effRefVsTrig_name = 'effRefVsTrig_{}_{}_{}'.format(i,k,vname)
                     effRefVsTrig[i][vname][k] = ROOT.TEfficiency( effRefVsTrig_name, '',
-                                                                  nbins[j[0]], binedges[j[0]],
-                                                                  nbins[j[1]], binedges[j[1]] )
+                                                                  nbins[j[0]][i], binedges[j[0]][i],
+                                                                  nbins[j[1]][i], binedges[j[1]][i] )
     
     
     for entry in range(0,t_in.GetEntries()):
@@ -207,9 +210,11 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
         HTfull = lf.getLeaf('HT20')
 
         for v in variables:
-            fillVar[v] = lf.getLeaf(v)
-        for j in variables:
-            if fillVar[j]>binedges[j][-1]: fillVar[j]=binedges[j][-1] # include overflow
+            fillVar[v] = {}
+            for chn in channels:
+                fillVar[v].update({chn: lf.getLeaf(v)})
+                if fillVar[v][chn]>binedges[v][chn][-1]:
+                    fillVar[v][chn]=binedges[v][chn][-1] # include overflow
 
         passMET = lf.getLeaf('isMETtrigger')
         passLEP = lf.getLeaf('isLeptrigger')
@@ -245,14 +250,14 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
                 for j in variables:
                     
                     if passLEP:
-                        hRef[i][j].Fill(fillVar[j], evtW)
+                        hRef[i][j].Fill(fillVar[j][i], evtW)
                         for k in triggers:
                             if passRequirements[k][j]:
-                                hTrig[i][j][k].Fill(fillVar[j], evtW)
+                                hTrig[i][j][k].Fill(fillVar[j][i], evtW)
                     else:
                         for k in triggers:
                             if passRequirements[k][j]:
-                                hNoRef[i][j][k].Fill(fillVar[j], evtW)
+                                hNoRef[i][j][k].Fill(fillVar[j][i], evtW)
 
                 # fill 2D efficiencies (currently only reference vs trigger, i.e.,
                 # all events pass the reference cut)
@@ -265,7 +270,7 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
                                 trigger_flag = ( passTriggerBits[k] and
                                                  passesCut(k, [j[0], j[1]], lf, args.debug) )
                                 effRefVsTrig[i][vname][k].Fill(trigger_flag,
-                                                               fillVar[j[0]], fillVar[j[1]])
+                                                               fillVar[j[0]][i], fillVar[j[1]][i])
 
 
     file_id = ''.join( c for c in fileName[-10:] if c.isdigit() ) 
