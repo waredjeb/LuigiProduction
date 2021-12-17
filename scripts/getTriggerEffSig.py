@@ -30,6 +30,7 @@ import math
 from array import array
 import numpy as np
 import ROOT
+import h5py
 
 import sys
 sys.path.append(os.path.join(os.environ['CMSSW_BASE'], 'src', 'METTriggerStudies'))
@@ -101,13 +102,13 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
     lf = LeafManager( fname, t_in )
 
     # Recover binning
-    binvals, nbins = ({} for _ in range(2))
+    binedges, nbins = ({} for _ in range(2))
     with h5py.File(binedges_dset, 'r') as f:
         group = f[subtag]
-        for v in variables:
-            binvals[var] = np.array(group[v][:])
-            nbins[var] = len(xbins[var])
-    
+        for var in variables:
+            binedges[var] = np.array(group[var][:])
+            nbins[var] = len(binedges[var]) - 1
+
     # Define 1D histograms:
     #  hRef: pass the reference trigger
     #  hTrig: pass the reference trigger + trigger under study
@@ -122,7 +123,7 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
             hTrig[i][j]={}
             hNoRef[i][j] = {}
 
-            binning = (nbins[j], binvals[j])
+            binning = (nbins[j], binedges[j])
             hRef[i][j] = ROOT.TH1D(href_name,'', *binning)
             for k in triggers:
                 htrig_name = 'Trig_{}_{}_{}'.format(i,j,k)
@@ -147,8 +148,8 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
                     
                     effRefVsTrig_name = 'effRefVsTrig_{}_{}_{}'.format(i,k,vname)
                     effRefVsTrig[i][vname][k] = ROOT.TEfficiency( effRefVsTrig_name, '',
-                                                                  nbins[j[0]], binvals[j[0]],
-                                                                  nbins[j[1]], binvals[j[1]] )
+                                                                  nbins[j[0]], binedges[j[0]],
+                                                                  nbins[j[1]], binedges[j[1]] )
     
     
     for entry in range(0,t_in.GetEntries()):
@@ -208,7 +209,7 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
         for v in variables:
             fillVar[v] = lf.getLeaf(v)
         for j in variables:
-            if fillVar[j]>var_vectors[j][1]: fillVar[j]=var_vectors[j][1] # include overflow
+            if fillVar[j]>binedges[j][-1]: fillVar[j]=binedges[j][-1] # include overflow
 
         passMET = lf.getLeaf('isMETtrigger')
         passLEP = lf.getLeaf('isLeptrigger')
@@ -317,4 +318,4 @@ args = parser.parse_args()
 
 getTriggerEffSig(args.indir, args.outdir, args.sample, args.fileName,
                  args.channels, args.variables, args.triggers,
-                 args.subtag, args.tprefix, args.isData, args.binedges_dataset)
+                 args.subtag, args.tprefix, args.isData, args.binedges_dset)

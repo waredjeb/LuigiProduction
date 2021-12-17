@@ -69,10 +69,10 @@ def defineBinning(args):
             quantiles = []
             for ib,batch in enumerate(up.iterate(files=filelist, expressions=args.variables,
                                                  step_size='10 GB', library='pd')):
-                print('{}/{} files\r'.format(ib+1,len(filelist)), end="", flush=True)
+                print('{}/{} {} files\r'.format(ib+1,len(filelist),sample), end="", flush=True)
+                print('\n')
                 treesize += batch.shape[0]
                 quantiles.append( batch.quantile([quant_down, quant_up]) )
-                if ib>2: break
             
             quantiles = pd.concat(quantiles, axis=0).groupby(level=0).mean()
             nTotEntries += treesize
