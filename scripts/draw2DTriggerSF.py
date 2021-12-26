@@ -18,6 +18,7 @@ from ROOT import TLatex
 from ROOT import TLine
 from ROOT import TLegend
 from ROOT import TString
+from ROOT import kBlue, kRed
 
 from utils import utils
 from luigi_conf import _2Dpairs
@@ -39,6 +40,22 @@ def setHisto(histo, variables):
   setHistoProperties(histo, variables)
   return histo
 
+def drawOverlayed2DHistograms(effdata, var, opt):
+  histo_data = setHisto(effdata.GetPaintedHistogram(), var)
+  histo_data_pass = effdata.GetCopyPassedHisto()
+  histo_data_tot = setHisto( effdata.GetCopyTotalHisto(), var )
+  histo_data.SetBarOffset(0.15);
+  histo_data.SetMarkerSize(.8)
+  histo_data_pass.SetBarOffset(0.);
+  histo_data_pass.SetMarkerColor(kRed-9);
+  histo_data_pass.SetMarkerSize(.8)
+  histo_data_tot.SetBarOffset(-0.15);
+  histo_data_tot.SetMarkerColor(kBlue-4);
+  histo_data_tot.SetMarkerSize(.8)
+  histo_data.Draw(opt)
+  histo_data_pass.Draw("text min0 same")
+  histo_data_tot.Draw("text min0 same")
+
 def paintChannelAndTrigger(channel, trig):
   lX, lY, lYstep = 0.06, 0.96, 0.03
   l = TLatex()
@@ -56,7 +73,7 @@ def paintChannelAndTrigger(channel, trig):
 
 def check2DTrigger(args, proc, channel, var, trig, save_names):
   _name = lambda a,b,c,d : a + b + c + d + '.root'
-  histo_options = 'colz text e'
+  histo_options = 'colz text e min0'
   name_data = os.path.join(args.indir, _name( args.targetsPrefix, args.data_name,
                                                 args.target_suffix, args.subtag ) )
   file_data = TFile( name_data, 'READ');
@@ -90,13 +107,19 @@ def check2DTrigger(args, proc, channel, var, trig, save_names):
   eff2D_data['ref_vs_trig'].Draw('colz')
   ROOT.gPad.Update()
   histo_data = setHisto(eff2D_data['ref_vs_trig'].GetPaintedHistogram(), var)
-  #histo_data_pass = eff2D_data['ref_vs_trig'].GetCopyPassedHisto()
+  histo_data_pass = eff2D_data['ref_vs_trig'].GetCopyPassedHisto()
   histo_data_tot = setHisto( eff2D_data['ref_vs_trig'].GetCopyTotalHisto(), var )
-  histo_data.SetBarOffset(0.2);
-  histo_data_tot.SetBarOffset(-0.2);
+  histo_data.SetBarOffset(0.15);
+  histo_data_tot.SetMarkerSize(.8)
+  histo_data_pass.SetBarOffset(0.);
+  histo_data_pass.SetMarkerColor(kRed-9);
+  histo_data_pass.SetMarkerSize(.8)
+  histo_data_tot.SetBarOffset(-0.15);
   histo_data_tot.SetMarkerColor(kBlue-4);
+  histo_data_tot.SetMarkerSize(.8)
   histo_data.Draw(histo_options)
-  histo_data_tot.Draw(histo_options + " same")
+  histo_data_pass.Draw("text min0 same")
+  histo_data_tot.Draw("text min0 same")
   ROOT.gPad.Update();
   
   lX, lY, lYstep = 0.8, 0.92, 0.045
@@ -116,8 +139,20 @@ def check2DTrigger(args, proc, channel, var, trig, save_names):
 
   eff2D_mc['ref_vs_trig'].Draw('colz')
   ROOT.gPad.Update()
-  histo_mc = setHisto( eff2D_mc['ref_vs_trig'].GetPaintedHistogram(), var )
-  histo_mc.Draw(histo_options)
+  histo_mc = setHisto(eff2D_mc['ref_vs_trig'].GetPaintedHistogram(), var)
+  histo_mc_pass = eff2D_mc['ref_vs_trig'].GetCopyPassedHisto()
+  histo_mc_tot = setHisto( eff2D_mc['ref_vs_trig'].GetCopyTotalHisto(), var )
+  histo_mc.SetBarOffset(0.15);
+  histo_data.SetMarkerSize(.9)
+  histo_data_pass.SetBarOffset(0.);
+  histo_data_pass.SetMarkerColor(kRed-9);
+  histo_data_pass.SetMarkerSize(.8)
+  histo_data_tot.SetBarOffset(-0.15);
+  histo_data_tot.SetMarkerColor(kBlue-4);
+  histo_data_tot.SetMarkerSize(.8)
+  histo_data.Draw(histo_options)
+  histo_data_pass.Draw("text min0 same")
+  histo_data_tot.Draw("text min0 same")
   ROOT.gPad.Update();
 
   lX, lY, lYstep = 0.7, 0.92, 0.045
@@ -138,6 +173,7 @@ def check2DTrigger(args, proc, channel, var, trig, save_names):
   histo_sf = histo_data.Clone('sf')
   histo_sf.Divide(histo_mc)
   histo_sf.SetAxisRange(-0.5, 2.5, 'Z');
+  histo_sf.SetMarkerSize(.8)
   histo_sf.Draw(histo_options)
 
   lX, lY, lYstep = 0.6, 0.92, 0.045

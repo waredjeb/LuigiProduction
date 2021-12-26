@@ -37,7 +37,7 @@ def defineBinning(args):
     """
     Determine histogram quantiles
     """
-    quant_down, quant_up = 0.05, 0.95
+    quant_down, quant_up = 0.00, 1.
 
     # Initialization
     nTotEntries = 0
