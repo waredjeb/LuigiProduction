@@ -22,5 +22,6 @@ def haddTriggerEff(args):
 
     # This likely has to be adapted if there is more than one target
     for t in target:
-        os.system( command + ' ' + t + ' ' + inputs )
+        comm = command + ' ' + t + ' ' + inputs
+        os.system( comm )
 

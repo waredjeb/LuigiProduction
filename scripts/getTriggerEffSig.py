@@ -11,9 +11,10 @@ python3 -m scripts.getTriggerEffSig
 --triggers METNoMu120 METNoMu120_HT60 HT500
 --variables met_et HT20 mht_et metnomu_et mhtnomu_et
 --channels mutau
---subtag SUBTAG
+--subtag _default
 --tprefix hist_eff_
 --file output_0.root
+--binedges /data_CMS/cms/alves/TriggerScaleFactors/<your tag>/binedges.hdf5
 --debug
 
 TODO: - Rewrite the nested loops so that the trigger loop
@@ -34,9 +35,10 @@ import h5py
 
 import sys
 sys.path.append(os.path.join(os.environ['CMSSW_BASE'], 'src', 'METTriggerStudies'))
+print(sys.path[-1])
 from utils.utils import getTriggerBit, LeafManager
 
-from luigi_conf import _cuts, _2Dpairs, _sel
+from luigi_conf import _cuts, _cuts_ignored, _2Dpairs, _sel
 
 def checkBit(number, bitpos):
     bitdigit = 1
@@ -62,7 +64,15 @@ def passesCut(trig, variables, leavesmanager, debug):
     try:
         trig_cuts = _cuts[trig]
         for avar,acut in trig_cuts.items():
-            if avar not in variables: #do not cut on the variable(s) being plotted
+
+            # ignore cuts according to the user's definition in '_cuts_ignored'
+            # example: do not cut on 'met_et' when displaying 'metnomu_et'
+            ignore = functools.reduce( lambda x, y: x or y,
+                                       [ avar in _cuts_ignored[k] for k in variables ]
+                                      )
+
+            # additionally, by default do not cut on the variable(s) being plotted
+            if avar not in variables and not ignore:
                 value = leavesmanager.getLeaf(avar) 
                 if acut[0]=='>':
                     flag = flag and value > acut[1]
@@ -74,7 +84,9 @@ def passesCut(trig, variables, leavesmanager, debug):
                         print("Cut: {} < {}".format(avar, acut[1]))
                 else:
                     raise ValueError("The operator for the cut is currently not supported: Use '>' or '<'.")
-    except KeyError: #the trigger has no cut associated
+
+    # the trigger has no cut associated
+    except KeyError: 
         if debug:
             print('KeyError')            
         flag = True
@@ -269,8 +281,8 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
                             if passLEP:
                                 trigger_flag = ( passTriggerBits[k] and
                                                  passesCut(k, [j[0], j[1]], lf, args.debug) )
-                                effRefVsTrig[i][vname][k].Fill(trigger_flag,
-                                                               fillVar[j[0]][i], fillVar[j[1]][i])
+                                effRefVsTrig[i][vname][k].Fill( trigger_flag,
+                                                                fillVar[j[0]][i], fillVar[j[1]][i] )
 
 
     file_id = ''.join( c for c in fileName[-10:] if c.isdigit() ) 

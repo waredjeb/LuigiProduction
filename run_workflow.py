@@ -21,7 +21,6 @@ lcfg = cfg() #luigi configuration
 import re
 re_txt = re.compile('\.txt')
 
-#/grid_mnt/vol_home/llr/cms/portales/hhbbtautau/KLUB_UL/CMSSW_11_1_0_pre6/src/KLUBAnalysis/studies/METtriggerStudies/draw_trigger_sf.C 
 ########################################################################
 ### HELPER FUNCTIONS ###################################################
 ########################################################################

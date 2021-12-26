@@ -1,10 +1,21 @@
-_nonStandTriggers = ['HT500', 'METNoMu120', 'METNoMu120_HT60', 'MediumMET100', 'MediumMET110', 'MediumMET130']
+"""
+Configuration file for the Luigi trigger scale factors framework.
+Some sanity checks included.
+"""
+
+_variables = ['HT20', 'met_et', 'mht_et', 'metnomu_et', 'mhtnomu_et', 'dau1_pt', 'dau2_pt']
+_channels = ( 'all', 'etau', 'mutau', 'tautau', 'mumu' )
 _sel = { 'all':    {'pairType': ('<',  3),},
          'mutau':  {'pairType': ('==', 0),},
          'etau':   {'pairType': ('==', 1),},
          'tautau': {'pairType': ('==', 2),},
          'mumu':   {'pairType': ('==', 3),}, # passMu missing for the mumu channel
          'ee':     {'pairType': ('==', 4),} }
+
+#######################################################################################################
+########### TRIGGERS ##################################################################################
+#######################################################################################################
+_nonStandTriggers = ['HT500', 'METNoMu120', 'METNoMu120_HT60', 'MediumMET100', 'MediumMET110', 'MediumMET130']
 _trigger_custom = lambda x : {'mc': _nonStandTriggers, 'data': _nonStandTriggers}
 _trigger_shift = lambda x : {'mc': x, 'data': x+5}
 _triggers_map = {'nonStandard': _trigger_custom('nonStandard'), #>=9
@@ -16,14 +27,33 @@ _triggers_map = {'nonStandard': _trigger_custom('nonStandard'), #>=9
                  'MediumMET130': _trigger_shift(14) }
 assert( set(_nonStandTriggers).issubset( set(_triggers_map.keys()) ) )
 
-_variables = ['HT20', 'met_et', 'mht_et', 'metnomu_et', 'mhtnomu_et', 'dau1_pt', 'dau2_pt']
+#######################################################################################################
+########### CUTS ######################################################################################
+#######################################################################################################
 _cuts = {'METNoMu120':      {'metnomu_et': ('>', 200), 'mhtnomu_et': ('>', 200)},
          'METNoMu120_HT60': {'metnomu_et': ('>', 200), 'mhtnomu_et': ('>', 200), 'HT20': ('>', 80)}
          }
 assert( set(_cuts.keys()).issubset(set(_triggers_map.keys())) )
 for x in _cuts.values():
     assert( set(x.keys()).issubset(set(_variables)) )
+_cuts_ignored = { 'HT20':       [],
+                  'met_et':     ['metnomu_et',],
+                  'mht_et':     ['mhtnomu_et',],
+                  'metnomu_et': ['met_et',],
+                  'mhtnomu_et': ['mht_et',],
+                  'dau1_pt':    [],
+                  'dau2_pt':    [],
+                 }
+assert( set(_cuts_ignored.keys()).issubset(set(_variables)) )
+for x in _cuts_ignored.values():
+    assert( set(x).issubset(set(_variables)) )
+for k,v in _cuts_ignored.items():
+    if k in v:
+        raise ValueError('[configuration, var={}] It is redundant to specify the same variable: cuts are never applied to variables being displayed. Remove it.'.format(k))
 
+#######################################################################################################
+########### 2D PLOTS ##################################################################################
+#######################################################################################################
 _2Dpairs = {'METNoMu120':      (('metnomu_et', 'mhtnomu_et'),),
             'METNoMu120_HT60': (('metnomu_et', 'mhtnomu_et'),),
          }
@@ -32,12 +62,17 @@ for x in _2Dpairs.values():
     for pair in x:
         assert( pair[0] in _variables and pair[1] in _variables )
 
+#######################################################################################################
+########### BINNING ###################################################################################
+#######################################################################################################
 _binedges = {} #Example: {'met_et': {'mumu': [100,200,300,400,500,600]},}
 assert( set(_binedges.keys()).issubset(set(_variables)) )
 for x in _binedges.values():
     assert( len(x) == len(list(_binedges.values())[0]) )
 
-_channels = ( 'all', 'etau', 'mutau', 'tautau', 'mumu' )
+#######################################################################################################
+########### DATA AND MC SAMPLES #######################################################################
+#######################################################################################################
 _data = dict( MET2018 = ['MET2018A',
                          'MET2018B',
                          'MET2018C',

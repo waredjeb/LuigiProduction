@@ -25,9 +25,11 @@ from utils import utils
 def getROOTObject(name, afile):
   _keys = afile.GetListOfKeys()
   if name not in _keys:
-    print('Name={}'.format(name))
-    print('Keys: {}'.format([n.GetName() for n in _keys]))
-    raise ValueError('Wrong histogram name!')
+    msg =  'Wrong ROOT object name!\n'
+    msg += 'File name: {}\n'.format(afile.GetName())
+    msg += 'Object name: {}\n'.format(name)
+    msg += 'Keys: {}\n'.format([n.GetName() for n in _keys])
+    raise ValueError(msg)
   return afile.Get(name)
   
 def RedrawBorder():

@@ -35,6 +35,10 @@ def setHistoProperties(histo, variables):
   histo.GetXaxis().SetTitle(variables[0])
   histo.GetYaxis().SetTitle(variables[1])
 
+def setHisto(histo, variables):
+  setHistoProperties(histo, variables)
+  return histo
+
 def paintChannelAndTrigger(channel, trig):
   lX, lY, lYstep = 0.06, 0.96, 0.03
   l = TLatex()
@@ -50,7 +54,7 @@ def paintChannelAndTrigger(channel, trig):
   l.DrawLatex( lX, lY, 'Channel: '+latexChannel)
   l.DrawLatex( lX, lY-lYstep, 'Trigger: '+trig)
 
-def check2DTrigger(args, proc, channel, variables, trig, save_names):
+def check2DTrigger(args, proc, channel, var, trig, save_names):
   _name = lambda a,b,c,d : a + b + c + d + '.root'
   histo_options = 'colz text e'
   name_data = os.path.join(args.indir, _name( args.targetsPrefix, args.data_name,
@@ -69,7 +73,7 @@ def check2DTrigger(args, proc, channel, variables, trig, save_names):
           .format(proc=proc, channel=channel, variable=variable, trig=trig))
 
   addVarNames = lambda var1,var2 : var1 + '_VERSUS_' + var2
-  vname = addVarNames( variables[0], variables[1] )
+  vname = addVarNames( var[0], var[1] )
   eff_names = { 'ref_vs_trig': 'effRefVsTrig_{}_{}_{}'.format(channel, trig, vname),
                }
   
@@ -85,11 +89,16 @@ def check2DTrigger(args, proc, channel, variables, trig, save_names):
 
   eff2D_data['ref_vs_trig'].Draw('colz')
   ROOT.gPad.Update()
-  histo_data = eff2D_data['ref_vs_trig'].GetPaintedHistogram()
-  setHistoProperties(histo_data, variables)
+  histo_data = setHisto(eff2D_data['ref_vs_trig'].GetPaintedHistogram(), var)
+  #histo_data_pass = eff2D_data['ref_vs_trig'].GetCopyPassedHisto()
+  histo_data_tot = setHisto( eff2D_data['ref_vs_trig'].GetCopyTotalHisto(), var )
+  histo_data.SetBarOffset(0.2);
+  histo_data_tot.SetBarOffset(-0.2);
+  histo_data_tot.SetMarkerColor(kBlue-4);
   histo_data.Draw(histo_options)
+  histo_data_tot.Draw(histo_options + " same")
   ROOT.gPad.Update();
-
+  
   lX, lY, lYstep = 0.8, 0.92, 0.045
   l_data = TLatex()
   l_data.SetNDC()
@@ -107,8 +116,7 @@ def check2DTrigger(args, proc, channel, variables, trig, save_names):
 
   eff2D_mc['ref_vs_trig'].Draw('colz')
   ROOT.gPad.Update()
-  histo_mc = eff2D_mc['ref_vs_trig'].GetPaintedHistogram()
-  setHistoProperties(histo_mc, variables)
+  histo_mc = setHisto( eff2D_mc['ref_vs_trig'].GetPaintedHistogram(), var )
   histo_mc.Draw(histo_options)
   ROOT.gPad.Update();
 
