@@ -21,7 +21,7 @@ from ROOT import TString
 from ROOT import kBlue, kRed
 
 from utils import utils
-from luigi_conf import _2Dpairs
+from luigi_conf import _2Dpairs, _extensions
 from scripts.drawTriggerSF import getROOTObject, RedrawBorder
 
 def setHistoProperties(histo, variables):
@@ -193,11 +193,7 @@ def check2DTrigger(args, proc, channel, var, trig, save_names):
   
 @utils.set_pure_input_namespace
 def draw2DTriggerSF_outputs(args):
-  extensions = ( 'png',
-                 'pdf',
-                 #'C'
-                )
-  outputs = [[] for _ in range(len(extensions))]
+  outputs = [[] for _ in range(len(_extensions))]
 
   for proc in args.mc_processes:
     for ch in args.channels:
@@ -211,13 +207,13 @@ def draw2DTriggerSF_outputs(args):
             thisbase = os.path.join(args.outdir, ch, '')
             utils.create_single_dir( thisbase )
 
-            for ext,out in zip(extensions, outputs):
+            for ext,out in zip(_extensions, outputs):
               out.append( ( os.path.join( thisbase, canvas_data_name + '.' + ext ),
                             os.path.join( thisbase, canvas_mc_name   + '.' + ext ),
                             os.path.join( thisbase, canvas_sf_name   + '.' + ext )) )
 
   #join all outputs in the same list
-  return sum(outputs, []), extensions
+  return sum(outputs, []), _extensions
     
 @utils.set_pure_input_namespace
 def draw2DTriggerSF(args):

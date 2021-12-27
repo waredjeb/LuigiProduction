@@ -3,7 +3,9 @@ Configuration file for the Luigi trigger scale factors framework.
 Some sanity checks included.
 """
 
-_variables = ['HT20', 'met_et', 'mht_et', 'metnomu_et', 'mhtnomu_et', 'dau1_pt', 'dau2_pt']
+_extensions = ( 'png', 'pdf',
+                #'C'
+               )
 _channels = ( 'all', 'etau', 'mutau', 'tautau', 'mumu' )
 _sel = { 'all':    {'pairType': ('<',  3),},
          'mutau':  {'pairType': ('==', 0),},
@@ -11,6 +13,16 @@ _sel = { 'all':    {'pairType': ('<',  3),},
          'tautau': {'pairType': ('==', 2),},
          'mumu':   {'pairType': ('==', 3),}, # passMu missing for the mumu channel
          'ee':     {'pairType': ('==', 4),} }
+
+#######################################################################################################
+########### VARIABLES ##################################################################################
+#######################################################################################################
+# variables considered for calculating and plotting efficiencies
+_variables_eff = ['HT20', 'met_et', 'mht_et', 'metnomu_et', 'mhtnomu_et', 'dau1_pt', 'dau2_pt']
+# variables considered for plotting MC/data comparison distributions
+_variables_dist = ['dau1_pt', 'dau2_pt']
+# joining the two lists above
+_variables_join = set(_variables_eff + _variables_dist)
 
 #######################################################################################################
 ########### TRIGGERS ##################################################################################
@@ -35,7 +47,7 @@ _cuts = {'METNoMu120':      {'metnomu_et': ('>', 200), 'mhtnomu_et': ('>', 200)}
          }
 assert( set(_cuts.keys()).issubset(set(_triggers_map.keys())) )
 for x in _cuts.values():
-    assert( set(x.keys()).issubset(set(_variables)) )
+    assert( set(x.keys()).issubset(set(_variables_eff)) )
 _cuts_ignored = { 'HT20':       [],
                   'met_et':     ['metnomu_et',],
                   'mht_et':     ['mhtnomu_et',],
@@ -44,9 +56,9 @@ _cuts_ignored = { 'HT20':       [],
                   'dau1_pt':    [],
                   'dau2_pt':    [],
                  }
-assert( set(_cuts_ignored.keys()).issubset(set(_variables)) )
+assert( set(_cuts_ignored.keys()).issubset(_variables_join) )
 for x in _cuts_ignored.values():
-    assert( set(x).issubset(set(_variables)) )
+    assert( set(x).issubset(_variables_join) )
 for k,v in _cuts_ignored.items():
     if k in v:
         raise ValueError('[configuration, var={}] It is redundant to specify the same variable: cuts are never applied to variables being displayed. Remove it.'.format(k))
@@ -60,13 +72,13 @@ _2Dpairs = {'METNoMu120':      (('metnomu_et', 'mhtnomu_et'),),
 assert( set(_2Dpairs.keys()).issubset(set(_triggers_map.keys())) )
 for x in _2Dpairs.values():
     for pair in x:
-        assert( pair[0] in _variables and pair[1] in _variables )
+        assert( pair[0] in _variables_eff and pair[1] in _variables_eff )
 
 #######################################################################################################
 ########### BINNING ###################################################################################
 #######################################################################################################
 _binedges = {} #Example: {'met_et': {'mumu': [100,200,300,400,500,600]},}
-assert( set(_binedges.keys()).issubset(set(_variables)) )
+assert( set(_binedges.keys()).issubset(_variables_join) )
 for x in _binedges.values():
     assert( len(x) == len(list(_binedges.values())[0]) )
 

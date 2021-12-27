@@ -7,16 +7,17 @@ from utils import utils
 
 from luigi_conf.luigi_utils import WorkflowDebugger
 from luigi_conf.luigi_utils import is_force_mistake, ForceableEnsureRecentTarget
+from luigi_conf.luigi_cfg import cfg, FLAGS
 
+lcfg = cfg() #luigi configuration
+
+# includes of individual tasks
 from scripts.defineBinning import defineBinning, defineBinning_outputs
 from scripts.submitTriggerEff import submitTriggerEff, submitTriggerEff_outputs
 from scripts.haddTriggerEff import haddTriggerEff, haddTriggerEff_outputs
 from scripts.drawTriggerSF import drawTriggerSF, drawTriggerSF_outputs
 from scripts.draw2DTriggerSF import draw2DTriggerSF, draw2DTriggerSF_outputs
-
-from luigi_conf.luigi_cfg import cfg, FLAGS
-
-lcfg = cfg() #luigi configuration
+from scripts.drawDistributions import drawDistributions, drawDistributions_outputs
 
 import re
 re_txt = re.compile('\.txt')
@@ -40,6 +41,15 @@ def luigi_to_raw( param ):
     else:
         raise NotImplementedError('[' + inspect.stack()[0][3] + ']: ' + 'only tuples/lsits implemented so far!')
 
+def set_force_boolean(hierarchy):
+    """
+    Decide whether a particular task should be force-run.
+    Works if the task's targets already exist, circumventing Luigi's default behaviour.
+    Deletes the data produced by the task, and should be therefore used with care.
+    Useful for testing and debugging.
+    """
+    return FLAGS.force > hierarchy
+    
 ########################################################################
 ### CALCULATE THE MOST ADEQUATE BINNING BASED ON DATA ##################
 ########################################################################
@@ -101,7 +111,7 @@ class SubmitTriggerEff(ForceableEnsureRecentTarget):
 
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def requires(self):
-        force_flag = FLAGS.force > self.args.hierarchy
+        force_flag = set_force_boolean(self.args.hierarchy)
         return DefineBinning(force=force_flag)
 
 
@@ -220,7 +230,7 @@ class Draw1DTriggerScaleFactors(ForceableEnsureRecentTarget):
 
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def requires(self):
-        force_flag = FLAGS.force > self.args.hierarchy
+        force_flag = set_force_boolean(self.args.hierarchy)
         return [ HaddTriggerEff(force=force_flag, samples=self.args.data,
                                 target_suffix=self.args.target_suffix,
                                 dataset_name=self.args.data_name),
@@ -263,7 +273,48 @@ class Draw2DTriggerScaleFactors(ForceableEnsureRecentTarget):
 
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def requires(self):
-        force_flag = FLAGS.force > self.args.hierarchy
+        force_flag = set_force_boolean( self.args.hierarchy )
+        return [ HaddTriggerEff(force=force_flag, samples=self.args.data,
+                                target_suffix=self.args.target_suffix,
+                                dataset_name=self.args.data_name),
+                 HaddTriggerEff(force=force_flag, samples=self.args.mc_processes,
+                                target_suffix=self.args.target_suffix,
+                                dataset_name=self.args.mc_name) ]
+
+########################################################################
+### DRAW VARIABLE DSITRIBUTIONS #######################################
+########################################################################
+class DrawDistributions(ForceableEnsureRecentTarget):
+    args = utils.dotDict(lcfg.drawdist_params)
+    args.update( {'targetsPrefix': lcfg.targets_prefix,
+                  'tag': lcfg.tag,
+                  } )
+    target_path = get_target_path( args.taskname )
+    
+    @WorkflowDebugger(flag=FLAGS.debug_workflow)
+    def output(self):
+        targets = []
+        targets_list, _ = drawDistributions_outputs( self.args )
+
+        #define luigi targets
+        for t in targets_list:
+            targets.append( luigi.LocalTarget(t) )
+
+        #write the target files for debugging
+        utils.remove( self.target_path )
+        with open( self.target_path, 'w' ) as f:
+            for t in targets_list:
+                f.write( t )
+                
+        return targets
+
+    @WorkflowDebugger(flag=FLAGS.debug_workflow)
+    def run(self):
+        drawDistributions( self.args )
+
+    @WorkflowDebugger(flag=FLAGS.debug_workflow)
+    def requires(self):
+        force_flag = set_force_boolean(self.args.hierarchy)
         return [ HaddTriggerEff(force=force_flag, samples=self.args.data,
                                 target_suffix=self.args.target_suffix,
                                 dataset_name=self.args.data_name),
@@ -279,7 +330,7 @@ if __name__ == "__main__":
     1. Safety check to avoid catastrophic data deletions
     2. Run the workflow
     """
-    if is_force_mistake(FLAGS.force):
+    if is_force_mistake(FLAGS.force, FLAGS.submit):
         print('Workflow interrupted.')
         exit(0)
 
@@ -299,8 +350,14 @@ if __name__ == "__main__":
     if FLAGS.submit:
         last_task = SubmitTriggerEff(force=FLAGS.force>0)
     else:
-        last_tasks = [ Draw1DTriggerScaleFactors(force=FLAGS.force>0),
-                       Draw2DTriggerScaleFactors(force=FLAGS.force>0) ]
+        last_tasks = []
+        if FLAGS.distributions:
+            last_tasks += [ DrawDistributions(force=FLAGS.force>0) ]
+            
+        if FLAGS.distributions != 2:
+            last_tasks += [ Draw1DTriggerScaleFactors(force=FLAGS.force>0),
+                           Draw2DTriggerScaleFactors(force=FLAGS.force>0) ]
+            
     if FLAGS.scheduler == 'central':
         luigi.build([last_task] if FLAGS.submit else last_tasks,
                     workers=FLAGS.workers, local_scheduler=False, log_level='INFO')

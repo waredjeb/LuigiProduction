@@ -1,57 +1,17 @@
 import os
-import argparse
-import ctypes
-import numpy as np
-import h5py
-from copy import copy
-
-import ROOT
-ROOT.gROOT.SetBatch(True)
-from ROOT import TCanvas
-from ROOT import TPad
-from ROOT import TStyle
-from ROOT import TFile
-from ROOT import TEfficiency
-from ROOT import TGraphAsymmErrors
-from ROOT import TH1D
-from ROOT import TH2D
-from ROOT import TLatex
-from ROOT import TLine
-from ROOT import TLegend
-from ROOT import TString
-
+import sys
 from utils import utils
+
 from luigi_conf import _extensions
 
-def getROOTObject(name, afile):
-  _keys = afile.GetListOfKeys()
-  if name not in _keys:
-    msg =  'Wrong ROOT object name!\n'
-    msg += 'File name: {}\n'.format(afile.GetName())
-    msg += 'Object name: {}\n'.format(name)
-    msg += 'Keys: {}\n'.format([n.GetName() for n in _keys])
-    raise ValueError(msg)
-  return afile.Get(name)
-  
-def RedrawBorder():
-  """
-  this little macro redraws the axis tick marks and the pad border lines.
-  """
-  ROOT.gPad.Update();
-  ROOT.gPad.RedrawAxis()
-  l = TLine()
-  l.SetLineWidth(2)
-
-  l.DrawLine(ROOT.gPad.GetUxmin(), ROOT.gPad.GetUymax(), ROOT.gPad.GetUxmax(), ROOT.gPad.GetUymax()) #top border
-  l.DrawLine(ROOT.gPad.GetUxmax(), ROOT.gPad.GetUymin(), ROOT.gPad.GetUxmax(), ROOT.gPad.GetUymax()) #right border
-  l.DrawLine(ROOT.gPad.GetUxmin(), ROOT.gPad.GetUymin(), ROOT.gPad.GetUxmin(), ROOT.gPad.GetUymax()) #left border
-  l.DrawLine(ROOT.gPad.GetUxmin(), ROOT.gPad.GetUymin(), ROOT.gPad.GetUxmax(), ROOT.gPad.GetUymin()) #bottom border
-
-def checkTrigger(args, proc, channel, variable, trig, save_names, binedges, nbins):
+def plotDist(args, channel, variable, trig, save_names, binedges, nbins):
   _name = lambda a,b,c,d : a + b + c + d + '.root'
 
+  print('FIX HAD NAMES!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+  quit()
+
   name_data = os.path.join(args.indir, _name( args.targetsPrefix, args.data_name,
-                                                args.target_suffix, args.subtag ) )
+                                              args.target_suffix, args.subtag ) )
   file_data = TFile( name_data, 'READ');
   
   name_mc = os.path.join(args.indir, _name( args.targetsPrefix, args.mc_name,
@@ -289,26 +249,29 @@ def checkTrigger(args, proc, channel, variable, trig, save_names, binedges, nbin
     canvas.SaveAs( aname )
 
 @utils.set_pure_input_namespace
-def drawTriggerSF_outputs(args):
-  outputs = [[] for _ in range(len(_extensions))]
-  for proc in args.mc_processes:
-    for ch in args.channels:
-      for var in args.variables:
-        for trig in args.triggers:
-          add = proc + '_' + ch + '_' + var + '_' + trig
-          canvas_name = 'trigSF_' + args.data_name + '_' + add + args.subtag
-          thisbase = os.path.join(args.outdir, ch, var, '')
-          utils.create_single_dir( thisbase )
+def drawDistributions_outputs(args):
+  def _save_figures(base, figname, outputs):
+      """Saves the output names, modifying the list in-place"""
+      utils.create_single_dir( base )   
+      for ext,out in zip(_extensions, outputs):
+          out.append( os.path.join( base, figname + '.' + ext ) )
 
-          for ext,out in zip(_extensions, outputs):
-            out.append( os.path.join( thisbase, canvas_name + '.' + ext ) )
+  outputs = [[] for _ in range(len(_extensions))]
+  for ch in args.channels:
+    for var in args.variables:
+        figname = 'dist_' + ch + '_' + var + '_Reference' + args.subtag
+        thisbase = os.path.join(args.outdir, ch, var, '')
+        _save_figures(thisbase, figname, outputs)
+        for trig in args.triggers:
+            figname = 'dist_' + ch + '_' + var + '_' + trig + args.subtag
+            _save_figures(thisbase, figname, outputs)
 
   #join all outputs in the same list
   return sum(outputs, []), _extensions
-    
+
 @utils.set_pure_input_namespace
-def drawTriggerSF(args):
-  outputs, extensions = drawTriggerSF_outputs(args)
+def drawDistributions(args):
+  outputs, extensions = drawDistributions_outputs(args)
 
   # Recover binning
   binedges, nbins = ({} for _ in range(2))
@@ -321,36 +284,47 @@ def drawTriggerSF(args):
         binedges[var][chn] = subgroup[chn][:]
         nbins[var][chn] = len(binedges[var][chn]) - 1
 
-  dt = len(args.triggers)
+  dt = len(args.triggers) + 1 #all specific triggers plus the reference trigger
   dv = len(args.variables) * dt
   dc = len(args.channels) * dv
-  dp = len(args.mc_processes) * dc
-  for ip,proc in enumerate(args.mc_processes):
-    for ic,ch in enumerate(args.channels):
+  for ic,ch in enumerate(args.channels):
       for iv,var in enumerate(args.variables):
-        for it,trig in enumerate(args.triggers):
-          index = ip*dc + ic*dv + iv*dt + it
-          names = [ outputs[index + dp*x] for x in range(len(extensions)) ]
+        index = ic*dv + iv*dt + it
+        names = [ outputs[index + dc*x] for x in range(len(extensions)) ]
+        
+        if args.debug:
+          for name in names:
+            print('[=debug=] {}'.format(name))
+            print("channel={}, variable={}, trigger=Reference".format(ch, var))
+            print()
 
+        plotDist( args, ch, var, 'Reference', names,
+                  binedges[var][chn], nbins[var][chn] )
+
+        for it,trig in enumerate(args.triggers):
+          index = ic*dv + iv*dt + it + 1
+          names = [ outputs[index + dc*x] for x in range(len(extensions)) ]
+            
           if args.debug:
             for name in names:
               print('[=debug=] {}'.format(name))
-            print("process={}, channel={}, variable={}, trigger={}".format(proc, ch, var, trig))
-            print()
+              print("channel={}, variable={}, trigger={}".format(ch, var, trig))
+              print()
+                  
+          plotDist( args, ch, var, trig, names,
+                    binedges[var][chn], nbins[var][chn] )
 
-          checkTrigger( args, proc, ch, var, trig, names,
-                        binedges[var][chn], nbins[var][chn] )
-          
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Draw trigger scale factors')
+    parser = argparse.ArgumentParser(description='Draw variables distributions')
 
     parser.add_argument('-i', '--indir', help='Inputs directory', required=True)
-    parser.add_argument('-x', '--targetsPrefix', help='prefix to the names of the produced outputs (targets in luigi lingo)', required=True)
-    parser.add_argument('-t', '--tag', help='string to diferentiate between different workflow runs', required=True)
+    parser.add_argument('--targetsPrefix', help='prefix to the names of the produced outputs (targets in luigi lingo)',
+                        required=True)
+    parser.add_argument('-t', '--tag', help='string to differentiate between different workflow runs', required=True)
     parser.add_argument('-d', '--data', help='dataset to be analyzed/plotted', required=True)
     parser.add_argument('-p', '--mc_processes', help='MC processes to be analyzed: Radions, TT, ...', required=True)
     parser.add_argument('--binedges_filename', dest='binedges_filename', required=True, help='in directory')
     parser.add_argument('--debug', action='store_true', help='debug verbosity')
     args = parser.parse_args()
 
-    drawTriggerSF(args)
+    drawDistributions(args)

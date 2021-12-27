@@ -3,15 +3,19 @@ import argparse
 import luigi
 from luigi.util import inherits
 
-from . import _data, _mc_processes, _triggers_map, _variables, _channels
+from . import _data, _mc_processes, _triggers_map, _channels
+from . import _variables_eff, _variables_dist
 from . import _nonStandTriggers, _trigger_custom, _trigger_shift, _triggers_map
 
 ######################################################################## 
 ### ARGUMENT PARSING ###################################################
 ########################################################################
-_tasks_before_htcondor = ( 'bins', 'submit' )
-_tasks_after_htcondor = ('hadd', 'comp', 'drawsf')
-max_task_number = len(_tasks_after_htcondor) if len(_tasks_after_htcondor) > len(_tasks_after_htcondor) else len(_tasks_after_htcondor)
+# hierarchies are used in conjunction with the '--force' flag
+_tasks_before_htcondor = { 'bins': 2, 'submit': 1 }
+_tasks_after_htcondor = { 'hadd': 2, 'comp': 1, 'drawsf': 1, 'drawdist': 1 }
+max_task_number = ( len(_tasks_after_htcondor.keys())
+                    if len(_tasks_after_htcondor.keys()) > len(_tasks_after_htcondor)
+                    else len(_tasks_after_htcondor.keys()) )
 
 parser = argparse.ArgumentParser()
 choices = [x for x in range(max_task_number+1)]
@@ -71,11 +75,18 @@ parser.add_argument(
     help='Select the channels over which the workflow will be run.'
 )
 parser.add_argument(
-    '--variables',
+    '--variables_for_efficiencies',
     nargs='+', #1 or more arguments
     type=str,
-    default=_variables,
-    help='Select the variables over which the workflow will be run.'
+    default=_variables_eff,
+    help='Select the variables to be used for the calculation of efficiencies.'
+)
+parser.add_argument(
+    '--variables_for_distributions',
+    nargs='+', #1 or more arguments
+    type=str,
+    default=_variables_dist,
+    help='Select the variables to be used for the display of distributions.'
 )
 parser.add_argument(
     '--outuser',
@@ -101,6 +112,14 @@ parser.add_argument(
     help="Executes the submission to HTCondor."
 )
 parser.add_argument(
+    '--distributions',
+    type=int,
+    choices=[0,1,2],
+    default=0,
+    help="0: Does not draws the distributions.\n1: Also draws the distributions.\n2: Only draws the distributions."
+)
+
+parser.add_argument(
     '--debug_workflow',
     action='store_true',
     help="Explicitly print the functions being run for each task, for workflow debugging purposes."
@@ -112,7 +131,8 @@ FLAGS, _ = parser.parse_known_args()
 ########################################################################
 def set_task_name(n):
     "handles the setting of each task name"
-    assert( n in _tasks_before_htcondor or n in _tasks_after_htcondor  )
+    assert( n in _tasks_before_htcondor.keys()
+            or n in _tasks_after_htcondor.keys()  )
     return n
 
 ########################################################################
@@ -130,7 +150,8 @@ class cfg(luigi.Config):
     ### Define luigi parameters ###
     # general
     tag = FLAGS.tag
-    subtag = FLAGS.subtag if FLAGS.subtag=='' else ( '_' + FLAGS.subtag if FLAGS.subtag[0] != '_' else FLAGS.subtag )
+    subtag = ( FLAGS.subtag if FLAGS.subtag==''
+               else ( '_' + FLAGS.subtag if FLAGS.subtag[0] != '_' else FLAGS.subtag ) )
     tag_folder = os.path.join(data_storage, tag)
     web_folder = os.path.join(web_storage, tag)
     targets_folder = os.path.join(data_storage, tag, 'targets')
@@ -141,19 +162,21 @@ class cfg(luigi.Config):
 
     binedges_filename = os.path.join(tag_folder, 'binedges.hdf5')
 
+    variables_join = list(set(FLAGS.variables_for_efficiencies + FLAGS.variables_for_distributions))
+
     ####
     #### defineBinning
-    ####
+    ####   
     _rawname = set_task_name('bins')
     bins_params = luigi.DictParameter(
         default={ 'taskname': _rawname,
-                  'hierarchy': _tasks_before_htcondor.index(_rawname)+1,
+                  'hierarchy': _tasks_before_htcondor[_rawname],
                   'nbins': FLAGS.nbins,
                   'binedges_filename': binedges_filename,
                   'indir': data_input,
                   'outdir': tag_folder,
                   'data': _data[FLAGS.data],
-                  'variables': FLAGS.variables,
+                  'variables': variables_join,
                   'channels': FLAGS.channels,
                   'subtag': subtag,
                   'debug': FLAGS.debug_workflow} )
@@ -164,7 +187,7 @@ class cfg(luigi.Config):
     _rawname = set_task_name('submit')
     submit_params = luigi.DictParameter(
         default={ 'taskname': _rawname,
-                  'hierarchy': _tasks_before_htcondor.index(_rawname)+1,
+                  'hierarchy': _tasks_before_htcondor[_rawname],
                   'binedges_filename': binedges_filename,
                   'indir': data_input,
                   'outdir': tag_folder,
@@ -172,7 +195,7 @@ class cfg(luigi.Config):
                   'mc_processes': _mc_processes[FLAGS.mc_process],
                   'triggers': FLAGS.triggers,
                   'channels': FLAGS.channels,
-                  'variables': FLAGS.variables,
+                  'variables': variables_join,
                   'targetsPrefix': targets_prefix,
                   'subtag': subtag,
                   'debug': FLAGS.debug_workflow} )
@@ -183,16 +206,17 @@ class cfg(luigi.Config):
     _rawname = set_task_name('hadd')
     hadd_params = luigi.DictParameter(
         default={ 'taskname': _rawname,
-                  'hierarchy': _tasks_after_htcondor.index(_rawname)+1,
+                  'hierarchy': _tasks_after_htcondor[_rawname],
                   'indir': tag_folder,
                   'subtag': subtag} )
+
     ####
     #### compareTriggers
     ####
     _rawname = set_task_name('comp')
     comp_params = luigi.DictParameter(
         default={ 'taskname': _rawname,
-                  'hierarchy': _tasks_after_htcondor.index(_rawname)+1,
+                  'hierarchy': _tasks_after_htcondor[_rawname],
                   'indir': tag_folder } )
 
     ####
@@ -207,7 +231,7 @@ class cfg(luigi.Config):
     
     drawsf_params = luigi.DictParameter(
         default={ 'taskname': _rawname,
-                  'hierarchy': _tasks_after_htcondor.index(_rawname)+1,
+                  'hierarchy': _tasks_after_htcondor[_rawname],
                   'data_name': FLAGS.data,
                   'mc_name': FLAGS.mc_process,
                   'data': _selected_data,
@@ -216,7 +240,31 @@ class cfg(luigi.Config):
                   'outdir': web_folder,
                   'triggers': FLAGS.triggers,
                   'channels': FLAGS.channels,
-                  'variables': FLAGS.variables,
+                  'variables': FLAGS.variables_for_efficiencies,
+                  'binedges_filename': binedges_filename,
+                  'subtag': subtag,
+                  'target_suffix': '_Sum',
+                  'debug': FLAGS.debug_workflow,} )
+    
+    ####
+    #### drawDistributions
+    ####
+    _rawname = set_task_name('drawdist')
+    _selected_mc_process = _mc_processes[FLAGS.mc_process]
+    _selected_data = _data[FLAGS.data]
+    
+    drawdist_params = luigi.DictParameter(
+        default={ 'taskname': _rawname,
+                  'hierarchy': _tasks_after_htcondor[_rawname],
+                  'data_name': FLAGS.data,
+                  'mc_name': FLAGS.mc_process,
+                  'data': _selected_data,
+                  'mc_processes': _selected_mc_process,
+                  'indir': tag_folder,
+                  'outdir': web_folder,
+                  'triggers': FLAGS.triggers,
+                  'channels': FLAGS.channels,
+                  'variables': FLAGS.variables_for_distributions,
                   'binedges_filename': binedges_filename,
                   'subtag': subtag,
                   'target_suffix': '_Sum',
