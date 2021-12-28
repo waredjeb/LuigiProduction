@@ -2,8 +2,11 @@ import os
 import argparse
 from types import SimpleNamespace
 
-from luigi_conf import _triggers_map
+import ROOT
+from ROOT import TLine
 
+from luigi_conf import _triggers_map
+  
 def add_slash(s):
   """Adds single slash to path if absent"""
   s = s if s[-1] == '/' else s + '/'
@@ -41,6 +44,16 @@ def debug(message, flag=True):
   if flag:
     print( decorator + message + decorator )
 
+def getROOTObject(name, afile):
+  _keys = afile.GetListOfKeys()
+  if name not in _keys:
+    msg =  'Wrong ROOT object name!\n'
+    msg += 'File name: {}\n'.format(afile.GetName())
+    msg += 'Object name: {}\n'.format(name)
+    msg += 'Keys: {}\n'.format([n.GetName() for n in _keys])
+    raise ValueError(msg)
+  return afile.Get(name)
+
 def getTriggerBit(trigger_name, isData):
   """
   Returns the trigger bit corresponding to '_triggers_map'
@@ -73,6 +86,20 @@ class LeafManager():
                 print(self.error_prefix + m)
                 self.absent_leaves.add(leaf)
             return 0.
+          
+def redrawBorder():
+  """
+  this little macro redraws the axis tick marks and the pad border lines.
+  """
+  ROOT.gPad.Update();
+  ROOT.gPad.RedrawAxis()
+  l = TLine()
+  l.SetLineWidth(2)
+
+  l.DrawLine(ROOT.gPad.GetUxmin(), ROOT.gPad.GetUymax(), ROOT.gPad.GetUxmax(), ROOT.gPad.GetUymax()) #top border
+  l.DrawLine(ROOT.gPad.GetUxmax(), ROOT.gPad.GetUymin(), ROOT.gPad.GetUxmax(), ROOT.gPad.GetUymax()) #right border
+  l.DrawLine(ROOT.gPad.GetUxmin(), ROOT.gPad.GetUymin(), ROOT.gPad.GetUxmin(), ROOT.gPad.GetUymax()) #left border
+  l.DrawLine(ROOT.gPad.GetUxmin(), ROOT.gPad.GetUymin(), ROOT.gPad.GetUxmax(), ROOT.gPad.GetUymin()) #bottom border
 
 def remove(f):
   if os.path.exists( f ):

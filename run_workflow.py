@@ -282,7 +282,7 @@ class Draw2DTriggerScaleFactors(ForceableEnsureRecentTarget):
                                 dataset_name=self.args.mc_name) ]
 
 ########################################################################
-### DRAW VARIABLE DSITRIBUTIONS #######################################
+### DRAW VARIABLES' DSITRIBUTIONS ######################################
 ########################################################################
 class DrawDistributions(ForceableEnsureRecentTarget):
     args = utils.dotDict(lcfg.drawdist_params)

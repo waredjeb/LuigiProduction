@@ -23,30 +23,6 @@ from ROOT import TString
 from utils import utils
 from luigi_conf import _extensions
 
-def getROOTObject(name, afile):
-  _keys = afile.GetListOfKeys()
-  if name not in _keys:
-    msg =  'Wrong ROOT object name!\n'
-    msg += 'File name: {}\n'.format(afile.GetName())
-    msg += 'Object name: {}\n'.format(name)
-    msg += 'Keys: {}\n'.format([n.GetName() for n in _keys])
-    raise ValueError(msg)
-  return afile.Get(name)
-  
-def RedrawBorder():
-  """
-  this little macro redraws the axis tick marks and the pad border lines.
-  """
-  ROOT.gPad.Update();
-  ROOT.gPad.RedrawAxis()
-  l = TLine()
-  l.SetLineWidth(2)
-
-  l.DrawLine(ROOT.gPad.GetUxmin(), ROOT.gPad.GetUymax(), ROOT.gPad.GetUxmax(), ROOT.gPad.GetUymax()) #top border
-  l.DrawLine(ROOT.gPad.GetUxmax(), ROOT.gPad.GetUymin(), ROOT.gPad.GetUxmax(), ROOT.gPad.GetUymax()) #right border
-  l.DrawLine(ROOT.gPad.GetUxmin(), ROOT.gPad.GetUymin(), ROOT.gPad.GetUxmin(), ROOT.gPad.GetUymax()) #left border
-  l.DrawLine(ROOT.gPad.GetUxmin(), ROOT.gPad.GetUymin(), ROOT.gPad.GetUxmax(), ROOT.gPad.GetUymin()) #bottom border
-
 def checkTrigger(args, proc, channel, variable, trig, save_names, binedges, nbins):
   _name = lambda a,b,c,d : a + b + c + d + '.root'
 
@@ -70,8 +46,8 @@ def checkTrigger(args, proc, channel, variable, trig, save_names, binedges, nbin
                   # 'noref' : 'NoRef_{}_{}_{}'.format(channel, variable, trig)
                  }
   
-  histos_mc   = { k: getROOTObject(v, file_mc)   for k,v in histo_names.items() }
-  histos_data = { k: getROOTObject(v, file_data) for k,v in histo_names.items() }
+  histos_mc   = { k: utils.getROOTObject(v, file_mc)   for k,v in histo_names.items() }
+  histos_data = { k: utils.getROOTObject(v, file_data) for k,v in histo_names.items() }
   
   if args.debug:
     print('[=debug=] MC efficiency...')  
@@ -230,9 +206,9 @@ def checkTrigger(args, proc, channel, variable, trig, save_names, binedges, nbin
   leg.AddEntry(eff_mc,   proc,   'p')
   leg.Draw('same')
   
-  RedrawBorder()
+  utils.redrawBorder()
   
-  lX, lY, lYstep = 0.25, 0.84, 0.045
+  lX, lY, lYstep = 0.25, 0.84, 0.035
   l = TLatex()
   l.SetNDC()
   l.SetTextFont(72)
@@ -283,7 +259,7 @@ def checkTrigger(args, proc, channel, variable, trig, save_names, binedges, nbin
   
   ##line.Draw()
   sf.Draw('same P0')
-  RedrawBorder()
+  utils.redrawBorder()
 
   for aname in save_names:
     canvas.SaveAs( aname )

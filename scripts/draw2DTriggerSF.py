@@ -22,7 +22,6 @@ from ROOT import kBlue, kRed
 
 from utils import utils
 from luigi_conf import _2Dpairs, _extensions
-from scripts.drawTriggerSF import getROOTObject, RedrawBorder
 
 def setHistoProperties(histo, variables):
   histo.GetYaxis().SetNdivisions(6)
@@ -94,8 +93,8 @@ def check2DTrigger(args, proc, channel, var, trig, save_names):
   eff_names = { 'ref_vs_trig': 'effRefVsTrig_{}_{}_{}'.format(channel, trig, vname),
                }
   
-  eff2D_mc   = { k: getROOTObject(v, file_mc)   for k,v in eff_names.items() }
-  eff2D_data = { k: getROOTObject(v, file_data) for k,v in eff_names.items() }
+  eff2D_mc   = { k: utils.getROOTObject(v, file_mc)   for k,v in eff_names.items() }
+  eff2D_data = { k: utils.getROOTObject(v, file_data) for k,v in eff_names.items() }
 
   if args.debug:
     print('[=debug=] Plotting...')  
@@ -130,7 +129,7 @@ def check2DTrigger(args, proc, channel, var, trig, save_names):
   l_data.DrawLatex(lX, lY, 'Data')
 
   paintChannelAndTrigger(channel, trig)
-  RedrawBorder()
+  utils.redrawBorder()
 
   canvas_mc = TCanvas( os.path.basename(save_names[0][1]).split('.')[0], 'canvas_mc', 600, 600 )
   canvas_mc.SetLeftMargin(0.10);
@@ -163,7 +162,7 @@ def check2DTrigger(args, proc, channel, var, trig, save_names):
   l_mc.DrawLatex(lX, lY, proc)
 
   paintChannelAndTrigger(channel, trig)
-  RedrawBorder()
+  utils.redrawBorder()
 
   canvas_sf = TCanvas( os.path.basename(save_names[0][2]).split('.')[0], 'canvas_sf', 600, 600 )
   canvas_sf.SetLeftMargin(0.10);
@@ -184,7 +183,7 @@ def check2DTrigger(args, proc, channel, var, trig, save_names):
   l_mc.DrawLatex(lX, lY, 'Data / {}'.format(proc))
 
   paintChannelAndTrigger(channel, trig)
-  RedrawBorder()
+  utils.redrawBorder()
 
   for aname in save_names:
     canvas_data.SaveAs( aname[0]  )
