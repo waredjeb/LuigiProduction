@@ -1,5 +1,6 @@
 import os
 import argparse
+from argparse import RawTextHelpFormatter
 import luigi
 from luigi.util import inherits
 
@@ -11,20 +12,18 @@ from . import _nonStandTriggers, _trigger_custom, _trigger_shift, _triggers_map
 ### ARGUMENT PARSING ###################################################
 ########################################################################
 # hierarchies are used in conjunction with the '--force' flag
-_tasks_before_htcondor = { 'bins': 2, 'submit': 1 }
-_tasks_after_htcondor = { 'hadd': 2, 'comp': 1, 'drawsf': 1, 'drawdist': 1 }
-max_task_number = ( len(_tasks_after_htcondor.keys())
-                    if len(_tasks_after_htcondor.keys()) > len(_tasks_after_htcondor)
-                    else len(_tasks_after_htcondor.keys()) )
+_tasks_before_condor = { 'bins': 2, 'submit': 1 }
+_tasks_after_condor = { 'hadd': 2, 'comp': 1, 'drawsf': 1, 'drawdist': 1 }
+max_task_number = max(list(_tasks_after_condor.values())+list(_tasks_before_condor.values()))
 
-parser = argparse.ArgumentParser()
+parser = argparse.ArgumentParser(formatter_class=RawTextHelpFormatter)
 choices = [x for x in range(max_task_number+1)]
 parser.add_argument(
     '--force',
     type=int,
     choices=choices,
     default=0,
-    help="Force running a certain number of tasks, even if the corresponding targets exist.\n The value '" + str(choices) + "' runs the highest-level task and so on up to '" + str(choices[-1]) + "').\n It values follow the hierarchies defined in the cfg() class."
+    help="Force running a certain number of tasks, even if the corresponding targets exist.\nThe value '{}' runs the highest-level task(s) and so on up to '{}').\nIt values follow the hierarchies defined in the cfg() class.".format(choices[0], choices[-1])
 )
 parser.add_argument(
     '--nbins',
@@ -116,7 +115,7 @@ parser.add_argument(
     type=int,
     choices=[0,1,2],
     default=0,
-    help="0: Does not draws the distributions.\n1: Also draws the distributions.\n2: Only draws the distributions."
+    help="0: Does not draw the distributions (default).\n1: Also draws the distributions.\n2: Only draws the distributions."
 )
 
 parser.add_argument(
@@ -131,8 +130,8 @@ FLAGS, _ = parser.parse_known_args()
 ########################################################################
 def set_task_name(n):
     "handles the setting of each task name"
-    assert( n in _tasks_before_htcondor.keys()
-            or n in _tasks_after_htcondor.keys()  )
+    assert( n in _tasks_before_condor.keys()
+            or n in _tasks_after_condor.keys()  )
     return n
 
 ########################################################################
@@ -156,7 +155,7 @@ class cfg(luigi.Config):
     web_folder = os.path.join(web_storage, tag)
     targets_folder = os.path.join(data_storage, tag, 'targets')
     targets_default_name = 'DefaultTarget.txt'
-    targets_prefix = 'hist_eff_'
+    targets_prefix = 'hist_'
 
     data_input = '/data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_Radion_2018_fixedMETtriggers_mht_16Jun2021/'
 
@@ -170,7 +169,7 @@ class cfg(luigi.Config):
     _rawname = set_task_name('bins')
     bins_params = luigi.DictParameter(
         default={ 'taskname': _rawname,
-                  'hierarchy': _tasks_before_htcondor[_rawname],
+                  'hierarchy': _tasks_before_condor[_rawname],
                   'nbins': FLAGS.nbins,
                   'binedges_filename': binedges_filename,
                   'indir': data_input,
@@ -187,7 +186,7 @@ class cfg(luigi.Config):
     _rawname = set_task_name('submit')
     submit_params = luigi.DictParameter(
         default={ 'taskname': _rawname,
-                  'hierarchy': _tasks_before_htcondor[_rawname],
+                  'hierarchy': _tasks_before_condor[_rawname],
                   'binedges_filename': binedges_filename,
                   'indir': data_input,
                   'outdir': tag_folder,
@@ -206,7 +205,7 @@ class cfg(luigi.Config):
     _rawname = set_task_name('hadd')
     hadd_params = luigi.DictParameter(
         default={ 'taskname': _rawname,
-                  'hierarchy': _tasks_after_htcondor[_rawname],
+                  'hierarchy': _tasks_after_condor[_rawname],
                   'indir': tag_folder,
                   'subtag': subtag} )
 
@@ -216,7 +215,7 @@ class cfg(luigi.Config):
     _rawname = set_task_name('comp')
     comp_params = luigi.DictParameter(
         default={ 'taskname': _rawname,
-                  'hierarchy': _tasks_after_htcondor[_rawname],
+                  'hierarchy': _tasks_after_condor[_rawname],
                   'indir': tag_folder } )
 
     ####
@@ -231,7 +230,7 @@ class cfg(luigi.Config):
     
     drawsf_params = luigi.DictParameter(
         default={ 'taskname': _rawname,
-                  'hierarchy': _tasks_after_htcondor[_rawname],
+                  'hierarchy': _tasks_after_condor[_rawname],
                   'data_name': FLAGS.data,
                   'mc_name': FLAGS.mc_process,
                   'data': _selected_data,
@@ -255,7 +254,7 @@ class cfg(luigi.Config):
     
     drawdist_params = luigi.DictParameter(
         default={ 'taskname': _rawname,
-                  'hierarchy': _tasks_after_htcondor[_rawname],
+                  'hierarchy': _tasks_after_condor[_rawname],
                   'data_name': FLAGS.data,
                   'mc_name': FLAGS.mc_process,
                   'data': _selected_data,

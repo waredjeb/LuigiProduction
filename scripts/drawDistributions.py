@@ -1,5 +1,6 @@
 import os
 import sys
+import h5py
 from utils import utils
 
 from luigi_conf import _extensions
