@@ -9,9 +9,26 @@ from ROOT import TFile
 from ROOT import TCanvas
 from ROOT import TLegend
 from ROOT import TLatex
+from ROOT import THStack
 
 from luigi_conf import _extensions
 from utils import utils
+
+def getHistogramMaxCounts(h):
+  """
+  Receives a TH1 object and returns:
+  - its maximum number of counts in a single bin
+  - the error in that bin
+  If multiple maxima exists, it returns the one corresponding to the lowest bin number.
+  """
+  ret_content, ret_error = 0, 0.
+  nbins = h.GetNbinsX()
+  for ibin in range(1,nbins+1): #see https://root.cern.ch/doc/master/classTH1.html#convention
+    content = h.GetBinContent(ibin)
+    if content > ret_content:
+      ret_content = content
+      ret_error = h.GetBinError(ibin)
+  return ret_content, ret_error
 
 def plotDist(args, channel, variable, trig, save_names, binedges, nbins):
   _name_join = lambda l: functools.reduce(lambda x,y: x + y, l)
@@ -47,7 +64,11 @@ def plotDist(args, channel, variable, trig, save_names, binedges, nbins):
   else:
     histo_name = 'Trig_{}_{}_{}'.format(channel, variable, trig)
   histo_data = utils.getROOTObject(histo_name, file_data)
+  histo_data_int = histo_data.Integral()
+
   histos_mc = [ utils.getROOTObject(histo_name, f)  for f in files_mc ]
+  histo_mc_full = histos_mc[-1].Clone('histo_mc_full')
+  histo_mc_int = histo_mc_full.Integral()
     
   if args.debug:
     print('[=debug=] Plotting...')
@@ -55,34 +76,46 @@ def plotDist(args, channel, variable, trig, save_names, binedges, nbins):
   canvas = TCanvas( os.path.basename(save_names[0]).split('.')[0], 'canvas', 600, 600 )
   ROOT.gStyle.SetOptStat(0)
   ROOT.gStyle.SetOptTitle(0)
-  canvas.cd()
 
   histo_data.SetLineColor(1)
   histo_data.SetLineWidth(2)
   histo_data.SetMarkerColor(1)
   histo_data.SetMarkerSize(1.5)
   histo_data.SetMarkerStyle(20)
-  histo_data.Draw('p0 e')
   histo_data.GetXaxis().SetNdivisions(nbins)
   histo_data.GetYaxis().SetLabelSize(0.04)
   histo_data.GetXaxis().SetLabelSize(0.04)
   histo_data.SetTitleSize(0.04,'X')
   histo_data.SetTitleSize(0.04,'Y')
   histo_data.GetXaxis().SetTitleOffset(1.)
-  histo_data.GetYaxis().SetTitleOffset(1.20)
-  histo_data.GetYaxis().SetTitle('Counts')
+  histo_data.GetYaxis().SetTitleOffset(1.25)
+  histo_data.GetYaxis().SetTitle('Data Counts and MC Normalized Counts')
   histo_data.GetXaxis().SetTitle(variable)
 
-  mc_colors = (ROOT.kRed, 14, 24, 34, 44)
+  mc_colors = (46, 44, 41, ROOT.kRed)
+  assert(len(mc_colors)==len(histos_mc))
   for h in histos_mc:
     h.SetLineColor( mc_colors[histos_mc.index(h)] )
-    h.SetLineWidth(2)
     h.SetMarkerColor( mc_colors[histos_mc.index(h)] )
+    h.SetFillColor( mc_colors[histos_mc.index(h)] )
+    h.SetLineWidth(2)
     h.SetMarkerSize(1.4)
     h.SetMarkerStyle(22)
-    h.Draw('same p0 l e')      
+    h.Scale(histo_data_int/histo_mc_int);
 
-  leg = TLegend(0.62, 0.70, 0.9, 0.88)
+  _data_maxcount, _data_error = getHistogramMaxCounts(histo_data)
+  _mc_maxcount, _mc_error     = getHistogramMaxCounts(histos_mc[-1]) #normalized MC histo 
+  _max = ( _data_maxcount + 1.5*_data_error
+           if _data_maxcount >= _mc_maxcount else _mc_maxcount + 1.5*_mc_error )
+  
+  histo_data.SetMaximum(_max)
+  histo_data.SetMinimum(0.)
+  canvas.cd()
+  histo_data.Draw('p0 e L')
+  for h in histos_mc:
+    h.Draw('p0 e L same')
+
+  leg = TLegend(0.63, 0.71, 0.91, 0.89)
   leg.SetFillColor(0)
   leg.SetShadowColor(0)
   leg.SetBorderSize(0)
@@ -91,14 +124,14 @@ def plotDist(args, channel, variable, trig, save_names, binedges, nbins):
   leg.SetTextFont(42)
   
   leg.AddEntry(histo_data, 'Data', 'p')
-  leg.AddEntry(histos_mc[0], 'Full MC', 'p')
-  for proc,h in zip(args.mc_processes,histos_mc[1:]):
+  for proc,h in zip(args.mc_processes,histos_mc[:-1]):
     leg.AddEntry(h, proc, 'p')
+  leg.AddEntry(histos_mc[-1], 'Full MC', 'p')
   leg.Draw('same')
   
   utils.redrawBorder()
   
-  lX, lY, lYstep = 0.11, 0.87, 0.03
+  lX, lY, lYstep = 0.10, 0.94, 0.03
   l = TLatex()
   l.SetNDC()
   l.SetTextFont(72)
@@ -112,29 +145,48 @@ def plotDist(args, channel, variable, trig, save_names, binedges, nbins):
   l.DrawLatex( lX, lY,        'Channel: '+latexChannel)
   l.DrawLatex( lX, lY-lYstep, 'Trigger: '+trig)
   
-  for aname in save_names:
+  for aname in save_names[:len(_extensions)]:
     canvas.SaveAs( aname )
+
+  c_stack = TCanvas( os.path.basename(save_names[0]).split('.')[0]+'_stack', 'canvas_stack', 600, 600 )
+  c_stack.cd()
+  histo_data.Draw('p0 e L')
+  hs = THStack('hs', 'histo stack')
+  for h in histos_mc[:-1]:
+    hs.Add(h)
+  hs.Draw('NOCLEAR')
+  
+  for aname in save_names[len(_extensions):]:
+    c_stack.SaveAs( aname )
+
 
 @utils.set_pure_input_namespace
 def drawDistributions_outputs(args):
-  def _save_figures(base, figname, outputs):
-      """Saves the output names, modifying the list in-place"""
-      utils.create_single_dir( base )   
-      for ext,out in zip(_extensions, outputs):
-          out.append( os.path.join( base, figname + '.' + ext ) )
+  def _save_figures(base, figname, outputs, extensions):
+    """Saves the output names, modifying the list in-place"""
+    utils.create_single_dir( base )   
+    for ext,out in zip(extensions, outputs):
+      dotString = '.' if '.' not in ext else ''
+      out.append( os.path.join( base, figname + dotString + ext ) )
 
-  outputs = [[] for _ in range(len(_extensions))]
+  #add more outputs (used for stacked histograms)
+  extensions = list(_extensions)
+  for ext in _extensions:
+    extensions.append( '_stack.' + ext )
+    
+  outputs = [[] for _ in range(len(extensions))]
+
   for ch in args.channels:
     for var in args.variables:
-        figname = 'distRef_' + ch + '_' + var + args.subtag
-        thisbase = os.path.join(args.outdir, ch, var, '')
-        _save_figures(thisbase, figname, outputs)
-        for trig in args.triggers:
-            figname = 'distTrig_' + ch + '_' + var + '_' + trig + args.subtag
-            _save_figures(thisbase, figname, outputs)
+      figname = 'distRef_' + ch + '_' + var + args.subtag
+      thisbase = os.path.join(args.outdir, ch, var, '')
+      _save_figures(thisbase, figname, outputs, extensions)
+      for trig in args.triggers:
+        figname = 'distTrig_' + ch + '_' + var + '_' + trig + args.subtag
+        _save_figures(thisbase, figname, outputs, extensions)
 
   #join all outputs in the same list
-  return sum(outputs, []), _extensions
+  return sum(outputs, []), extensions
 
 @utils.set_pure_input_namespace
 def drawDistributions(args):

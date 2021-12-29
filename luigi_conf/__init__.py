@@ -20,7 +20,7 @@ _sel = { 'all':    {'pairType': ('<',  3),},
 # variables considered for calculating and plotting efficiencies
 _variables_eff = ['HT20', 'met_et', 'mht_et', 'metnomu_et', 'mhtnomu_et', 'dau1_pt', 'dau2_pt']
 # variables considered for plotting MC/data comparison distributions
-_variables_dist = ['dau1_pt', 'dau2_pt']
+_variables_dist = ['dau1_pt', 'HH_mass']
 # joining the two lists above
 _variables_join = set(_variables_eff + _variables_dist)
 
