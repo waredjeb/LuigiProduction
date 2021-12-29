@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 
+######### CONFIGURABLE PARAMETERS ################
+BASE_PATH="/data_CMS/cms/alves/TriggerScaleFactors"
+EOS_PATH="/eos/home-b/bfontana"
+##################################################
+
 help_description="prints this help message"
 tag_description="select tag"
 full_description="also removes HTCondor outputs"
@@ -49,6 +54,15 @@ done
 
 if [[ -z "${TAG}" ]]; then
     echo "Select the tag via the '--tag' option."
+    declare -a tags=( $(/bin/ls -1 "${BASE_PATH}") )
+    if [ ${#tags[@]} -ne 0 ]; then
+	echo "The following tags are currently available:"
+	for tag in "${tags[@]}"; do
+	    echo "- ${tag}"
+	done
+    else
+	echo "No tags are currently available. Everything looks clean!"
+    fi
     exit 1;
 fi
 
@@ -59,12 +73,14 @@ echo "FULL = ${DEBUG}"
 echo "#######################################"
 
 ##### FUNCTION DEFINITION #####
-declare -a COMMANDS=( "rm -rf /eos/home-b/bfontana/www/TriggerScaleFactors/${TAG}/*"
-		      "rm -rf /data_CMS/cms/alves/TriggerScaleFactors/${TAG}/targets/DefaultTarget_hadd.txt"
-		      "rm -rf /data_CMS/cms/alves/TriggerScaleFactors/${TAG}/targets/DefaultTarget_drawsf.txt"
+declare -a COMMANDS=( "rm -rf ${EOS_PATH}/www/TriggerScaleFactors/${TAG}/"
+		      "rm -rf ${BASE_PATH}/${TAG}/*root" #hadd outputs
+		      "rm -rf ${BASE_PATH}/${TAG}/targets/DefaultTarget_hadd.txt"
+		      "rm -rf ${BASE_PATH}/${TAG}/targets/DefaultTarget_drawsf.txt"
 		      "rm -rf jobs/${TAG}/" )
+
 if $FULL; then
-    COMMANDS+=( "rm -rf /data_CMS/cms/alves/TriggerScaleFactors/${TAG}/" )
+    COMMANDS+=( "rm -rf ${BASE_PATH}/${TAG}/" )
 fi
 
 for comm in "${COMMANDS[@]}"; do
