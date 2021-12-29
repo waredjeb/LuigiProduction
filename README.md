@@ -1,6 +1,12 @@
-## Trigger Scale Factor Studies
+## HH->bbtautau Resonant Analysis: Trigger Scale Factor Framework
 --------------------
---------------------
+
+Calculate 1D and 2D trigger scale factors, starting from skimmed Ntuples. It is defined using the ```luigi``` package in ```run_workflow.py```. The framework also allows displaying Data/MC comparison of single variable distributions.
+
+Two steps are required for obtaining the results:
+
+- all tasks up to the HTCondor jobs submission: binning calculation and histogram filling
+- all tasks after the submission: efficiency calculations and plotting
 
 Requirements:
 
@@ -10,12 +16,10 @@ Requirements:
 
 #### Luigi Workflow
 
-- Running the ```luigi``` workflow
-
 To run the submission workflow, please type the following:
 
 ```shell
-LUIGI_CONFIG_PATH=luigi.cfg; python3 run_workflow.py --outuser bfontana --scheduler local --workers 2 --tag v1 --data MET2018 --mc_process TT --triggers nonStandard HT500 METNoMu120 METNoMu120_HT60 MediumMET100 MediumMET110 MediumMET130 --submit
+python3 run_workflow.py --outuser <lxplus username> --scheduler local --tag <any tag> --data MET2018 --mc_process TT --triggers nonStandard HT500 METNoMu120 METNoMu120_HT60 MediumMET100 MediumMET110 MediumMET130 --submit
 ```
 
 To run the remaining part of the (local) workflow, run the same command without the ```--submit``` flag.
@@ -29,29 +33,23 @@ To run the remaining part of the (local) workflow, run the same command without 
 
 
 Check the meaning of the arguments by adding ```--help```.
-You can also run each ```luigi``` task separately by running its corresponding ```python``` scripts (all support ```--help```)
+You can also run each ```luigi``` task separately by running its corresponding ```python``` scripts (all support ```--help```).
+
+Variables can be configured in ```luigi_conf/__init__.py```).
 
 #### Cleanup
 
 In order to avoid cluttering the local area with output files, a ```bash``` script was written to effortlessly delete them:
 
 ```
-bash triggerClean.sh -d -f --tag v1
+bash triggerClean.sh --tag <any tag>
 ```
 
-where:
+with options:
 
 - ```-d```: debug mode, where all commands are printed to the screen and nothing is run
 - ```-f```: full delete, including data produced by the HTCondor jobs (this flag is required to avoid data deletions by mistake)
-- ```-t```: tag used when producing the files
-
-#### Main scripts:
-
-- ```run_workflow.py```: the main script, where the luigi workflow is defined
-- **Submission Task** (```submitTriggerEff.py```): macro that launches all jobs to HTCondor 
-- ```getTriggerEffSig.py```: script that is launched in HTCondor (multiple times) to produce ROOT files
-- **Histogram joining task** (```haddTriggerEff.py```): adds the ROOT files produced in the previous step
-- **Draw scale factors task** (```drawTriggerSF.py```): macro which draws the scale factors
+- ```--tag```: tag used when producing the files (remove this options to print a message displaying all tags used in the past which were not yet removed)
 
 -------------------------------------
 
