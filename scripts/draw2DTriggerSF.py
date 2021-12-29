@@ -44,7 +44,7 @@ def drawOverlayed2DHistograms(effdata, var, opt):
   histo_data_pass = effdata.GetCopyPassedHisto()
   histo_data_tot = setHisto( effdata.GetCopyTotalHisto(), var )
   histo_data.SetBarOffset(0.15);
-  histo_data.SetMarkerSize(.8)
+  histo_data.SetMarkerSize(.75)
   histo_data_pass.SetBarOffset(0.);
   histo_data_pass.SetMarkerColor(kRed-9);
   histo_data_pass.SetMarkerSize(.8)
@@ -109,7 +109,7 @@ def check2DTrigger(args, proc, channel, var, trig, save_names):
   histo_data_pass = eff2D_data['ref_vs_trig'].GetCopyPassedHisto()
   histo_data_tot = setHisto( eff2D_data['ref_vs_trig'].GetCopyTotalHisto(), var )
   histo_data.SetBarOffset(0.15);
-  histo_data_tot.SetMarkerSize(.8)
+  histo_data_tot.SetMarkerSize(.75)
   histo_data_pass.SetBarOffset(0.);
   histo_data_pass.SetMarkerColor(kRed-9);
   histo_data_pass.SetMarkerSize(.8)
@@ -142,7 +142,7 @@ def check2DTrigger(args, proc, channel, var, trig, save_names):
   histo_mc_pass = eff2D_mc['ref_vs_trig'].GetCopyPassedHisto()
   histo_mc_tot = setHisto( eff2D_mc['ref_vs_trig'].GetCopyTotalHisto(), var )
   histo_mc.SetBarOffset(0.15);
-  histo_data.SetMarkerSize(.9)
+  histo_data.SetMarkerSize(.75)
   histo_data_pass.SetBarOffset(0.);
   histo_data_pass.SetMarkerColor(kRed-9);
   histo_data_pass.SetMarkerSize(.8)
@@ -172,7 +172,7 @@ def check2DTrigger(args, proc, channel, var, trig, save_names):
   histo_sf = histo_data.Clone('sf')
   histo_sf.Divide(histo_mc)
   histo_sf.SetAxisRange(-0.5, 2.5, 'Z');
-  histo_sf.SetMarkerSize(.8)
+  histo_sf.SetMarkerSize(.75)
   histo_sf.Draw(histo_options)
 
   lX, lY, lYstep = 0.6, 0.92, 0.045
