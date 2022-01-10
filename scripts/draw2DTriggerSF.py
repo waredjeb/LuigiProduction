@@ -45,11 +45,11 @@ def drawOverlayed2DHistograms(effdata, var, opt):
   histo_data_tot = setHisto( effdata.GetCopyTotalHisto(), var )
   histo_data.SetBarOffset(0.15);
   histo_data.SetMarkerSize(.75)
-  histo_data_pass.SetBarOffset(0.);
-  histo_data_pass.SetMarkerColor(kRed-9);
+  histo_data_pass.SetBarOffset(-0.15);
+  histo_data_pass.SetMarkerColor(kBlue-4);
   histo_data_pass.SetMarkerSize(.8)
-  histo_data_tot.SetBarOffset(-0.15);
-  histo_data_tot.SetMarkerColor(kBlue-4);
+  histo_data_tot.SetBarOffset(-0.3);
+  histo_data_tot.SetMarkerColor(kRed-9);
   histo_data_tot.SetMarkerSize(.8)
   histo_data.Draw(opt)
   histo_data_pass.Draw("text min0 same")

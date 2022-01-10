@@ -176,13 +176,13 @@ def drawDistributions_outputs(args):
     
   outputs = [[] for _ in range(len(extensions))]
 
-  for ch in args.channels:
+  for chn in args.channels:
     for var in args.variables:
-      figname = 'distRef_' + ch + '_' + var + args.subtag
-      thisbase = os.path.join(args.outdir, ch, var, '')
+      figname = 'distRef_' + chn + '_' + var + args.subtag
+      thisbase = os.path.join(args.outdir, chn, var, '')
       _save_figures(thisbase, figname, outputs, extensions)
       for trig in args.triggers:
-        figname = 'distTrig_' + ch + '_' + var + '_' + trig + args.subtag
+        figname = 'distTrig_' + chn + '_' + var + '_' + trig + args.subtag
         _save_figures(thisbase, figname, outputs, extensions)
 
   #join all outputs in the same list
@@ -206,7 +206,7 @@ def drawDistributions(args):
   dt = len(args.triggers) + 1 #triggers + reference trigger
   dv = len(args.variables) * dt
   dc = len(args.channels) * dv
-  for ic,ch in enumerate(args.channels):
+  for ic,chn in enumerate(args.channels):
       for iv,var in enumerate(args.variables):
         index = ic*dv + iv*dt
         names = [ outputs[index + dc*x] for x in range(len(extensions)) ]
@@ -214,10 +214,10 @@ def drawDistributions(args):
         if args.debug:
           for name in names:
             print('[=debug=] {}'.format(name))
-            print("channel={}, variable={}, trigger=Reference".format(ch, var))
+            print("channel={}, variable={}, trigger=Reference".format(chn, var))
             print()
 
-        plotDist( args, ch, var, 'Reference', names,
+        plotDist( args, chn, var, 'Reference', names,
                   binedges[var][chn], nbins[var][chn] )
 
         for it,trig in enumerate(args.triggers):
@@ -227,10 +227,10 @@ def drawDistributions(args):
           if args.debug:
             for name in names:
               print('[=debug=] {}'.format(name))
-              print("channel={}, variable={}, trigger={}".format(ch, var, trig))
+              print("channel={}, variable={}, trigger={}".format(chn, var, trig))
               print()
                   
-          plotDist( args, ch, var, trig, names,
+          plotDist( args, chn, var, trig, names,
                     binedges[var][chn], nbins[var][chn] )
 
 if __name__ == '__main__':
