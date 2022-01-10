@@ -304,7 +304,7 @@ class DrawDistributions(ForceableEnsureRecentTarget):
         utils.remove( self.target_path )
         with open( self.target_path, 'w' ) as f:
             for t in targets_list:
-                f.write( t )
+                f.write( t + '\n' )
                 
         return targets
 

@@ -33,7 +33,7 @@ def checkTrigger(args, proc, channel, variable, trig, save_names, binedges, nbin
   name_mc = os.path.join(args.indir, _name( args.targetsPrefix, args.mc_name,
                                             args.target_suffix, args.subtag ))
   file_mc   = TFile( name_mc, 'READ');
-
+  
   if args.debug:
     print('[=debug=] Open files:')
     print('[=debug=]  - Data: {}'.format(name_data))
@@ -63,15 +63,8 @@ def checkTrigger(args, proc, channel, variable, trig, save_names, binedges, nbin
 
   if args.debug:
     print('[=debug=] Data efficiency...')  
-  #eff_data = TEfficiency( histos_data['trig'], histos_data['ref'])
-  eff_data = TGraphAsymmErrors( histos_data['trig'], histos_data['ref'])
-  eff_data_clone = histos_data['trig'].Clone('eff_data_')
-  # geff = TGraphAsymmErrors()
-  # geff.Divide(heff, d_passALL, 'cp')
-  flag = eff_data_clone.Divide(eff_data_clone, histos_data['ref'], 1, 1, 'B')
-  if not flag:
-    raise RuntimeError('[drawTriggerSF.py] Data division failed!')
 
+  eff_data = TGraphAsymmErrors( histos_data['trig'], histos_data['ref'])
 
   if args.debug:
     print('[=debug=] Scale Factors...')  
@@ -141,38 +134,17 @@ def checkTrigger(args, proc, channel, variable, trig, save_names, binedges, nbin
                          darr(ed_sf),
                          darr(eu_sf))
 
-  # sf_ = eff_data_clone.Clone('sf_')
-
-  # nbins = sf_.GetNbinsX()
-  # assert(nbins == eff_mc_clone.GetNbinsX())
 
   # sf = TGraphAsymmErrors(nbins)
   # sf.Divide(sf_, eff_mc_clone, 'n') #before was set to 'cp': Clopper-Pearson
 
   if args.debug:
     print('[=debug=] Plotting...')  
+
   canvas = TCanvas( os.path.basename(save_names[0]).split('.')[0], 'canvas', 600, 600 )
   ROOT.gStyle.SetOptStat(0)
   ROOT.gStyle.SetOptTitle(0)
   canvas.cd()
-  
-  eff_data.SetLineColor(1)
-  eff_data.SetLineWidth(2)
-  eff_data.SetMarkerColor(1)
-  eff_data.SetMarkerSize(1.5)
-  eff_data.SetMarkerStyle(20)
-    
-  eff_mc.SetLineColor(ROOT.kRed)
-  eff_mc.SetLineWidth(2)
-  eff_mc.SetMarkerColor(ROOT.kRed)
-  eff_mc.SetMarkerSize(1.4)
-  eff_mc.SetMarkerStyle(22)
-  
-  sf.SetLineColor(ROOT.kRed)
-  sf.SetLineWidth(2)
-  sf.SetMarkerColor(ROOT.kRed)
-  sf.SetMarkerSize(1.4)
-  sf.SetMarkerStyle(22)
     
   pad1 = TPad('pad1', 'pad1', 0, 0.35, 1, 1)
   pad1.SetBottomMargin(0.005)
@@ -180,7 +152,9 @@ def checkTrigger(args, proc, channel, variable, trig, save_names, binedges, nbin
   pad1.Draw()
   pad1.cd()
   
-  axor = TH2D('axor','axor', nbins, binedges[0], binedges[-1], 100, -0.1, 1.7)
+  axor = TH2D('axor','axor', nbins,
+              binedges[0]-halfbinwidths[0]/2, binedges[-1]+halfbinwidths[-1]/2,
+              100, -0.1, 1.4)
   axor.GetYaxis().SetTitle('Efficiency')
   axor.GetXaxis().SetLabelOffset(1)
   axor.GetXaxis().SetLabelOffset(1.)
@@ -189,12 +163,24 @@ def checkTrigger(args, proc, channel, variable, trig, save_names, binedges, nbin
   axor.GetXaxis().SetLabelSize(0.07)
   axor.GetYaxis().SetLabelSize(0.07)
   axor.Draw()
+
+  eff_data.SetLineColor(1)
+  eff_data.SetLineWidth(2)
+  eff_data.SetMarkerColor(1)
+  eff_data.SetMarkerSize(1.5)
+  eff_data.SetMarkerStyle(20)
+  eff_data.Draw('same p0 e')
+
+  eff_mc.SetLineColor(ROOT.kRed)
+  eff_mc.SetLineWidth(2)
+  eff_mc.SetMarkerColor(ROOT.kRed)
+  eff_mc.SetMarkerSize(1.4)
+  eff_mc.SetMarkerStyle(22)
+  eff_mc.Draw('same p0')
   
-  eff_data.Draw('SAME p0 e ')
-  eff_mc.Draw('SAME p0 ')
   pad1.RedrawAxis()
   
-  leg = TLegend(0.25, 0.55, 0.47, 0.75)
+  leg = TLegend(0.22, 0.7, 0.43, 0.8)
   leg.SetFillColor(0)
   leg.SetShadowColor(0)
   leg.SetBorderSize(0)
@@ -208,7 +194,7 @@ def checkTrigger(args, proc, channel, variable, trig, save_names, binedges, nbin
   
   utils.redrawBorder()
   
-  lX, lY, lYstep = 0.25, 0.84, 0.035
+  lX, lY, lYstep = 0.25, 0.84, 0.04
   l = TLatex()
   l.SetNDC()
   l.SetTextFont(72)
@@ -241,12 +227,13 @@ def checkTrigger(args, proc, channel, variable, trig, save_names, binedges, nbin
   axor2.GetYaxis().SetTitleOffset(0.45)
   axor2.GetYaxis().SetTitle('Data/MC')
   axor2.GetXaxis().SetTitle(variable)
-    
   axor2.Draw()
-  line = TLine(20,1,120,1)
-  line.SetLineColor(1)
-  line.SetLineWidth(2)
   
+  sf.SetLineColor(ROOT.kRed)
+  sf.SetLineWidth(2)
+  sf.SetMarkerColor(ROOT.kRed)
+  sf.SetMarkerSize(1.4)
+  sf.SetMarkerStyle(22)
   sf.GetYaxis().SetNdivisions(507)
   sf.GetYaxis().SetLabelSize(0.12)
   sf.GetXaxis().SetLabelSize(0.12)
@@ -256,9 +243,8 @@ def checkTrigger(args, proc, channel, variable, trig, save_names, binedges, nbin
   sf.GetYaxis().SetTitleOffset(0.45)
   sf.GetYaxis().SetTitle('Data/MC')
   sf.GetXaxis().SetTitle(variable)
-  
-  ##line.Draw()
   sf.Draw('same P0')
+  
   utils.redrawBorder()
 
   for aname in save_names:
@@ -302,7 +288,7 @@ def drawTriggerSF(args):
   dc = len(args.channels) * dv
   dp = len(args.mc_processes) * dc
   for ip,proc in enumerate(args.mc_processes):
-    for ic,ch in enumerate(args.channels):
+    for ic,chn in enumerate(args.channels):
       for iv,var in enumerate(args.variables):
         for it,trig in enumerate(args.triggers):
           index = ip*dc + ic*dv + iv*dt + it
@@ -311,10 +297,10 @@ def drawTriggerSF(args):
           if args.debug:
             for name in names:
               print('[=debug=] {}'.format(name))
-            print("process={}, channel={}, variable={}, trigger={}".format(proc, ch, var, trig))
+            print("process={}, channel={}, variable={}, trigger={}".format(proc, chn, var, trig))
             print()
 
-          checkTrigger( args, proc, ch, var, trig, names,
+          checkTrigger( args, proc, chn, var, trig, names,
                         binedges[var][chn], nbins[var][chn] )
           
 if __name__ == '__main__':
