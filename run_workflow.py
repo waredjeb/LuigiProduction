@@ -39,7 +39,7 @@ def luigi_to_raw( param ):
     if isinstance(param, (tuple,list)):
         return [x for x in param]
     else:
-        raise NotImplementedError('[' + inspect.stack()[0][3] + ']: ' + 'only tuples/lsits implemented so far!')
+        raise NotImplementedError('[' + inspect.stack()[0][3] + ']: ' + 'only tuples/lists implemented so far!')
 
 def set_force_boolean(hierarchy):
     """

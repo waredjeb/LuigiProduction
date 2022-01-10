@@ -154,7 +154,7 @@ def checkTrigger(args, proc, channel, variable, trig, save_names, binedges, nbin
   
   axor = TH2D('axor','axor', nbins,
               binedges[0]-halfbinwidths[0]/2, binedges[-1]+halfbinwidths[-1]/2,
-              100, -0.1, 1.4)
+              100, -0.1, 1.3)
   axor.GetYaxis().SetTitle('Efficiency')
   axor.GetXaxis().SetLabelOffset(1)
   axor.GetXaxis().SetLabelOffset(1.)
@@ -167,20 +167,20 @@ def checkTrigger(args, proc, channel, variable, trig, save_names, binedges, nbin
   eff_data.SetLineColor(1)
   eff_data.SetLineWidth(2)
   eff_data.SetMarkerColor(1)
-  eff_data.SetMarkerSize(1.5)
+  eff_data.SetMarkerSize(1.3)
   eff_data.SetMarkerStyle(20)
   eff_data.Draw('same p0 e')
 
   eff_mc.SetLineColor(ROOT.kRed)
   eff_mc.SetLineWidth(2)
   eff_mc.SetMarkerColor(ROOT.kRed)
-  eff_mc.SetMarkerSize(1.4)
+  eff_mc.SetMarkerSize(1.3)
   eff_mc.SetMarkerStyle(22)
   eff_mc.Draw('same p0')
   
   pad1.RedrawAxis()
   
-  leg = TLegend(0.22, 0.7, 0.43, 0.8)
+  leg = TLegend(0.77, 0.77, 0.96, 0.87)
   leg.SetFillColor(0)
   leg.SetShadowColor(0)
   leg.SetBorderSize(0)
@@ -217,7 +217,7 @@ def checkTrigger(args, proc, channel, variable, trig, save_names, binedges, nbin
   pad2.cd()
   pad2.SetGridy()
   
-  axor2 = TH2D('axor2', 'axor2', nbins, binedges[0], binedges[-1], 100, 0.55, 1.45)
+  axor2 = TH2D('axor2', 'axor2', nbins, binedges[0], binedges[-1], 100, 0.45, 1.55)
   axor2.GetYaxis().SetNdivisions(507)
   axor2.GetYaxis().SetLabelSize(0.12)
   axor2.GetXaxis().SetLabelSize(0.12)
@@ -232,7 +232,7 @@ def checkTrigger(args, proc, channel, variable, trig, save_names, binedges, nbin
   sf.SetLineColor(ROOT.kRed)
   sf.SetLineWidth(2)
   sf.SetMarkerColor(ROOT.kRed)
-  sf.SetMarkerSize(1.4)
+  sf.SetMarkerSize(1.3)
   sf.SetMarkerStyle(22)
   sf.GetYaxis().SetNdivisions(507)
   sf.GetYaxis().SetLabelSize(0.12)
@@ -253,7 +253,9 @@ def checkTrigger(args, proc, channel, variable, trig, save_names, binedges, nbin
 @utils.set_pure_input_namespace
 def drawTriggerSF_outputs(args):
   outputs = [[] for _ in range(len(_extensions))]
-  for proc in args.mc_processes:
+  processes = args.mc_processes if args.draw_independent_MCs else [args.mc_name]
+  
+  for proc in processes:
     for ch in args.channels:
       for var in args.variables:
         for trig in args.triggers:
@@ -271,7 +273,8 @@ def drawTriggerSF_outputs(args):
 @utils.set_pure_input_namespace
 def drawTriggerSF(args):
   outputs, extensions = drawTriggerSF_outputs(args)
-
+  processes = args.mc_processes if args.draw_independent_MCs else [args.mc_name]
+  
   # Recover binning
   binedges, nbins = ({} for _ in range(2))
   with h5py.File(args.binedges_filename, 'r') as f:
@@ -286,8 +289,8 @@ def drawTriggerSF(args):
   dt = len(args.triggers)
   dv = len(args.variables) * dt
   dc = len(args.channels) * dv
-  dp = len(args.mc_processes) * dc
-  for ip,proc in enumerate(args.mc_processes):
+  dp = len(processes) * dc
+  for ip,proc in enumerate(processes):
     for ic,chn in enumerate(args.channels):
       for iv,var in enumerate(args.variables):
         for it,trig in enumerate(args.triggers):
@@ -310,8 +313,9 @@ if __name__ == '__main__':
     parser.add_argument('-x', '--targetsPrefix', help='prefix to the names of the produced outputs (targets in luigi lingo)', required=True)
     parser.add_argument('-t', '--tag', help='string to diferentiate between different workflow runs', required=True)
     parser.add_argument('-d', '--data', help='dataset to be analyzed/plotted', required=True)
-    parser.add_argument('-p', '--mc_processes', help='MC processes to be analyzed: Radions, TT, ...', required=True)
+    parser.add_argument('-p', '--mc_processes', help='MC processes to be analyzed', required=True)
     parser.add_argument('--binedges_filename', dest='binedges_filename', required=True, help='in directory')
+    parser.add_argument('--draw_independent_MCs', action='store_true', help='debug verbosity')
     parser.add_argument('--debug', action='store_true', help='debug verbosity')
     args = parser.parse_args()
 

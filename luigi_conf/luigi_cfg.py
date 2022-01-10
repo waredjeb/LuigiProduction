@@ -223,9 +223,9 @@ class cfg(luigi.Config):
     ####
     _rawname = set_task_name('drawsf')
     # clever way to flatten a nested list
-    #_selected_mc_process = sum([ _mc_processes[proc] for proc in FLAGS.mc_process ], [])
+    #_selected_mc_processes = sum([ _mc_processes[proc] for proc in FLAGS.mc_process ], [])
     #_selected_data = sum([ _data[x] for x in FLAGS.data ], [])
-    _selected_mc_process = _mc_processes[FLAGS.mc_process]
+    _selected_mc_processes = _mc_processes[FLAGS.mc_process]
     _selected_data = _data[FLAGS.data]
     
     drawsf_params = luigi.DictParameter(
@@ -234,7 +234,8 @@ class cfg(luigi.Config):
                   'data_name': FLAGS.data,
                   'mc_name': FLAGS.mc_process,
                   'data': _selected_data,
-                  'mc_processes': _selected_mc_process,
+                  'mc_processes': _selected_mc_processes,
+                  'draw_independent_MCs': False,
                   'indir': tag_folder,
                   'outdir': web_folder,
                   'triggers': FLAGS.triggers,
@@ -249,7 +250,7 @@ class cfg(luigi.Config):
     #### drawDistributions
     ####
     _rawname = set_task_name('drawdist')
-    _selected_mc_process = _mc_processes[FLAGS.mc_process]
+    _selected_mc_processes = _mc_processes[FLAGS.mc_process]
     _selected_data = _data[FLAGS.data]
     
     drawdist_params = luigi.DictParameter(
@@ -258,7 +259,8 @@ class cfg(luigi.Config):
                   'data_name': FLAGS.data,
                   'mc_name': FLAGS.mc_process,
                   'data': _selected_data,
-                  'mc_processes': _selected_mc_process,
+                  'mc_processes': _selected_mc_processes,
+                  'draw_independent_MCs': False,
                   'indir': tag_folder,
                   'outdir': web_folder,
                   'triggers': FLAGS.triggers,

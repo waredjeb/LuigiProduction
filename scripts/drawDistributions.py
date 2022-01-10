@@ -191,7 +191,7 @@ def drawDistributions_outputs(args):
 @utils.set_pure_input_namespace
 def drawDistributions(args):
   outputs, extensions = drawDistributions_outputs(args)
-
+  
   # Recover binning
   binedges, nbins = ({} for _ in range(2))
   with h5py.File(args.binedges_filename, 'r') as f:

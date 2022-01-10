@@ -193,8 +193,9 @@ def check2DTrigger(args, proc, channel, var, trig, save_names):
 @utils.set_pure_input_namespace
 def draw2DTriggerSF_outputs(args):
   outputs = [[] for _ in range(len(_extensions))]
-
-  for proc in args.mc_processes:
+  processes = args.mc_processes if args.draw_independent_MCs else [args.mc_name]
+  
+  for proc in processes:
     for ch in args.channels:
       for trig in args.triggers:
         if trig in _2Dpairs.keys():
@@ -221,14 +222,15 @@ def draw2DTriggerSF(args):
   ROOT.gStyle.SetPaintTextFormat("4.2f")
 
   outputs, extensions = draw2DTriggerSF_outputs(args)
-
+  processes = args.mc_processes if args.draw_independent_MCs else [args.mc_name]
+  
   # loop through variables, triggers, channels and processes
   dv = 0
   for key in _2Dpairs:
     dv += len(_2Dpairs[key])
   dc = len(args.channels) * dv
-  dp = len(args.mc_processes) * dc
-  for ip,proc in enumerate(args.mc_processes):
+  dp = len(processes) * dc
+  for ip,proc in enumerate(processes):
     for ic,ch in enumerate(args.channels):
       iv = -1
       for trig in args.triggers:
@@ -253,6 +255,7 @@ if __name__ == '__main__':
     parser.add_argument('-t', '--tag', help='string to diferentiate between different workflow runs', required=True)
     parser.add_argument('-d', '--data', help='dataset to be analyzed/plotted', required=True)
     parser.add_argument('-p', '--mc_processes', help='MC processes to be analyzed: Radions, TT, ...', required=True)
+    parser.add_argument('--draw_independent_MCs', action='store_true', help='debug verbosity')
     parser.add_argument('--debug', action='store_true', help='debug verbosity')
     args = parser.parse_args()
 
