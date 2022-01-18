@@ -42,11 +42,6 @@ def submitTriggerEff_outputs(args):
         
 @utils.set_pure_input_namespace
 def submitTriggerEff(args):
-    # -- Check input folder
-    if not os.path.exists(args.indir):
-        print('input folder {} not existing, exiting'.format(args.indir))
-        exit(1)
-
     home = os.environ['HOME']
     cmssw = os.path.join(os.environ['CMSSW_VERSION'], 'src')
     prog = 'python3 {}'.format( os.path.join(home, cmssw, 'METTriggerStudies', 'scripts', 'getTriggerEffSig.py') )
@@ -58,8 +53,13 @@ def submitTriggerEff(args):
     _all_processes = args.data + args.mc_processes
     for thisProc in _all_processes:
 
-        #### Input list
-        inputfiles = os.path.join(args.indir, 'SKIM_' + thisProc + '/goodfiles.txt')
+        #### Check input folder
+        inputfiles = [ os.path.join(idir, 'SKIM_' + thisProc + '/goodfiles.txt') for idir in args.indir ]
+        fexists = [ os.path.exists( inpf ) for inpf in inputfiles ]
+        assert( sum(fexists) == 1 ) #check one and only one is True
+        inputdir = args.indir[ fexists.index(True) ] #this is the only correct input directory
+
+        inputfiles = os.path.join(inputdir, 'SKIM_' + thisProc + '/goodfiles.txt')
 
         #### Parse input list
         filelist=[]

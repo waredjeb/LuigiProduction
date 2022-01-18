@@ -4,7 +4,7 @@ from argparse import RawTextHelpFormatter
 import luigi
 from luigi.util import inherits
 
-from . import _data, _mc_processes, _triggers_map, _channels
+from . import _inputs, _data, _mc_processes, _triggers_map, _channels
 from . import _variables_eff, _variables_dist
 from . import _nonStandTriggers, _trigger_custom, _trigger_shift, _triggers_map
 
@@ -155,9 +155,7 @@ class cfg(luigi.Config):
     web_folder = os.path.join(web_storage, tag)
     targets_folder = os.path.join(data_storage, tag, 'targets')
     targets_default_name = 'DefaultTarget.txt'
-    targets_prefix = 'hist_'
-
-    data_input = '/data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_Radion_2018_fixedMETtriggers_mht_16Jun2021/'
+    targets_prefix = 'hist_'    
 
     binedges_filename = os.path.join(tag_folder, 'binedges.hdf5')
 
@@ -172,7 +170,7 @@ class cfg(luigi.Config):
                   'hierarchy': _tasks_before_condor[_rawname],
                   'nbins': FLAGS.nbins,
                   'binedges_filename': binedges_filename,
-                  'indir': data_input,
+                  'indir': _inputs,
                   'outdir': tag_folder,
                   'data': _data[FLAGS.data],
                   'variables': variables_join,
@@ -188,7 +186,7 @@ class cfg(luigi.Config):
         default={ 'taskname': _rawname,
                   'hierarchy': _tasks_before_condor[_rawname],
                   'binedges_filename': binedges_filename,
-                  'indir': data_input,
+                  'indir': _inputs,
                   'outdir': tag_folder,
                   'data': _data[FLAGS.data],
                   'mc_processes': _mc_processes[FLAGS.mc_process],
@@ -273,7 +271,6 @@ class cfg(luigi.Config):
 
 """
 DATA:
-@ bit position - path
 0 - HLT_IsoMu24_v
 1 - HLT_IsoMu27_v
 2 - HLT_Ele32_WPTight_Gsf_v
@@ -288,15 +285,11 @@ DATA:
 11 - HLT_Ele24_eta2p1_WPTight_Gsf_LooseChargedIsoPFTau30_eta2p1_CrossL1_v
 12 - HLT_VBF_DoubleLooseChargedIsoPFTau20_Trk1_eta2p1_v
 13 - HLT_VBF_DoubleLooseChargedIsoPFTauHPS20_Trk1_eta2p1_v
-14 - HLT_PFHT500_PFMET100_PFMHT100_IDTight_v
-15 - HLT_PFMETNoMu120_PFMHTNoMu120_IDTight_v
-16 - HLT_PFMETNoMu120_PFMHTNoMu120_IDTight_PFHT60_v
-17 - HLT_MediumChargedIsoPFTau50_Trk30_eta2p1_1pr_MET100_v
-18 - HLT_MediumChargedIsoPFTau50_Trk30_eta2p1_1pr_MET110_v
-19 - HLT_MediumChargedIsoPFTau50_Trk30_eta2p1_1pr_MET130_v
+14 - HLT_PFMETNoMu120_PFMHTNoMu120_IDTight_v
+15 - HLT_MediumChargedIsoPFTau50_Trk30_eta2p1_1pr_MET100_v
+16 - HLT_MediumChargedIsoPFTau180HighPtRelaxedIso_Trk50_eta2p1_v
 
 MC:
-@ bit position - path
 0 - HLT_IsoMu24_v
 1 - HLT_IsoMu27_v
 2 - HLT_Ele32_WPTight_Gsf_v
@@ -306,10 +299,7 @@ MC:
 6 - HLT_Ele24_eta2p1_WPTight_Gsf_LooseChargedIsoPFTauHPS30_eta2p1_CrossL1_v
 7 - HLT_VBF_DoubleLooseChargedIsoPFTau20_Trk1_eta2p1_v
 8 - HLT_VBF_DoubleLooseChargedIsoPFTauHPS20_Trk1_eta2p1_v
-9 - HLT_PFHT500_PFMET100_PFMHT100_IDTight_v
-10 - HLT_PFMETNoMu120_PFMHTNoMu120_IDTight_v
-11 - HLT_PFMETNoMu120_PFMHTNoMu120_IDTight_PFHT60_v
-12 - HLT_MediumChargedIsoPFTau50_Trk30_eta2p1_1pr_MET100_v
-13 - HLT_MediumChargedIsoPFTau50_Trk30_eta2p1_1pr_MET110_v
-14 - HLT_MediumChargedIsoPFTau50_Trk30_eta2p1_1pr_MET130_v
+9 - HLT_PFMETNoMu120_PFMHTNoMu120_IDTight_v
+10 - HLT_MediumChargedIsoPFTau50_Trk30_eta2p1_1pr_MET100_v
+11 - HLT_MediumChargedIsoPFTau180HighPtRelaxedIso_Trk50_eta2p1_v
 """

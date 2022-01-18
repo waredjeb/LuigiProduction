@@ -56,8 +56,11 @@ def defineBinning(args):
         for sample in args.data:
 
             #### Input list
-            inputfiles = os.path.join(args.indir, 'SKIM_' + sample + '/goodfiles.txt')
-
+            inputfiles = [ os.path.join(idir, 'SKIM_' + sample + '/goodfiles.txt') for idir in args.indir ]
+            fexists = [ os.path.exists( inpf ) for inpf in inputfiles ]
+            assert( sum(fexists) == 1 ) #check one and only one is True
+            inputfiles = inputfiles[ fexists.index(True) ]
+            
             #### Parse input list
             filelist = []
             with open(inputfiles) as fIn:

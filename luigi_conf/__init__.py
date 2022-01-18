@@ -2,7 +2,6 @@
 Configuration file for the Luigi trigger scale factors framework.
 Some sanity checks included.
 """
-
 _extensions = ( 'png', 'pdf',
                 #'C'
                )
@@ -18,7 +17,8 @@ _sel = { 'all':    {'pairType': ('<',  3),},
 ########### VARIABLES ##################################################################################
 #######################################################################################################
 # variables considered for calculating and plotting efficiencies
-_variables_eff = ['HT20', 'met_et', 'mht_et', 'metnomu_et', 'mhtnomu_et', 'dau1_pt', 'dau2_pt']
+_variables_eff = ['HT20', 'met_et', 'mht_et', 'metnomu_et', 'mhtnomu_et',
+                  'dau1_pt', 'dau2_pt', 'dau1_eta', 'dau2_eta']
 # variables considered for plotting MC/data comparison distributions
 _variables_dist = ['dau1_pt', 'HH_mass']
 # joining the two lists above
@@ -27,23 +27,25 @@ _variables_join = set(_variables_eff + _variables_dist)
 #######################################################################################################
 ########### TRIGGERS ##################################################################################
 #######################################################################################################
-_nonStandTriggers = ['HT500', 'METNoMu120', 'METNoMu120_HT60', 'MediumMET100', 'MediumMET110', 'MediumMET130']
+_nonStandTriggers = ['IsoMuIsoTau', 'METNoMu120', ] #example for custom trigger combination, currently meaningless
 _trigger_custom = lambda x : {'mc': _nonStandTriggers, 'data': _nonStandTriggers}
 _trigger_shift = lambda x : {'mc': x, 'data': x+5}
-_triggers_map = {'nonStandard': _trigger_custom('nonStandard'), #>=9
-                 'HT500': _trigger_shift(9),
-                 'METNoMu120': _trigger_shift(10),
-                 'METNoMu120_HT60': _trigger_shift(11),
-                 'MediumMET100': _trigger_shift(12),
-                 'MediumMET110': _trigger_shift(13),
-                 'MediumMET130': _trigger_shift(14) }
+_triggers_map = {'nonStandard': _trigger_custom('nonStandard'),
+                 #others: 0-3 map directly, 4 maps to 7
+                 'IsoMuIsoTau': {'mc': 5, 'data': 8},
+                 'EleIsoTau':   {'mc': 6, 'data': 10},
+                 'VBFTau':     _trigger_shift(7),
+                 'VBFTauHPS':  _trigger_shift(8),
+                 'METNoMu120': _trigger_shift(9),
+                 'IsoTau50':   _trigger_shift(10),
+                 'IsoTau180':  _trigger_shift(11), }
 assert( set(_nonStandTriggers).issubset( set(_triggers_map.keys()) ) )
 
 #######################################################################################################
 ########### CUTS ######################################################################################
 #######################################################################################################
-_cuts = {'METNoMu120':      {'metnomu_et': ('>', 200), 'mhtnomu_et': ('>', 200)},
-         'METNoMu120_HT60': {'metnomu_et': ('>', 200), 'mhtnomu_et': ('>', 200), 'HT20': ('>', 80)}
+_cuts = {'METNoMu120': {'metnomu_et': ('>', 200), 'mhtnomu_et': ('>', 200)},
+         'IsoTau50':   {'dau1_pt': ('>', 80), 'dau1_eta': ('<', 2.0), 'met_et': ('>', 150)},
          }
 assert( set(_cuts.keys()).issubset(set(_triggers_map.keys())) )
 for x in _cuts.values():
@@ -67,7 +69,6 @@ for k,v in _cuts_ignored.items():
 ########### 2D PLOTS ##################################################################################
 #######################################################################################################
 _2Dpairs = {'METNoMu120':      (('metnomu_et', 'mhtnomu_et'),),
-            'METNoMu120_HT60': (('metnomu_et', 'mhtnomu_et'),),
          }
 assert( set(_2Dpairs.keys()).issubset(set(_triggers_map.keys())) )
 for x in _2Dpairs.values():
@@ -85,28 +86,20 @@ for x in _binedges.values():
 #######################################################################################################
 ########### DATA AND MC SAMPLES #######################################################################
 #######################################################################################################
-_data = dict( MET2018 = ['MET2018A',
-                         'MET2018B',
-                         'MET2018C',
-                         'MET2018D',] )
-_mc_processes = dict( Radions = ['Radion_m300',
-                                 'Radion_m400',
-                                 'Radion_m500',
-                                 'Radion_m600',
-                                 'Radion_m700',
-                                 'Radion_m800',
-                                 'Radion_m900',],
-                      
-                      SingleMuon = ['SingleMuon2018',
-                                    'SingleMuon2018A',
-                                    'SingleMuon2018B',
-                                    'SingleMuon2018C',
-                                    'SingleMuon2018D'],
-                      
-                      TT =         ['TT_fullyHad',
-                                    'TT_fullyLep',
-                                    'TT_semiLep',],
-                      
-                      DY =         ['DY',
-                                    ],
+#_inputs = '/data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_Radion_2018_fixedMETtriggers_mht_16Jun2021/'
+_inputs = [ '/data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_2018_UL_data_test11Jan22/', #data
+            '/data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_2018_UL_signal_test11Jan22/', #MC signal
+            '/data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_2018_UL_backgrounds_test11Jan22/', #MC backgrounds
+]
+                
+_data = dict( MET2018 = ['MET2018',] )
+_mc_processes = dict( ggfRadions = [],
+                      ggfBulkGraviton = [],
+                      vbfRadion = [],
+                      vbfBulkRadion = [],
+                      SingleMuon = [],
+                      TT =  ['fix_TT_fullyHad',
+                             'TT_fullyLep',
+                             'TT_semiLep',],
+                      DY = [],
                      )
