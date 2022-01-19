@@ -11,7 +11,6 @@
 # --variables met_et HT20 mht_et metnomu_et mhtnomu_et
 # --subtag SUBTAG
 ####################################################################
-
 import os
 import h5py
 import uproot as up
@@ -56,11 +55,11 @@ def defineBinning(args):
         for sample in args.data:
 
             #### Input list
-            inputfiles = [ os.path.join(idir, 'SKIM_' + sample + '/goodfiles.txt') for idir in args.indir ]
+            inputfiles = [ os.path.join(idir, sample + '/goodfiles.txt') for idir in args.indir ]
             fexists = [ os.path.exists( inpf ) for inpf in inputfiles ]
             assert( sum(fexists) == 1 ) #check one and only one is True
             inputfiles = inputfiles[ fexists.index(True) ]
-            
+
             #### Parse input list
             filelist = []
             with open(inputfiles) as fIn:

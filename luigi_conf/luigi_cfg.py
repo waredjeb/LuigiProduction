@@ -28,7 +28,7 @@ parser.add_argument(
 parser.add_argument(
     '--nbins',
     type=int,
-    default=8,
+    default=6,
     help="Number of histogram bins. If fine-grained control is required modify the variable `_bins` in the luigi configuration file."
 )
 parser.add_argument(

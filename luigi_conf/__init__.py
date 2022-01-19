@@ -91,15 +91,16 @@ _inputs = [ '/data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_2018_UL_data_test11Ja
             '/data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_2018_UL_signal_test11Jan22/', #MC signal
             '/data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_2018_UL_backgrounds_test11Jan22/', #MC backgrounds
 ]
-                
-_data = dict( MET2018 = ['MET2018',] )
+
+# names of the subfolders under '_inputs' above
+_data = dict( MET2018 = ['SKIM_MET2018',] )
 _mc_processes = dict( ggfRadions = [],
                       ggfBulkGraviton = [],
                       vbfRadion = [],
                       vbfBulkRadion = [],
                       SingleMuon = [],
-                      TT =  ['fix_TT_fullyHad',
-                             'TT_fullyLep',
-                             'TT_semiLep',],
+                      TT =  ['SKIMfix_TT_fullyHad',
+                             'SKIM_TT_fullyLep',
+                             'SKIM_TT_semiLep',],
                       DY = [],
                      )

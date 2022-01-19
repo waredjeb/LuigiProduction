@@ -54,12 +54,12 @@ def submitTriggerEff(args):
     for thisProc in _all_processes:
 
         #### Check input folder
-        inputfiles = [ os.path.join(idir, 'SKIM_' + thisProc + '/goodfiles.txt') for idir in args.indir ]
+        inputfiles = [ os.path.join(idir, thisProc + '/goodfiles.txt') for idir in args.indir ]
         fexists = [ os.path.exists( inpf ) for inpf in inputfiles ]
         assert( sum(fexists) == 1 ) #check one and only one is True
         inputdir = args.indir[ fexists.index(True) ] #this is the only correct input directory
 
-        inputfiles = os.path.join(inputdir, 'SKIM_' + thisProc + '/goodfiles.txt')
+        inputfiles = os.path.join(inputdir, thisProc + '/goodfiles.txt')
 
         #### Parse input list
         filelist=[]
@@ -77,7 +77,7 @@ def submitTriggerEff(args):
                        '--file ${{1}} --subtag {subtag} --channels {channels} '
                        '--triggers {triggers} --variables {variables} --tprefix {tprefix} '
                        '--binedges_fname {bename}\n' )
-                     .format( prog=prog, indir=args.indir, outdir=args.outdir,
+                     .format( prog=prog, indir=inputdir, outdir=args.outdir,
                               sample=thisProc, isData=int(thisProc in args.data),
                               subtag=args.subtag,
                               channels=' '.join(args.channels,),
@@ -107,7 +107,6 @@ def submitTriggerEff(args):
         submFile = os.path.join(submDir, 'job_' + thisProc + '.submit')
 
         outCheckDir = 'outputs'
-        modstring = lambda x : x.replace(args.indir,'').replace('/','').replace('SKIM_','').replace(thisProc,'').replace('\n','')
         queue = 'short'
         os.system('mkdir -p {}'.format(submDir))
 
@@ -127,7 +126,8 @@ def submitTriggerEff(args):
             s.write('include : /opt/exp_soft/cms/t3/t3queue |\n\n')
             s.write('queue filename from (\n')
             for listname in filelist:
-                s.write('  {}\n'.format( modstring(listname)))
+                s.write('  {}\n'.format( os.path.basename(listname).replace('\n','') ))
+
             s.write(')\n')
         os.system('mkdir -p {}'.format( os.path.join(jobsDir, args.tag, outCheckDir, thisProc) ))
 

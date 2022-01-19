@@ -103,7 +103,7 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
         os.makedirs( os.path.join(outdir, sample) )
     outdir = os.path.join(outdir, sample)
 
-    fname = os.path.join(indir, 'SKIM_'+sample, fileName)
+    fname = os.path.join(indir, sample, fileName)
     if not os.path.exists(fname):
         raise ValueError('[' + os.path.basename(__file__) + '] The input files does not exist.')
 
