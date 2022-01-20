@@ -165,6 +165,8 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
                     effRefVsTrig[i][vname][k] = ROOT.TEfficiency( effRefVsTrig_name, '',
                                                                   nbins[j[0]][i], binedges[j[0]][i],
                                                                   nbins[j[1]][i], binedges[j[1]][i] )
+                    effRefVsTrig[i][vname][k].SetConfidenceLevel(0.683)
+                    effRefVsTrig[i][vname][k].SetStatisticOption(0) #Clopper-Pearson (default)
     
     
     for entry in range(0,t_in.GetEntries()):

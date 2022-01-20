@@ -105,11 +105,12 @@ def checkTrigger(args, proc, channel, variable, trig, save_names, binedges, nbin
       print('xp[{}] = {} - yp[{}] = {} +{}/-{}\n'.format(i,x_data[i],i,y_data[i],eu_data[i],ed_data[i]))
 
     x_sf[i] = x_mc[i]
+    assert(x_data[i] == x_mc[i])
     
     try:
       y_sf[i]  = y_data[i] / y_mc[i]
     except ZeroDivisionError:
-      print('WARNING: THere was a division by zero!')
+      print('WARNING: There was a division by zero!')
       y_sf[i] = 0
 
     if y_sf[i] == 0:
