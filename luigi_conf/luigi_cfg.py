@@ -299,7 +299,7 @@ MC:
 6 - HLT_Ele24_eta2p1_WPTight_Gsf_LooseChargedIsoPFTauHPS30_eta2p1_CrossL1_v
 7 - HLT_VBF_DoubleLooseChargedIsoPFTau20_Trk1_eta2p1_v
 8 - HLT_VBF_DoubleLooseChargedIsoPFTauHPS20_Trk1_eta2p1_v
-9 - HLT_PFMETNoMu120_PFMHTNoMu120_IDTight_v
+9 - HLT_PFMETNoMu120_PFMHTNoMu120_IDTight_vgithgith
 10 - HLT_MediumChargedIsoPFTau50_Trk30_eta2p1_1pr_MET100_v
 11 - HLT_MediumChargedIsoPFTau180HighPtRelaxedIso_Trk50_eta2p1_v
 """
