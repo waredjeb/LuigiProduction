@@ -48,9 +48,8 @@ def checkTrigger(args, proc, channel, variable, trig, save_names, binedges, nbin
   
   histos_mc   = { k: utils.getROOTObject(v, file_mc)   for k,v in histo_names.items() }
   histos_data = { k: utils.getROOTObject(v, file_data) for k,v in histo_names.items() }
-  
-  eff_mc = TGraphAsymmErrors( histos_mc['trig'], histos_mc['ref'] )
 
+  eff_mc = TGraphAsymmErrors( histos_mc['trig'], histos_mc['ref'] )
   eff_data = TGraphAsymmErrors( histos_data['trig'], histos_data['ref'])
 
   npoints = eff_mc.GetN()
@@ -121,20 +120,20 @@ def checkTrigger(args, proc, channel, variable, trig, save_names, binedges, nbin
 
   ####### Scale Factors #######################################################################
   eff_mc_histo = histos_mc['trig'].Clone('eff_mc_histo')
-  eff_mc_histo.Sumw2(True)
   eff_data_histo = histos_data['trig'].Clone('eff_data_histo')
   eff_data_histo.Sumw2(True)
 
   # binomial errors are also correct ('b') when considering weighted histograms
   # https://root.cern.ch/doc/master/TH1_8cxx_source.html#l03027
-  flag = eff_mc_histo.Divide(eff_mc_histo, histos_mc['ref'], 1, 1, 'b') 
+  flag = eff_mc_histo.Divide(eff_mc_histo, histos_mc['ref'], 1, 1, 'b')
   if not flag:
     raise RuntimeError('[drawTriggerSF.py] MC division failed!')
-  flag = eff_data_histo.Divide(eff_data_histo, histos_data['ref'], 1, 1, 'b') 
+  flag = eff_data_histo.Divide(eff_data_histo, histos_data['ref'], 1, 1, 'b')
   if not flag:
     raise RuntimeError('[drawTriggerSF.py] Data division failed!')
 
   sf = eff_data.Clone('sf')
+
   sf.Divide(eff_data_histo, eff_mc_histo, 'pois') #independent processes (Data/MC) with poisson
   #############################################################################################
   
