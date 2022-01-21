@@ -49,96 +49,95 @@ def checkTrigger(args, proc, channel, variable, trig, save_names, binedges, nbin
   histos_mc   = { k: utils.getROOTObject(v, file_mc)   for k,v in histo_names.items() }
   histos_data = { k: utils.getROOTObject(v, file_data) for k,v in histo_names.items() }
   
-  if args.debug:
-    print('[=debug=] MC efficiency...')  
-  #eff_mc = TEfficiency( histos_mc['trig'], histos_mc['ref'] )
-  #SetConfidenceLevel, SetStatisticOption
   eff_mc = TGraphAsymmErrors( histos_mc['trig'], histos_mc['ref'] )
-  eff_mc_clone = histos_mc['trig'].Clone('eff_mc_')
-  # geffmc = TGraphAsymmErrors()
-  # geffmc.Divide(heffmc,h_passALL,'cp')
-  flag = eff_mc_clone.Divide(eff_mc_clone, histos_mc['ref'], 1, 1, 'B')
-  if not flag:
-    raise RuntimeError('[drawTriggerSF.py] MC division failed!')
-
-  if args.debug:
-    print('[=debug=] Data efficiency...')  
 
   eff_data = TGraphAsymmErrors( histos_data['trig'], histos_data['ref'])
 
-  if args.debug:
-    print('[=debug=] Scale Factors...')  
-
   npoints = eff_mc.GetN()
-  x_mc, y_mc   = ( [[] for _ in range(npoints)] for _ in range(2) )
-  eu_mc, ed_mc = ( [[] for _ in range(npoints)] for _ in range(2) )
+  # x_mc, y_mc   = ( [[] for _ in range(npoints)] for _ in range(2) )
+  # eu_mc, ed_mc = ( [[] for _ in range(npoints)] for _ in range(2) )
   
-  for i in range(npoints):
-    #ctypes conversions needed
-    x_mc[i] = ctypes.c_double(0.)
-    y_mc[i] = ctypes.c_double(0.)
-    eff_mc.GetPoint(i, x_mc[i], y_mc[i])
-    x_mc[i] = x_mc[i].value
-    y_mc[i] = y_mc[i].value
+  # for i in range(npoints):
+  #   #ctypes conversions needed
+  #   x_mc[i] = ctypes.c_double(0.)
+  #   y_mc[i] = ctypes.c_double(0.)
+  #   eff_mc.GetPoint(i, x_mc[i], y_mc[i])
+  #   x_mc[i] = x_mc[i].value
+  #   y_mc[i] = y_mc[i].value
 
-    eu_mc[i] = eff_mc.GetErrorYhigh(i)
-    ed_mc[i] = eff_mc.GetErrorYlow(i)
-    if args.debug:
-      print('xp[{}] = {} - yp[{}] = {} +{}/-{}\n'.format(i,x_mc[i],i,y_mc[i],eu_mc[i],ed_mc[i]))
+  #   eu_mc[i] = eff_mc.GetErrorYhigh(i)
+  #   ed_mc[i] = eff_mc.GetErrorYlow(i)
+  #   if args.debug:
+  #     print('xp[{}] = {} - yp[{}] = {} +{}/-{}\n'.format(i,x_mc[i],i,y_mc[i],eu_mc[i],ed_mc[i]))
 
-  x_data, y_data   = ( [[] for _ in range(npoints)] for _ in range(2) )
-  eu_data, ed_data = ( [[] for _ in range(npoints)] for _ in range(2) )
+  # x_data, y_data   = ( [[] for _ in range(npoints)] for _ in range(2) )
+  # eu_data, ed_data = ( [[] for _ in range(npoints)] for _ in range(2) )
   
-  x_sf, y_sf   = ( [[] for _ in range(npoints)] for _ in range(2) )
-  eu_sf, ed_sf = ( [[] for _ in range(npoints)] for _ in range(2) )
+  # x_sf, y_sf   = ( [[] for _ in range(npoints)] for _ in range(2) )
+  # eu_sf, ed_sf = ( [[] for _ in range(npoints)] for _ in range(2) )
   
-  for i in range(npoints):
-    x_data[i] = ctypes.c_double(0.)
-    y_data[i] = ctypes.c_double(0.)
-    eff_data.GetPoint(i, x_data[i], y_data[i])
-    x_data[i] = x_data[i].value
-    y_data[i] = y_data[i].value
+  # for i in range(npoints):
+  #   x_data[i] = ctypes.c_double(0.)
+  #   y_data[i] = ctypes.c_double(0.)
+  #   eff_data.GetPoint(i, x_data[i], y_data[i])
+  #   x_data[i] = x_data[i].value
+  #   y_data[i] = y_data[i].value
     
-    eu_data[i] = eff_data.GetErrorYhigh(i)
-    ed_data[i] = eff_data.GetErrorYlow(i)
-    if args.debug:
-      print('xp[{}] = {} - yp[{}] = {} +{}/-{}\n'.format(i,x_data[i],i,y_data[i],eu_data[i],ed_data[i]))
+  #   eu_data[i] = eff_data.GetErrorYhigh(i)
+  #   ed_data[i] = eff_data.GetErrorYlow(i)
+  #   if args.debug:
+  #     print('xp[{}] = {} - yp[{}] = {} +{}/-{}\n'.format(i,x_data[i],i,y_data[i],eu_data[i],ed_data[i]))
 
-    x_sf[i] = x_mc[i]
-    assert(x_data[i] == x_mc[i])
+  #   x_sf[i] = x_mc[i]
+  #   assert(x_data[i] == x_mc[i])
     
-    try:
-      y_sf[i]  = y_data[i] / y_mc[i]
-    except ZeroDivisionError:
-      print('WARNING: There was a division by zero!')
-      y_sf[i] = 0
+  #   try:
+  #     y_sf[i]  = y_data[i] / y_mc[i]
+  #   except ZeroDivisionError:
+  #     print('WARNING: There was a division by zero!')
+  #     y_sf[i] = 0
 
-    if y_sf[i] == 0:
-      eu_sf[i] = 0
-      ed_sf[i] = 0
-    else:
-      eu_sf[i] = np.sqrt( eu_mc[i]**2 + eu_data[i]**2 )
-      ed_sf[i] = np.sqrt( ed_mc[i]**2 + ed_data[i]**2 )
+  #   if y_sf[i] == 0:
+  #     eu_sf[i] = 0
+  #     ed_sf[i] = 0
+  #   else:
+  #     eu_sf[i] = np.sqrt( eu_mc[i]**2 + eu_data[i]**2 )
+  #     ed_sf[i] = np.sqrt( ed_mc[i]**2 + ed_data[i]**2 )
 
-  if args.debug:
-    print('=== Scale Factors ====')
-    for i in range(npoints):
-      print('xp[{}] = {} - yp[{}] = {} +{}/-{}\n'.format(i,x_sf[i],i,y_sf[i],eu_sf[i],ed_sf[i]))
+  # if args.debug:
+  #   print('=== Scale Factors ====')
+  #   for i in range(npoints):
+  #     print('xp[{}] = {} - yp[{}] = {} +{}/-{}\n'.format(i,x_sf[i],i,y_sf[i],eu_sf[i],ed_sf[i]))
   
   halfbinwidths = (binedges[1:]-binedges[:-1])/2
-  darr = lambda x : np.array(x).astype(dtype=np.double)
-  sf = TGraphAsymmErrors(npoints,
-                         darr(x_sf),
-                         darr(y_sf),
-                         darr(halfbinwidths),
-                         darr(halfbinwidths),
-                         darr(ed_sf),
-                         darr(eu_sf))
+  # darr = lambda x : np.array(x).astype(dtype=np.double)
+  # sf = TGraphAsymmErrors(npoints,
+  #                        darr(x_sf),
+  #                        darr(y_sf),
+  #                        darr(halfbinwidths),
+  #                        darr(halfbinwidths),
+  #                        darr(ed_sf),
+  #                        darr(eu_sf))
 
+  ####### Scale Factors #######################################################################
+  eff_mc_histo = histos_mc['trig'].Clone('eff_mc_histo')
+  eff_mc_histo.Sumw2(True)
+  eff_data_histo = histos_data['trig'].Clone('eff_data_histo')
+  eff_data_histo.Sumw2(True)
 
-  # sf = TGraphAsymmErrors(nbins)
-  # sf.Divide(sf_, eff_mc_clone, 'n') #before was set to 'cp': Clopper-Pearson
+  # binomial errors are also correct ('b') when considering weighted histograms
+  # https://root.cern.ch/doc/master/TH1_8cxx_source.html#l03027
+  flag = eff_mc_histo.Divide(eff_mc_histo, histos_mc['ref'], 1, 1, 'b') 
+  if not flag:
+    raise RuntimeError('[drawTriggerSF.py] MC division failed!')
+  flag = eff_data_histo.Divide(eff_data_histo, histos_data['ref'], 1, 1, 'b') 
+  if not flag:
+    raise RuntimeError('[drawTriggerSF.py] Data division failed!')
 
+  sf = eff_data.Clone('sf')
+  sf.Divide(eff_data_histo, eff_mc_histo, 'pois') #independent processes (Data/MC) with poisson
+  #############################################################################################
+  
   if args.debug:
     print('[=debug=] Plotting...')  
 
