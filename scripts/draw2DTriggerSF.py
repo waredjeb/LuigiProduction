@@ -288,6 +288,8 @@ if __name__ == '__main__':
     parser.add_argument('-d', '--data', help='dataset to be analyzed/plotted', required=True)
     parser.add_argument('-p', '--mc_processes', help='MC processes to be analyzed: Radions, TT, ...', required=True)
     parser.add_argument('--draw_independent_MCs', action='store_true', help='debug verbosity')
+    parser.add_argument('--nocut_dummy_str', dest='tprefix', required=True,
+                        help='Dummy string associated to trigger histograms were no cuts are applied.')
     parser.add_argument('--debug', action='store_true', help='debug verbosity')
     args = parser.parse_args()
 

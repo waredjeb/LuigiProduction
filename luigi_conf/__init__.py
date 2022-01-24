@@ -1,6 +1,6 @@
 """
 Configuration file for the Luigi trigger scale factors framework.
-Some sanity checks included.
+Sanity checks included.
 """
 _extensions = ( 'png', 'pdf',
                 #'C'
@@ -44,8 +44,8 @@ assert( set(_nonStandTriggers).issubset( set(_triggers_map.keys()) ) )
 #######################################################################################################
 ########### CUTS ######################################################################################
 #######################################################################################################
-_cuts = {'METNoMu120': {'metnomu_et': ('>', 200), 'mhtnomu_et': ('>', 200)},
-         'IsoTau50':   {'dau1_pt': ('>', 80), 'dau1_eta': ('<', 2.0), 'met_et': ('>', 150)},
+_cuts = {'METNoMu120': {'metnomu_et': ('>', [150,200]), 'mhtnomu_et': ('>', [200])},
+         'IsoTau50':   {'dau1_pt': ('>', [80]), 'dau1_eta': ('<', [2.0]), 'met_et': ('>', [150])},
          }
 assert( set(_cuts.keys()).issubset(set(_triggers_map.keys())) )
 for x in _cuts.values():

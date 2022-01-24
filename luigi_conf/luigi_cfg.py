@@ -19,6 +19,11 @@ max_task_number = max(list(_tasks_after_condor.values())+list(_tasks_before_cond
 parser = argparse.ArgumentParser(formatter_class=RawTextHelpFormatter)
 choices = [x for x in range(max_task_number+1)]
 parser.add_argument(
+    '--submit',
+    action='store_true',
+    help="Executes the submission to HTCondor."
+)
+parser.add_argument(
     '--force',
     type=int,
     choices=choices,
@@ -106,18 +111,12 @@ parser.add_argument(
     help='Specifies a subtag, for instance an additional cut within the same tag. We force its first character to be an underscore.'
 )
 parser.add_argument(
-    '--submit',
-    action='store_true',
-    help="Executes the submission to HTCondor."
-)
-parser.add_argument(
     '--distributions',
     type=int,
     choices=[0,1,2],
     default=0,
     help="0: Does not draw the distributions (default).\n1: Also draws the distributions.\n2: Only draws the distributions."
 )
-
 parser.add_argument(
     '--debug_workflow',
     action='store_true',
@@ -156,7 +155,8 @@ class cfg(luigi.Config):
     targets_folder = os.path.join(data_storage, tag, 'targets')
     targets_default_name = 'DefaultTarget.txt'
     targets_prefix = 'hist_'    
-
+    nocut_dummy_str = 'NoCut'
+    
     binedges_filename = os.path.join(tag_folder, 'binedges.hdf5')
 
     variables_join = list(set(FLAGS.variables_for_efficiencies + FLAGS.variables_for_distributions))
@@ -195,6 +195,7 @@ class cfg(luigi.Config):
                   'variables': variables_join,
                   'targetsPrefix': targets_prefix,
                   'subtag': subtag,
+                  'nocut_dummy_str': nocut_dummy_str,
                   'debug': FLAGS.debug_workflow} )
 
     ####
@@ -241,6 +242,7 @@ class cfg(luigi.Config):
                   'variables': FLAGS.variables_for_efficiencies,
                   'binedges_filename': binedges_filename,
                   'subtag': subtag,
+                  'nocut_dummy_str': nocut_dummy_str,
                   'target_suffix': '_Sum',
                   'debug': FLAGS.debug_workflow,} )
     
