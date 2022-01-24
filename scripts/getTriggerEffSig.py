@@ -18,9 +18,8 @@ python3 -m scripts.getTriggerEffSig
 --debug
 
 TODO: - Rewrite the nested loops so that the trigger loop
-        comes before the variable loop
+        comes before the variable loop (not very important)
 """
-
 import re
 import os
 import sys
@@ -53,9 +52,10 @@ def isChannelConsistent(chn, passMu, pairtype):
              ( chn=='mumu'   and pairtype==_sel['mumu']['pairType'][1] ) or
              ( chn=='ee'     and pairtype==_sel['ee']['pairType'][1] ) )
 
-def passesCut(trig, variables, leavesmanager, debug):
+def passesCuts(trig, variables, leavesmanager, debug):
     """
-    Handles cuts on trigger variables.
+    Handles cuts on trigger variables that enter the histograms. 
+    Variables being displayed are not cut (i.e., they pass the cut).
     Works for both 1D and 2D efficiencies.
     """
     if debug:
