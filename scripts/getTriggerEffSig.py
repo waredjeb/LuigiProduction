@@ -54,7 +54,7 @@ def passesCuts(trig, variables, leavesmanager, debug):
     if debug:
         print('Trigger={}; Variables={}'.format(trig, variables))
 
-    flagnameJoin = lambda var,sign,val: '_'.join([str(x) for x in [var,sign,val]])
+    flagnameJoin = lambda var,sign,val: ('_'.join([str(x) for x in [var,sign,val]])).replace('.','p')
     
     dflags = defaultdict(lambda: [])
     

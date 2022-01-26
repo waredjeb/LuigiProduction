@@ -1,5 +1,6 @@
 import os
 import argparse
+import functools
 from types import SimpleNamespace
 
 import ROOT
@@ -44,6 +45,21 @@ def debug(message, flag=True):
   if flag:
     print( decorator + message + decorator )
 
+def getKeyList(afile, inherits=['TH1']):
+  tmp = []
+  keylist = ROOT.TIter(afile.GetListOfKeys())
+  for key in keylist:
+    cl = ROOT.gROOT.GetClass(key.GetClassName())
+
+    inherited = functools.reduce( lambda x, y: x or y,
+                                  [ cl.InheritsFrom(x) for x in inherits ] )
+    if not inherited:
+      continue
+    
+    h = key.ReadObj()
+    tmp.append( h.GetName() )
+  return tmp
+    
 def getROOTObject(name, afile):
   _keys = afile.GetListOfKeys()
   if name not in _keys:

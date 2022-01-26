@@ -56,7 +56,8 @@ def submitTriggerEff(args):
         #### Check input folder
         inputfiles = [ os.path.join(idir, thisProc + '/goodfiles.txt') for idir in args.indir ]
         fexists = [ os.path.exists( inpf ) for inpf in inputfiles ]
-        assert( sum(fexists) == 1 ) #check one and only one is True
+        if sum(fexists) != 1: #check one and only one is True
+            raise ValueError('The process {} could be found.'.format(thisProc))
         inputdir = args.indir[ fexists.index(True) ] #this is the only correct input directory
 
         inputfiles = os.path.join(inputdir, thisProc + '/goodfiles.txt')
@@ -76,7 +77,7 @@ def submitTriggerEff(args):
         command =  ( ( '{prog} --indir {indir} --outdir {outdir} --sample {sample} --isData {isData} '
                        '--file ${{1}} --subtag {subtag} --channels {channels} '
                        '--triggers {triggers} --variables {variables} --tprefix {tprefix} '
-                       '--binedges_fname {bename}\n' )
+                       '--binedges_fname {bename} --nocut_dummy_str {nocutstr}\n' )
                      .format( prog=prog, indir=inputdir, outdir=args.outdir,
                               sample=thisProc, isData=int(thisProc in args.data),
                               subtag=args.subtag,
@@ -84,7 +85,8 @@ def submitTriggerEff(args):
                               triggers=' '.join(args.triggers,),
                               variables=' '.join(args.variables,),
                               tprefix=args.targetsPrefix,
-                              bename=args.binedges_filename)
+                              bename=args.binedges_filename,
+                              nocutstr=args.nocut_dummy_str)
                     )
 
         os.system('mkdir -p {}'.format(jobDir))

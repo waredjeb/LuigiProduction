@@ -211,10 +211,11 @@ class Draw1DTriggerScaleFactors(ForceableEnsureRecentTarget):
     def output(self):
         targets = []
         targets_list, _ = drawTriggerSF_outputs( self.args )
-
+        
         #define luigi targets
         for t in targets_list:
-            targets.append( luigi.LocalTarget(t) )
+            newt = t.replace('_XXX','')
+            targets.append( luigi.LocalTarget(newt) )
 
         #write the target files for debugging
         utils.remove( self.target_path )
@@ -356,7 +357,8 @@ if __name__ == "__main__":
             
         if FLAGS.distributions != 2:
             last_tasks += [ Draw1DTriggerScaleFactors(force=FLAGS.force>0),
-                           Draw2DTriggerScaleFactors(force=FLAGS.force>0) ]
+                            #Draw2DTriggerScaleFactors(force=FLAGS.force>0)
+            ]
             
     if FLAGS.scheduler == 'central':
         luigi.build([last_task] if FLAGS.submit else last_tasks,

@@ -28,11 +28,11 @@ def checkTrigger(args, proc, channel, variable, trig, save_names, binedges, nbin
 
   name_data = os.path.join(args.indir, _name( args.targetsPrefix, args.data_name,
                                                 args.target_suffix, args.subtag ) )
-  file_data = TFile( name_data, 'READ');
+  file_data = TFile.Open(name_data)
   
   name_mc = os.path.join(args.indir, _name( args.targetsPrefix, args.mc_name,
                                             args.target_suffix, args.subtag ))
-  file_mc   = TFile( name_mc, 'READ');
+  file_mc   = TFile.Open(name_mc)
   
   if args.debug:
     print('[=debug=] Open files:')
@@ -45,209 +45,231 @@ def checkTrigger(args, proc, channel, variable, trig, save_names, binedges, nbin
                   'trig': 'Trig_{}_{}_{}'.format(channel, variable, trig)
                   # 'noref' : 'NoRef_{}_{}_{}'.format(channel, variable, trig)
                  }
-  
-  histos_mc   = { k: utils.getROOTObject(v, file_mc)   for k,v in histo_names.items() }
-  histos_data = { k: utils.getROOTObject(v, file_data) for k,v in histo_names.items() }
 
-  eff_mc = TGraphAsymmErrors( histos_mc['trig'], histos_mc['ref'] )
-  eff_data = TGraphAsymmErrors( histos_data['trig'], histos_data['ref'])
+  keylist_data = utils.getKeyList(file_data, inherits=['TH1'])
+  keylist_mc = utils.getKeyList(file_mc, inherits=['TH1'])
 
-  npoints = eff_mc.GetN()
-  # x_mc, y_mc   = ( [[] for _ in range(npoints)] for _ in range(2) )
-  # eu_mc, ed_mc = ( [[] for _ in range(npoints)] for _ in range(2) )
-  
-  # for i in range(npoints):
-  #   #ctypes conversions needed
-  #   x_mc[i] = ctypes.c_double(0.)
-  #   y_mc[i] = ctypes.c_double(0.)
-  #   eff_mc.GetPoint(i, x_mc[i], y_mc[i])
-  #   x_mc[i] = x_mc[i].value
-  #   y_mc[i] = y_mc[i].value
+  histos_data, histos_mc = ({} for _ in range(2))
+  histos_data['ref'] = utils.getROOTObject(histo_names['ref'], file_data)
+  histos_mc['ref'] = utils.getROOTObject(histo_names['ref'], file_mc)
+  histos_data['trig'], histos_mc['trig'] = ({} for _ in range(2))
+  for key in keylist_mc:
+    if histo_names['ref'] in key:
+      histos_mc['trig'][key] = utils.getROOTObject(key, file_mc)
+  for key in keylist_data:
+    if histo_names['ref'] in key:
+      histos_data['trig'][key] = utils.getROOTObject(key, file_data)
 
-  #   eu_mc[i] = eff_mc.GetErrorYhigh(i)
-  #   ed_mc[i] = eff_mc.GetErrorYlow(i)
-  #   if args.debug:
-  #     print('xp[{}] = {} - yp[{}] = {} +{}/-{}\n'.format(i,x_mc[i],i,y_mc[i],eu_mc[i],ed_mc[i]))
+  eff_data, eff_mc = ({} for _ in range(2))
+  for khisto, vhisto in histos_data['trig'].items():
+    eff_data[khisto] = TGraphAsymmErrors( vhisto, histos_data['ref'])
+  for khisto, vhisto in histos_mc['trig'].items():
+    eff_mc[khisto] = TGraphAsymmErrors( vhisto, histos_mc['ref'] )
 
-  # x_data, y_data   = ( [[] for _ in range(npoints)] for _ in range(2) )
-  # eu_data, ed_data = ( [[] for _ in range(npoints)] for _ in range(2) )
-  
-  # x_sf, y_sf   = ( [[] for _ in range(npoints)] for _ in range(2) )
-  # eu_sf, ed_sf = ( [[] for _ in range(npoints)] for _ in range(2) )
-  
-  # for i in range(npoints):
-  #   x_data[i] = ctypes.c_double(0.)
-  #   y_data[i] = ctypes.c_double(0.)
-  #   eff_data.GetPoint(i, x_data[i], y_data[i])
-  #   x_data[i] = x_data[i].value
-  #   y_data[i] = y_data[i].value
-    
-  #   eu_data[i] = eff_data.GetErrorYhigh(i)
-  #   ed_data[i] = eff_data.GetErrorYlow(i)
-  #   if args.debug:
-  #     print('xp[{}] = {} - yp[{}] = {} +{}/-{}\n'.format(i,x_data[i],i,y_data[i],eu_data[i],ed_data[i]))
-
-  #   x_sf[i] = x_mc[i]
-  #   assert(x_data[i] == x_mc[i])
-    
-  #   try:
-  #     y_sf[i]  = y_data[i] / y_mc[i]
-  #   except ZeroDivisionError:
-  #     print('WARNING: There was a division by zero!')
-  #     y_sf[i] = 0
-
-  #   if y_sf[i] == 0:
-  #     eu_sf[i] = 0
-  #     ed_sf[i] = 0
-  #   else:
-  #     eu_sf[i] = np.sqrt( eu_mc[i]**2 + eu_data[i]**2 )
-  #     ed_sf[i] = np.sqrt( ed_mc[i]**2 + ed_data[i]**2 )
-
-  # if args.debug:
-  #   print('=== Scale Factors ====')
-  #   for i in range(npoints):
-  #     print('xp[{}] = {} - yp[{}] = {} +{}/-{}\n'.format(i,x_sf[i],i,y_sf[i],eu_sf[i],ed_sf[i]))
-  
+  npoints = eff_mc[khisto].GetN() #they all have the same binning
   halfbinwidths = (binedges[1:]-binedges[:-1])/2
-  # darr = lambda x : np.array(x).astype(dtype=np.double)
-  # sf = TGraphAsymmErrors(npoints,
-  #                        darr(x_sf),
-  #                        darr(y_sf),
-  #                        darr(halfbinwidths),
-  #                        darr(halfbinwidths),
-  #                        darr(ed_sf),
-  #                        darr(eu_sf))
+  darr = lambda x : np.array(x).astype(dtype=np.double)
+  sf = {}
+  assert( len(eff_data) == len(eff_mc) )
+  
+  for (kmc,vmc),(kdata,vdata) in zip(eff_mc.items(),eff_mc.items()):
+    assert(kmc == kdata)
+    
+    x_data, y_data   = ( [[] for _ in range(npoints)] for _ in range(2) )
+    eu_data, ed_data = ( [[] for _ in range(npoints)] for _ in range(2) )
+
+    x_mc, y_mc   = ( [[] for _ in range(npoints)] for _ in range(2) )
+    eu_mc, ed_mc = ( [[] for _ in range(npoints)] for _ in range(2) )
+
+    x_sf, y_sf   = ( [[] for _ in range(npoints)] for _ in range(2) )
+    eu_sf, ed_sf = ( [[] for _ in range(npoints)] for _ in range(2) )
+
+    for i in range(npoints):
+      #ctypes conversions needed
+      x_mc[i] = ctypes.c_double(0.)
+      y_mc[i] = ctypes.c_double(0.)
+      vmc.GetPoint(i, x_mc[i], y_mc[i])
+      x_mc[i] = x_mc[i].value
+      y_mc[i] = y_mc[i].value
+
+      eu_mc[i] = vmc.GetErrorYhigh(i)
+      ed_mc[i] = vmc.GetErrorYlow(i)
+      if args.debug:
+        print('xp[{}] = {} - yp[{}] = {} +{}/-{}\n'.format(i,x_mc[i],iy_mc[i],eu_mc[i],ed_mc[i]))
+
+      x_data[i] = ctypes.c_double(0.)
+      y_data[i] = ctypes.c_double(0.)
+      vdata.GetPoint(i, x_data[i], y_data[i])
+      x_data[i] = x_data[i].value
+      y_data[i] = y_data[i].value
+
+      eu_data[i] = vdata.GetErrorYhigh(i)
+      ed_data[i] = vdata.GetErrorYlow(i)
+      if args.debug:
+        print('xp[{}] = {} - yp[{}] = {} +{}/-{}\n'.format(i,x_data[i],i,y_data[i],eu_data[i],ed_data[i]))
+
+      x_sf[i] = x_mc[i]
+      assert(x_data[i] == x_mc[i])
+
+      try:
+        y_sf[i] = y_data[i] / y_mc[i]
+      except ZeroDivisionError:
+        print('WARNING: There was a division by zero!')
+        y_sf[i] = 0
+
+      if y_sf[i] == 0:
+        eu_sf[i] = 0
+        ed_sf[i] = 0
+      else:
+        eu_sf[i] = np.sqrt( eu_mc[i]**2 + eu_data[i]**2 )
+        ed_sf[i] = np.sqrt( ed_mc[i]**2 + ed_data[i]**2 )
+
+    if args.debug:
+      print('=== Scale Factors ====')
+      for i in range(npoints):
+        print('xp[{}] = {} - yp[{}] = {} +{}/-{}\n'.format(i,x_sf[i],i,y_sf[i],eu_sf[i],ed_sf[i]))
+
+    sf[kdata] = TGraphAsymmErrors( npoints,
+                                   darr(x_sf),
+                                   darr(y_sf),
+                                   darr(halfbinwidths),
+                                   darr(halfbinwidths),
+                                   darr(ed_sf),
+                                   darr(eu_sf) )
 
   ####### Scale Factors #######################################################################
-  eff_mc_histo = histos_mc['trig'].Clone('eff_mc_histo')
-  eff_data_histo = histos_data['trig'].Clone('eff_data_histo')
-  eff_data_histo.Sumw2(True)
+  # eff_mc_histo = histos_mc['trig'].Clone('eff_mc_histo')
+  # eff_data_histo = histos_data['trig'].Clone('eff_data_histo')
+  # eff_data_histo.Sumw2(True)
 
-  # binomial errors are also correct ('b') when considering weighted histograms
-  # https://root.cern.ch/doc/master/TH1_8cxx_source.html#l03027
-  flag = eff_mc_histo.Divide(eff_mc_histo, histos_mc['ref'], 1, 1, 'b')
-  if not flag:
-    raise RuntimeError('[drawTriggerSF.py] MC division failed!')
-  flag = eff_data_histo.Divide(eff_data_histo, histos_data['ref'], 1, 1, 'b')
-  if not flag:
-    raise RuntimeError('[drawTriggerSF.py] Data division failed!')
+  # # binomial errors are also correct ('b') when considering weighted histograms
+  # # https://root.cern.ch/doc/master/TH1_8cxx_source.html#l03027
+  # flag = eff_mc_histo.Divide(eff_mc_histo, histos_mc['ref'], 1, 1, 'b')
+  # if not flag:
+  #   raise RuntimeError('[drawTriggerSF.py] MC division failed!')
+  # flag = eff_data_histo.Divide(eff_data_histo, histos_data['ref'], 1, 1, 'b')
+  # if not flag:
+  #   raise RuntimeError('[drawTriggerSF.py] Data division failed!')
 
-  sf = eff_data.Clone('sf')
+  # sf = eff_data.Clone('sf')
 
-  sf.Divide(eff_data_histo, eff_mc_histo, 'pois') #independent processes (Data/MC) with poisson
+  # sf.Divide(eff_data_histo, eff_mc_histo, 'pois') #independent processes (Data/MC) with poisson
   #############################################################################################
-  
+
+    
   if args.debug:
     print('[=debug=] Plotting...')  
 
-  canvas = TCanvas( os.path.basename(save_names[0]).split('.')[0], 'canvas', 600, 600 )
-  ROOT.gStyle.SetOptStat(0)
-  ROOT.gStyle.SetOptTitle(0)
-  canvas.cd()
-    
-  pad1 = TPad('pad1', 'pad1', 0, 0.35, 1, 1)
-  pad1.SetBottomMargin(0.005)
-  pad1.SetLeftMargin(0.2)
-  pad1.Draw()
-  pad1.cd()
-  
-  axor = TH2D('axor','axor', nbins,
-              binedges[0]-halfbinwidths[0]/2, binedges[-1]+halfbinwidths[-1]/2,
-              100, -0.1, 1.3)
-  axor.GetYaxis().SetTitle('Efficiency')
-  axor.GetXaxis().SetLabelOffset(1)
-  axor.GetXaxis().SetLabelOffset(1.)
-  axor.GetYaxis().SetTitleSize(0.08)
-  axor.GetYaxis().SetTitleOffset(.85)
-  axor.GetXaxis().SetLabelSize(0.07)
-  axor.GetYaxis().SetLabelSize(0.07)
-  axor.Draw()
+  for akey in sf:
+    canvas_name = os.path.basename(save_names[0]).split('.')[0].replace('XXX',akey)
+    canvas = TCanvas( canvas_name, 'canvas', 600, 600 )
+    ROOT.gStyle.SetOptStat(0)
+    ROOT.gStyle.SetOptTitle(0)
+    canvas.cd()
 
-  eff_data.SetLineColor(1)
-  eff_data.SetLineWidth(2)
-  eff_data.SetMarkerColor(1)
-  eff_data.SetMarkerSize(1.3)
-  eff_data.SetMarkerStyle(20)
-  eff_data.Draw('same p0 e')
+    pad1 = TPad('pad1', 'pad1', 0, 0.35, 1, 1)
+    pad1.SetBottomMargin(0.005)
+    pad1.SetLeftMargin(0.2)
+    pad1.Draw()
+    pad1.cd()
 
-  eff_mc.SetLineColor(ROOT.kRed)
-  eff_mc.SetLineWidth(2)
-  eff_mc.SetMarkerColor(ROOT.kRed)
-  eff_mc.SetMarkerSize(1.3)
-  eff_mc.SetMarkerStyle(22)
-  eff_mc.Draw('same p0')
-  
-  pad1.RedrawAxis()
-  
-  leg = TLegend(0.77, 0.77, 0.96, 0.87)
-  leg.SetFillColor(0)
-  leg.SetShadowColor(0)
-  leg.SetBorderSize(0)
-  leg.SetTextSize(0.06)
-  leg.SetFillStyle(0)
-  leg.SetTextFont(42)
-  
-  leg.AddEntry(eff_data, 'Data', 'p')
-  leg.AddEntry(eff_mc,   proc,   'p')
-  leg.Draw('same')
-  
-  utils.redrawBorder()
-  
-  lX, lY, lYstep = 0.25, 0.84, 0.04
-  l = TLatex()
-  l.SetNDC()
-  l.SetTextFont(72)
-  l.SetTextColor(1)
-  
-  latexChannel = copy(channel)
-  latexChannel.replace('mu','#mu')
-  latexChannel.replace('tau','#tau_{h}')
-  latexChannel.replace('Tau','#tau_{h}')
-  
-  l.DrawLatex( lX, lY,        'Channel: '+latexChannel)
-  l.DrawLatex( lX, lY-lYstep, 'Trigger: '+trig)
-  
-  canvas.cd()
-  pad2 = TPad('pad2','pad2',0,0.0,1,0.35)
-  pad2.SetTopMargin(0.01)
-  pad2.SetBottomMargin(0.4)
-  pad2.SetLeftMargin(0.2)
-  pad2.Draw()
-  pad2.cd()
-  pad2.SetGridy()
-  
-  axor2 = TH2D('axor2', 'axor2', nbins, binedges[0], binedges[-1], 100, 0.45, 1.55)
-  axor2.GetYaxis().SetNdivisions(507)
-  axor2.GetYaxis().SetLabelSize(0.12)
-  axor2.GetXaxis().SetLabelSize(0.12)
-  axor2.SetTitleSize(0.15,'X')
-  axor2.SetTitleSize(0.15,'Y')
-  axor2.GetXaxis().SetTitleOffset(1.)
-  axor2.GetYaxis().SetTitleOffset(0.45)
-  axor2.GetYaxis().SetTitle('Data/MC')
-  axor2.GetXaxis().SetTitle(variable)
-  axor2.Draw()
-  
-  sf.SetLineColor(ROOT.kRed)
-  sf.SetLineWidth(2)
-  sf.SetMarkerColor(ROOT.kRed)
-  sf.SetMarkerSize(1.3)
-  sf.SetMarkerStyle(22)
-  sf.GetYaxis().SetNdivisions(507)
-  sf.GetYaxis().SetLabelSize(0.12)
-  sf.GetXaxis().SetLabelSize(0.12)
-  sf.GetXaxis().SetTitleSize(0.15)
-  sf.GetYaxis().SetTitleSize(0.15)
-  sf.GetXaxis().SetTitleOffset(1.)
-  sf.GetYaxis().SetTitleOffset(0.45)
-  sf.GetYaxis().SetTitle('Data/MC')
-  sf.GetXaxis().SetTitle(variable)
-  sf.Draw('same P0')
-  
-  utils.redrawBorder()
+    axor = TH2D('axor'+akey,'axor'+akey, nbins,
+                binedges[0]-halfbinwidths[0]/2, binedges[-1]+halfbinwidths[-1]/2,
+                100, -0.1, 1.3)
+    axor.GetYaxis().SetTitle('Efficiency')
+    axor.GetXaxis().SetLabelOffset(1)
+    axor.GetXaxis().SetLabelOffset(1.)
+    axor.GetYaxis().SetTitleSize(0.08)
+    axor.GetYaxis().SetTitleOffset(.85)
+    axor.GetXaxis().SetLabelSize(0.07)
+    axor.GetYaxis().SetLabelSize(0.07)
+    axor.Draw()
 
-  for aname in save_names:
-    canvas.SaveAs( aname )
+    eff_data[key].SetLineColor(1)
+    eff_data[key].SetLineWidth(2)
+    eff_data[key].SetMarkerColor(1)
+    eff_data[key].SetMarkerSize(1.3)
+    eff_data[key].SetMarkerStyle(20)
+    eff_data[key].Draw('same p0 e')
+
+    eff_mc[key].SetLineColor(ROOT.kRed)
+    eff_mc[key].SetLineWidth(2)
+    eff_mc[key].SetMarkerColor(ROOT.kRed)
+    eff_mc[key].SetMarkerSize(1.3)
+    eff_mc[key].SetMarkerStyle(22)
+    eff_mc[key].Draw('same p0')
+
+    pad1.RedrawAxis()
+
+    leg = TLegend(0.77, 0.77, 0.96, 0.87)
+    leg.SetFillColor(0)
+    leg.SetShadowColor(0)
+    leg.SetBorderSize(0)
+    leg.SetTextSize(0.06)
+    leg.SetFillStyle(0)
+    leg.SetTextFont(42)
+
+    leg.AddEntry(eff_data[key], 'Data', 'p')
+    leg.AddEntry(eff_mc[key],   proc,   'p')
+    leg.Draw('same')
+
+    utils.redrawBorder()
+
+    lX, lY, lYstep = 0.25, 0.84, 0.04
+    l = TLatex()
+    l.SetNDC()
+    l.SetTextFont(72)
+    l.SetTextColor(1)
+
+    latexChannel = copy(channel)
+    latexChannel.replace('mu','#mu')
+    latexChannel.replace('tau','#tau_{h}')
+    latexChannel.replace('Tau','#tau_{h}')
+
+    l.DrawLatex( lX, lY,        'Channel: '+latexChannel)
+    l.DrawLatex( lX, lY-lYstep, 'Trigger: '+trig)
+
+    canvas.cd()
+    pad2 = TPad('pad2','pad2',0,0.0,1,0.35)
+    pad2.SetTopMargin(0.01)
+    pad2.SetBottomMargin(0.4)
+    pad2.SetLeftMargin(0.2)
+    pad2.Draw()
+    pad2.cd()
+    pad2.SetGridy()
+
+    axor2 = TH2D('axor2'+akey, 'axor2'+akey, nbins, binedges[0], binedges[-1], 100, 0.45, 1.55)
+    axor2.GetYaxis().SetNdivisions(507)
+    axor2.GetYaxis().SetLabelSize(0.12)
+    axor2.GetXaxis().SetLabelSize(0.12)
+    axor2.SetTitleSize(0.15,'X')
+    axor2.SetTitleSize(0.15,'Y')
+    axor2.GetXaxis().SetTitleOffset(1.)
+    axor2.GetYaxis().SetTitleOffset(0.45)
+    axor2.GetYaxis().SetTitle('Data/MC')
+    axor2.GetXaxis().SetTitle(variable)
+    axor2.Draw()
+
+    sf[key].SetLineColor(ROOT.kRed)
+    sf[key].SetLineWidth(2)
+    sf[key].SetMarkerColor(ROOT.kRed)
+    sf[key].SetMarkerSize(1.3)
+    sf[key].SetMarkerStyle(22)
+    sf[key].GetYaxis().SetNdivisions(507)
+    sf[key].GetYaxis().SetLabelSize(0.12)
+    sf[key].GetXaxis().SetLabelSize(0.12)
+    sf[key].GetXaxis().SetTitleSize(0.15)
+    sf[key].GetYaxis().SetTitleSize(0.15)
+    sf[key].GetXaxis().SetTitleOffset(1.)
+    sf[key].GetYaxis().SetTitleOffset(0.45)
+    sf[key].GetYaxis().SetTitle('Data/MC')
+    sf[key].GetXaxis().SetTitle(variable)
+    sf[key].Draw('same P0')
+
+    utils.redrawBorder()
+
+    for aname in save_names:
+      canvas.SaveAs( aname )
 
 @utils.set_pure_input_namespace
 def drawTriggerSF_outputs(args):
@@ -260,6 +282,7 @@ def drawTriggerSF_outputs(args):
         for trig in args.triggers:
           add = proc + '_' + ch + '_' + var + '_' + trig
           canvas_name = 'trigSF_' + args.data_name + '_' + add + args.subtag
+          canvas_name += '_XXX' # placeholder for later replacement
           thisbase = os.path.join(args.outdir, ch, var, '')
           utils.create_single_dir( thisbase )
 
