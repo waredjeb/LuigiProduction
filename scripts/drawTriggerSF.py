@@ -1,4 +1,5 @@
 import os
+import re
 import argparse
 import ctypes
 import numpy as np
@@ -49,15 +50,16 @@ def checkTrigger(args, proc, channel, variable, trig, save_names, binedges, nbin
   keylist_data = utils.getKeyList(file_data, inherits=['TH1'])
   keylist_mc = utils.getKeyList(file_mc, inherits=['TH1'])
 
+  
   histos_data, histos_mc = ({} for _ in range(2))
   histos_data['ref'] = utils.getROOTObject(histo_names['ref'], file_data)
   histos_mc['ref'] = utils.getROOTObject(histo_names['ref'], file_mc)
   histos_data['trig'], histos_mc['trig'] = ({} for _ in range(2))
   for key in keylist_mc:
-    if histo_names['ref'] in key:
+    if key.startswith( histo_names['trig'] ):
       histos_mc['trig'][key] = utils.getROOTObject(key, file_mc)
   for key in keylist_data:
-    if histo_names['ref'] in key:
+    if key.startswith( histo_names['trig'] ):
       histos_data['trig'][key] = utils.getROOTObject(key, file_data)
 
   eff_data, eff_mc = ({} for _ in range(2))
@@ -72,7 +74,7 @@ def checkTrigger(args, proc, channel, variable, trig, save_names, binedges, nbin
   sf = {}
   assert( len(eff_data) == len(eff_mc) )
   
-  for (kmc,vmc),(kdata,vdata) in zip(eff_mc.items(),eff_mc.items()):
+  for (kmc,vmc),(kdata,vdata) in zip(eff_mc.items(),eff_data.items()):
     assert(kmc == kdata)
     
     x_data, y_data   = ( [[] for _ in range(npoints)] for _ in range(2) )
@@ -185,19 +187,19 @@ def checkTrigger(args, proc, channel, variable, trig, save_names, binedges, nbin
     axor.GetYaxis().SetLabelSize(0.07)
     axor.Draw()
 
-    eff_data[key].SetLineColor(1)
-    eff_data[key].SetLineWidth(2)
-    eff_data[key].SetMarkerColor(1)
-    eff_data[key].SetMarkerSize(1.3)
-    eff_data[key].SetMarkerStyle(20)
-    eff_data[key].Draw('same p0 e')
+    eff_data[akey].SetLineColor(1)
+    eff_data[akey].SetLineWidth(2)
+    eff_data[akey].SetMarkerColor(1)
+    eff_data[akey].SetMarkerSize(1.3)
+    eff_data[akey].SetMarkerStyle(20)
+    eff_data[akey].Draw('same p0 e')
 
-    eff_mc[key].SetLineColor(ROOT.kRed)
-    eff_mc[key].SetLineWidth(2)
-    eff_mc[key].SetMarkerColor(ROOT.kRed)
-    eff_mc[key].SetMarkerSize(1.3)
-    eff_mc[key].SetMarkerStyle(22)
-    eff_mc[key].Draw('same p0')
+    eff_mc[akey].SetLineColor(ROOT.kRed)
+    eff_mc[akey].SetLineWidth(2)
+    eff_mc[akey].SetMarkerColor(ROOT.kRed)
+    eff_mc[akey].SetMarkerSize(1.3)
+    eff_mc[akey].SetMarkerStyle(22)
+    eff_mc[akey].Draw('same p0')
 
     pad1.RedrawAxis()
 
@@ -209,8 +211,8 @@ def checkTrigger(args, proc, channel, variable, trig, save_names, binedges, nbin
     leg.SetFillStyle(0)
     leg.SetTextFont(42)
 
-    leg.AddEntry(eff_data[key], 'Data', 'p')
-    leg.AddEntry(eff_mc[key],   proc,   'p')
+    leg.AddEntry(eff_data[akey], 'Data', 'p')
+    leg.AddEntry(eff_mc[akey],   proc,   'p')
     leg.Draw('same')
 
     utils.redrawBorder()
@@ -250,26 +252,31 @@ def checkTrigger(args, proc, channel, variable, trig, save_names, binedges, nbin
     axor2.GetXaxis().SetTitle(variable)
     axor2.Draw()
 
-    sf[key].SetLineColor(ROOT.kRed)
-    sf[key].SetLineWidth(2)
-    sf[key].SetMarkerColor(ROOT.kRed)
-    sf[key].SetMarkerSize(1.3)
-    sf[key].SetMarkerStyle(22)
-    sf[key].GetYaxis().SetNdivisions(507)
-    sf[key].GetYaxis().SetLabelSize(0.12)
-    sf[key].GetXaxis().SetLabelSize(0.12)
-    sf[key].GetXaxis().SetTitleSize(0.15)
-    sf[key].GetYaxis().SetTitleSize(0.15)
-    sf[key].GetXaxis().SetTitleOffset(1.)
-    sf[key].GetYaxis().SetTitleOffset(0.45)
-    sf[key].GetYaxis().SetTitle('Data/MC')
-    sf[key].GetXaxis().SetTitle(variable)
-    sf[key].Draw('same P0')
+    sf[akey].SetLineColor(ROOT.kRed)
+    sf[akey].SetLineWidth(2)
+    sf[akey].SetMarkerColor(ROOT.kRed)
+    sf[akey].SetMarkerSize(1.3)
+    sf[akey].SetMarkerStyle(22)
+    sf[akey].GetYaxis().SetNdivisions(507)
+    sf[akey].GetYaxis().SetLabelSize(0.12)
+    sf[akey].GetXaxis().SetLabelSize(0.12)
+    sf[akey].GetXaxis().SetTitleSize(0.15)
+    sf[akey].GetYaxis().SetTitleSize(0.15)
+    sf[akey].GetXaxis().SetTitleOffset(1.)
+    sf[akey].GetYaxis().SetTitleOffset(0.45)
+    sf[akey].GetYaxis().SetTitle('Data/MC')
+    sf[akey].GetXaxis().SetTitle(variable)
+    sf[akey].Draw('same P0')
 
     utils.redrawBorder()
 
     for aname in save_names:
-      canvas.SaveAs( aname )
+      _regex = re.findall(r'^.*(CUTS_.+)$', akey)
+      assert(len(_regex)==1)
+      _regex = _regex[0]
+      _regex = _regex.replace('>', 'L').replace('<', 'S').replace('.', 'p')
+      _name = aname.replace('XXX', _regex )
+      canvas.SaveAs( _name )
 
 @utils.set_pure_input_namespace
 def drawTriggerSF_outputs(args):
@@ -327,7 +334,7 @@ def drawTriggerSF(args):
 
           checkTrigger( args, proc, chn, var, trig, names,
                         binedges[var][chn], nbins[var][chn] )
-          
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Draw trigger scale factors')
 
