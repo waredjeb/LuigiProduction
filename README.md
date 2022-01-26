@@ -1,12 +1,20 @@
-## HH->bbtautau Resonant Analysis: Trigger Scale Factor Framework
---------------------
+## HH->bbtautau Resonant Analysis: Trigger Scale Factors Framework
 
-Calculate 1D and 2D trigger scale factors, starting from skimmed Ntuples. It is defined using the ```luigi``` package in ```run_workflow.py```. The framework also allows displaying Data/MC comparison of single variable distributions.
+This framework calculates and displays the following:
 
-Two steps are required for obtaining the results:
+- 1D and 2D Data and MC efficiencies
+- 1D and 2D trigger scale factors
+- variables distributions
 
-- all tasks up to the HTCondor jobs submission: binning calculation and histogram filling
-- all tasks after the submission: efficiency calculations and plotting
+The processing starts from skimmed ([KLUB](https://github.com/LLRCMS/KLUBAnalysis)) Ntuples. The framework is managed by ```luigi``` (see ```run_workflow.py```).
+
+
+Tasks:
+
+1. binning (manual or equal width with upper 5% quantile removal)
+2. filling efficiencies histograms using HTCondor
+3. add all individual histograms together
+4. local efficiency and scale factors calculations and plotting
 
 Requirements:
 
@@ -16,26 +24,29 @@ Requirements:
 
 #### Luigi Workflow
 
-To run the submission workflow, please type the following:
+Run the submission workflow (check the meaning of the arguments by adding ```--help```.):
 
 ```shell
-python3 run_workflow.py --outuser <lxplus username> --scheduler local --tag <any tag> --data MET2018 --mc_process TT --triggers nonStandard HT500 METNoMu120 METNoMu120_HT60 MediumMET100 MediumMET110 MediumMET130 --submit
+python3 run_workflow.py --outuser <lxplus username> --tag <some tag> --data MET2018 --mc_process TT --triggers METNoMu120 IsoTau50 --submit
 ```
 
-To run the remaining part of the (local) workflow, run the same command without the ```--submit``` flag.
+To run the remaining part of the (local) workflow (tasks 3 and 4), run the same command without the ```--submit``` flag.
+
 
 | Output files              | Destination folder                                  |
 |---------------------------|-----------------------------------------------------|
-| ```ROOT```                | ```/data_CMS/cms/alves/TriggerScaleFactors/v1/```    |
-| Submission                | ```$HOME/jobs/v1/<process>/submission/```           |
-| Condor (output and error) | ```$HOME/jobs/v1/<process>/outputs/```              |
+| ```ROOT```                | ```/data_CMS/cms/alves/TriggerScaleFactors/<some tag>/```    |
+| Submission                | ```$HOME/jobs/<some tag>/<process>/submission/```           |
+| Condor (output and error) | ```$HOME/jobs/<some tag>/<process>/outputs/```              |
 | Pictures (requires ```/eos/```) | ```/eos/home-b/bfontana/www/TriggerScaleFactors/``` |
 
 
-Check the meaning of the arguments by adding ```--help```.
-You can also run each ```luigi``` task separately by running its corresponding ```python``` scripts (all support ```--help```).
+You can also run each ```luigi``` task separately by running its corresponding ```python``` scripts (all support ```--help```). For instance:
 
-Variables can be configured in ```luigi_conf/__init__.py```).
+```bash
+python3 scripts/getTriggerEffSig.py --indir /data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_2018_UL_backgrounds_test11Jan22/ --outdir /data_CMS/cms/alves/TriggerScaleFactors/UL_v1 --sample SKIMfix_TT_fullyHad --isData 0 --file output_2.root --subtag _default --channels all etau mutau tautau mumu --triggers METNoMu120 IsoTau50 --variables mht_et mhtnomu_et met_et dau2_eta dau2_pt HH_mass metnomu_et dau1_eta dau1_pt HT20 --tprefix hist_ --binedges_fname /data_CMS/cms/alves/TriggerScaleFactors/UL_v1/binedges.hdf
+```
+Variables can be configured in ```luigi_conf/__init__.py```.
 
 #### Cleanup
 
@@ -60,58 +71,28 @@ The advantages of using a workflow management system as ```luigi``` are the foll
 - the whole chain can be run at once
 - the workflow is clearer from a code point of view
 - the configuration is accessible from within a single file (```luigi.cfg```)
-- a task in the chain is run only if at least one output file of a task on which it depends is more recent that at least one of the output files it already produced (via the ```ForceableEnsureRecentTarget``` custom class in ```luigi_utils.py```)
 - when two tasks do not share dependencies they can run in parallel
 
-A standard ```luigi.Task``` is run when its outputs do not yet exist. By subclassing it and overwrite its ```complete()``` method, one can control this behaviour. This is done in ```luigi_utils.py```.
-
-If one chooses ```--scheduler central```, one has to run ```luigid &``` first, and can control the number of workers to be used via ```--workers <number_of_workers>```. 
+##### Forcing tasks to run
 
 To force tasks to run, even if their output files already exist, use ```--force VALUE```, where ```VALUE``` ranges form 0 to the total number of tasks in the worflow. For instance, when ```VALUE=3```, the framework will force the three higher-level tasks to run: testing, training and energy normalization. The default, ```VALUE=0```, implies no forceful run. Finally, by choosing ```--user```, one can decide where the output data will be saved.
 
-The parameter ```--tag``` must be used. It will create a folder where all the outputs will be stored.
+A standard ```luigi.Task``` is run when its outputs do not yet exist. By subclassing it and overwrite its ```complete()``` method, one can control this behaviour. This is done in ```luigi_utils.py```. 
+A task in the chain is run only if at least one output file of a task on which it depends is more recent that at least one of the output files it already produced (via the ```ForceableEnsureRecentTarget``` custom class in ```luigi_utils.py```)
 
-The default configuration of the worflow is defined in the ```luigi_cfg.py``` class and can be overridden in the ```luigi.cfg``` TOML file, as explained in [```luigi```'s docs](https://luigi.readthedocs.io/en/stable/configuration.html).
 
 The explicit definition of each task's outputs is an essential feature of ```luigi```. To make the process more transparent, this worflow stores file names under a configurable folder (```targets``` parameter in ```Config(luigi.Config())```) which includes all outputs of all tasks. Again, a task is run only if at least one of its outputs is older than its requirements (see ```luigi_utils.py```), or if ```--force``` is used.
 
-> **_COMMON ERROR:_** When further extending the worflow by adding more tasks or changing some of their targets, it is quite common to observe an error indicating ```RuntimeError: Unfulfilled dependency at run time: <task>```. This shows that the task did not produce all the targets as expected by its ```output()``` method, causing its ```complete()``` method to always fail. The first it does, the worflow assumes the task to be lacking some dependencies, and so it reruns it. By construction, as soon as ```complete()``` fails again the error has to be thrown. Search for a mismatch on the names of the files produced and those expected by ```output()```, which could be subtle, such as an extra ```\n```. 
+##### Debugging
 
-- **Debugging**: by passing ```--debug_workflow```, the user can obtain more information regarding the specific order tasks and their functions are run.
+By passing ```--debug_workflow```, the user can obtain more information regarding the specific order tasks and their functions are run.
 
-- **Visualizing the workflow**: when using ```--scheduler central```, one can visualize the ```luigi``` workflow by accessing the correct port in the browser, specified with ```luigid --port <port_number> &```. If using ```ssh```, the port will have to be forwarded to the local machine by using, for instance:
+##### Visualizing the workflow
+
+When using ```--scheduler central```, one can visualize the ```luigi``` workflow by accessing the correct port in the browser, specified with ```luigid --port <port_number> &```. If using ```ssh```, the port will have to be forwarded to the local machine by using, for instance:
 
 ```shell
 ssh -L <port_number>:localhost:<port_number> <server_address>
 ```
 
 You should then be able to visualize the worflow in your browser by going to ```localhost:<port_number>```.
-
-------------------------------------
-
-#### Future steps: using ```law```
-
-In case [```law```](https://github.com/riga/law) is required (to manage ```htcondor``` jobs), one can install it as follows, using ```conda```:
-
-
-- Install a [miniconda release](https://docs.conda.io/en/latest/miniconda.html) (python 3.7 linux used here)
-- Convert ```law``` to a conda package using ```conda-build``` (this will not be required as soon as ```law``` is made available in some ```conda``` channel):
-
-```
-#from the conda "base" environment
-conda install conda-build
-conda skeleton pypi law
-conda-build law
-```
-
-- Create conda environment and install the [```law```](https://github.com/riga/law) and [```ROOT```](https://root.cern/install/#conda) packages:
-
-```
-conda create --name <name> python=3.9
-conda activate <name>
-conda install --use-local law #install the conda package created in the previous step
-
-#install ROOT from the ```conda-forge``` channel
-conda config --set channel_priority strict 
-conda install -c conda-forge root
-```
