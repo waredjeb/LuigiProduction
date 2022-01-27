@@ -35,13 +35,13 @@ To run the remaining part of the (local) workflow (tasks 3 and 4), run the same 
 
 | Output files              | Destination folder                                  |
 |---------------------------|-----------------------------------------------------|
-| ```ROOT```                | ```/data_CMS/cms/alves/TriggerScaleFactors/<some tag>/```    |
+| ```ROOT```                | ```/data_CMS/cms/<llr username>/TriggerScaleFactors/<some tag>/```    |
 | Submission                | ```$HOME/jobs/<some tag>/<process>/submission/```           |
 | Condor (output and error) | ```$HOME/jobs/<some tag>/<process>/outputs/```              |
-| Pictures (requires ```/eos/```) | ```/eos/home-b/bfontana/www/TriggerScaleFactors/``` |
+| Pictures (requires ```/eos/```) | ```/eos/home-b/<lxplus username>/www/TriggerScaleFactors/``` |
 
 
-You can also run each ```luigi``` task separately by running its corresponding ```python``` scripts (all support ```--help```). For instance:
+You can also run each ```luigi``` task separately by running its corresponding ```python``` scripts (all support ```--help```). For instance (running within a LLR machine):
 
 ```bash
 python3 scripts/getTriggerEffSig.py --indir /data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_2018_UL_backgrounds_test11Jan22/ --outdir /data_CMS/cms/alves/TriggerScaleFactors/UL_v1 --sample SKIMfix_TT_fullyHad --isData 0 --file output_2.root --subtag _default --channels all etau mutau tautau mumu --triggers METNoMu120 IsoTau50 --variables mht_et mhtnomu_et met_et dau2_eta dau2_pt HH_mass metnomu_et dau1_eta dau1_pt HT20 --tprefix hist_ --binedges_fname /data_CMS/cms/alves/TriggerScaleFactors/UL_v1/binedges.hdf
