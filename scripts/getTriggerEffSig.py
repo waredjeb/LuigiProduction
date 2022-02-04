@@ -33,13 +33,28 @@ def checkBit(number, bitpos):
     res = bool(number&(bitdigit<<bitpos))
     return res
 
-def isChannelConsistent(chn, passMu, pairtype):
-    return ( ( chn=='all'    and pairtype<_sel['all']['pairType'][1]  ) or
-             ( chn=='mutau'  and pairtype==_sel['mutau']['pairType'][1] ) or
-             ( chn=='etau'   and pairtype==_sel['etau']['pairType'][1] )  or
-             ( chn=='tautau' and pairtype==_sel['tautau']['pairType'][1] ) or
-             ( chn=='mumu'   and pairtype==_sel['mumu']['pairType'][1] ) or
-             ( chn=='ee'     and pairtype==_sel['ee']['pairType'][1] ) )
+def _buildSelectionBoolean(chn, pairtype):
+    """
+    Convert operator strings in '_sel' into real operators.
+    Returns the boolean condition encoded by '_sel'
+    """
+    import operator as op
+    lookup = { '<': op.lt, '>': op.gt, '==': op.eq }
+    thisopstr = _sel[chn]['pairType'][0]
+    try:
+        thisop = lookup[thisopstr]
+    except KeyError:
+        print('[getTriggerEffSig::_buildSelectionBoolean] Operator not yet supported.')
+        raise
+    return thisop(pairtype,  _sel[chn]['pairType'][1])
+    
+def isChannelConsistent(chn, passMu, pairtype):   
+    return ( ( chn=='all'    and _buildSelectionBoolean(chn, pairtype) ) or
+             ( chn=='mutau'  and _buildSelectionBoolean(chn, pairtype) ) or
+             ( chn=='etau'   and _buildSelectionBoolean(chn, pairtype) ) or
+             ( chn=='tautau' and _buildSelectionBoolean(chn, pairtype) ) or
+             ( chn=='mumu'   and _buildSelectionBoolean(chn, pairtype) and passMu ) or
+             ( chn=='ee'     and _buildSelectionBoolean(chn, pairtype) ) )
 
 def passesCuts(trig, variables, leavesmanager, debug):
     """
@@ -152,39 +167,41 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
                 binedges[var][chn] = np.array(subgroup[chn][:])
                 nbins[var][chn] = len(binedges[var][chn]) - 1
 
-    # Define 1D histograms:
-    #  hRef: pass the reference trigger
-    #  hTrig: pass the reference trigger + trigger under study
-    #  hNoRef: does not pass the reference trigger BUT passes the trigger under study
-    hRef, hNoRef, hTrig = ({} for _ in range(3))
+    # Define 1D histograms, one per intersection of trigger variables
+    # Example considering three triggers: ['A', 'B', 'C']
+    # There will be a histogram for each of the following intersection combinations:
+    # ('A',)
+    # ('B',)
+    # ('C',)
+    # ('A', 'B')
+    # ('A', 'C')
+    # ('B', 'C')
+    # ('A', 'B', 'C')
+    # ( single trigger histograms are also needed )
+    # The 'OR' of all triggers is calculated by adding and subtracting the above combinations.
+    triggercomb = list( it.chain.from_iterable(itertools.combinations(triggers, x)
+                                               for x in range(1,len(triggers)+1)) )
 
+    hRes, hInters = ({} for _ in range(2))
     for i in channels:
-        hRef[i], hTrig[i], hNoRef[i] = ({} for _ in range(3))
+        hRes[i], hInters[i] = ({} for _ in range(2))
         for j in variables:
-            binning = (nbins[j][i], binedges[j][i])
-            href_name = 'Ref_{}_{}'.format(i,j)
-            hTrig[i][j]={}
-            hNoRef[i][j] = {}
-            hRef[i][j] = ROOT.TH1D(href_name,'', *binning)
-            for k in triggers:
-                hTrig[i][j][k]={}
-                hNoRef[i][j][k] = {}
-
+            hRes[i][j], hInters[i][j] = ({} for _ in range(2))
+            for tcomb in triggercomb:
+                hInters[i][j][tcomb] = {}
+            
     # Define 2D efficiencies:
     #  effRefVsTrig: efficiency for passing the reference trigger
-    effRefVsTrig, = ({} for _ in range(1))
+    effRes, effInters = ({} for _ in range(2))
     addVarNames = lambda var1,var2 : var1 + '_VERSUS_' + var2
     
     for i in channels:
-        effRefVsTrig[i], = ({} for _ in range(1))                        
-
-        for k in triggers:
-            if k in _2Dpairs.keys():
-                for j in _2Dpairs[k]:
-                    vname = addVarNames(j[0],j[1])
-                    if vname not in effRefVsTrig[i]: #creates subdictionary if it does not exist
-                        effRefVsTrig[i][vname] = {}
-                    effRefVsTrig[i][vname][k] = {}
+        hRes2D[i], hInters2D[i] = ({} for _ in range(2))
+        for j in _2Dpairs:
+            vname = addVarNames(j[0],j[1])
+            hRes2D[i][vname], hInters2D[i][vname] = ({} for _ in range(2))
+            for tcomb in triggercomb:
+                hInters2D[i][vname][tcomb] = {}
     
     for entry in range(0,t_in.GetEntries()):
         t_in.GetEntry(entry)
@@ -193,7 +210,7 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
         mhh = lf.getLeaf( 'HHKin_mass' )
         if mhh<1:
             continue
-        #        print('mass ok')
+
         nleps      = lf.getLeaf( 'nleps'      )
         nbjetscand = lf.getLeaf( 'nbjetscand' )
         isOS       = lf.getLeaf( 'isOS'       )
@@ -210,7 +227,6 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
         if pairtype==2 and (dau1_tauiso<5 or dau2_tauiso<5):
             continue
 
-        #((tauH_SVFIT_mass-116.)*(tauH_SVFIT_mass-116.))/(35.*35.) + ((bH_mass_raw-111.)*(bH_mass_raw-111.))/(45.*45.) <  1.0
         svfit_mass = lf.getLeaf('tauH_SVFIT_mass')
         bH_mass    = lf.getLeaf('bH_mass_raw')
 
@@ -218,7 +234,6 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
         #if mcut: # inverted elliptical mass cut (-> ttCR)
         #    continue
         
-        #        print('passed selection')
         mcweight   = lf.getLeaf( "MC_weight" )
         pureweight = lf.getLeaf( "PUReweight" )
         trigsf     = lf.getLeaf( "trigSF" )
@@ -259,23 +274,13 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
             passRequirements[trig] = {}
             for var in variables:
                 passRequirements[trig][var] = {}
-                if trig == 'nonStandard':
-                    raise NotImplementedError
-                    # if trig not in passTriggerBits:
-                    #     passTriggerBits[trig] = functools.reduce(
-                    #         lambda x,y: x or y, #logic OR to join all triggers in this option
-                    #         [ checkBit(trigBit, getTriggerBit(x, isData)) for x in getTriggerBit(trig, isData) ]
-                    #     )
-                    # #AT SOME POINT I SHOULD ADD THE CUTS LIKE IN THE 'ELSE' CLAUSE
-                    # passRequirements[trig][var] = passTriggerBits[trig]
-                else:
-                    if trig not in passTriggerBits:
-                        passTriggerBits[trig] = checkBit(trigBit, getTriggerBit(trig, isData))
+                passTriggerBits[trig].setdefault( checkBit(trigBit, getTriggerBit(trig, isData)) )
 
-                    pCuts = passesCuts(trig, [var], lf, args.debug)
-                    for pckey,pcval in pCuts.items():
-                        passRequirements[trig][var][pckey] = ( passTriggerBits[trig] and pcval )
+                pCuts = passesCuts(trig, [var], lf, args.debug)
+                for pckey,pcval in pCuts.items():
+                    passRequirements[trig][var][pckey] = ( passTriggerBits[trig] and pcval )
 
+        #TODO: Change the dangerous line below (what if bits 0 and 1 change meaning?)
         passMu = passLEP and (checkBit(trigBit,0) or checkBit(trigBit,1))
 
         for i in channels:
@@ -342,7 +347,7 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
     # Writing histograms to the current file
     for i in channels:
         for j in variables:
-            hRef[i][j].Write('Ref_{}_{}'.format(i,j))
+            hRef[i][j].Write('Ref_{}_{}'.format(i,j))                
             for k in triggers:
                 for khist,vhist in hTrig[i][j][k].items():
                     vhist.Write('Trig_{}_{}_{}_CUTS_{}'.format(i,j,k,khist))

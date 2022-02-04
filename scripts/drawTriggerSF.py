@@ -53,6 +53,17 @@ def checkTrigger(args, proc, channel, variable, trig, save_names, binedges, nbin
   
   histos_data, histos_mc = ({} for _ in range(2))
   histos_data['ref'] = utils.getROOTObject(histo_names['ref'], file_data)
+
+  try:
+    os.mkdir('stats')
+  except FileExistsError:
+    pass
+  with open( os.path.join('stats', histo_names['ref'] + '_stats.txt'), 'w' ) as statfile:
+    count = 0
+    for ibin in range(1,histos_data['ref'].GetNbinsX()+1):
+      count += histos_data['ref'].GetBinContent( ibin )
+    statfile.write( str(count) + ' ' + channel + ' ' + variable )
+    
   histos_mc['ref'] = utils.getROOTObject(histo_names['ref'], file_mc)
   histos_data['trig'], histos_mc['trig'] = ({} for _ in range(2))
   for key in keylist_mc:
@@ -276,7 +287,7 @@ def checkTrigger(args, proc, channel, variable, trig, save_names, binedges, nbin
       _regex = _regex[0]
       _regex = _regex.replace('>', 'L').replace('<', 'S').replace('.', 'p')
       _name = aname.replace('XXX', _regex )
-      canvas.SaveAs( _name )
+      #canvas.SaveAs( _name )
 
 @utils.set_pure_input_namespace
 def drawTriggerSF_outputs(args):

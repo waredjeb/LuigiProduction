@@ -71,7 +71,7 @@ def defineBinning(args):
 
             treesize = 0
             quantiles = {k: [] for k in args.channels }
-            branches = args.variables + ('pairType',)
+            branches = tuple(args.variables) + ('pairType',)
             for ib,batch in enumerate(up.iterate(files=filelist, expressions=branches,
                                                  step_size='10 GB', library='pd')):
                 print('{}/{} {} files\r'.format(ib+1,len(filelist),sample),
@@ -96,16 +96,16 @@ def defineBinning(args):
                     if var not in _binedges or chn not in _binedges[var]:
                         _minedge[var][chn][sample] = treesize*quantiles[chn].loc[quant_down, var]
                         _maxedge[var][chn][sample] = treesize*quantiles[chn].loc[quant_up, var]
-
                         if args.debug:
                             print( '{} quantiles in channel {}:  Q({})={}, Q({})={}'
                                    .format(var, chn,
-                                           quant_down[chn], _minedge[var][chn][sample],
-                                           quant_up[chn],   _maxedge[var][chn][sample]) )
+                                           quant_down, _minedge[var][chn][sample],
+                                           quant_up,   _maxedge[var][chn][sample]) )
                     else:
                         if args.debug:
                             print('Quantiles were not calculated. Custom bins for variable {} and channel {} were instead used.'
                                   .format(var, chn))
+            quit()
 
         # Do weighted average based on the number of events in each dataset
         maxedge, minedge = ({} for _ in range(2))
@@ -156,14 +156,15 @@ if __name__ == '__main__':
 
     parser.add_argument('--binedges_filename', dest='binedges_filename', required=True, help='in directory')
     parser.add_argument('--nbins',             dest='nbins',    required=True, help='number of X bins')
-    parser.add_argument('-a', '--indir',       dest='indir',              required=True, help='in directory')
+    parser.add_argument('-a', '--indir',       dest = 'indir',              required=True,
+                        nargs='+', type=str, help='in directory')
     parser.add_argument('-o', '--outdir',      dest='outdir',             required=True, help='out directory')
     parser.add_argument('-t', '--tag',         dest='tag',                required=True, help='tag')
     parser.add_argument('--subtag',            dest='subtag',             required=True, help='subtag')
     parser.add_argument('--data',              dest='data',               required=True, nargs='+', type=str,
                         help='list of datasets')                          
-    parser.add_argument('--variables',        dest='variables',          required=True, nargs='+', type=str,
-                        help='Select the variables to calculate the binning' )
+    parser.add_argument('--variables',        dest='variables',          required=True,
+                        nargs='+', type=str, help='Select the variables to calculate the binning' )
     parser.add_argument('-c', '--channels',   dest='channels',         required=True, nargs='+', type=str,
                         help='Select the channels over which the workflow will be run.' )
     parser.add_argument('--debug', action='store_true', help='debug verbosity')
