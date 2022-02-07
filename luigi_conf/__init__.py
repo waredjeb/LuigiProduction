@@ -27,10 +27,10 @@ _variables_join = set(_variables_eff + _variables_dist)
 #######################################################################################################
 ########### TRIGGERS ##################################################################################
 #######################################################################################################
-_nonStandTriggers = ['IsoMuIsoTau', 'METNoMu120', ] #example for custom trigger combination, currently meaningless
+#_nonStandTriggers = ['IsoMuIsoTau', 'METNoMu120', ] #example for custom trigger combination, currently meaningless
 _trigger_custom = lambda x : {'mc': _nonStandTriggers, 'data': _nonStandTriggers}
 _trigger_shift = lambda x : {'mc': x, 'data': x+5}
-_triggers_map = {'nonStandard': _trigger_custom('nonStandard'),
+_triggers_map = {#'nonStandard': _trigger_custom('nonStandard'),
                  #others: 0-3 map directly, 4 maps to 7
                  'IsoMuIsoTau': {'mc': 5, 'data': 8},
                  'EleIsoTau':   {'mc': 6, 'data': 10},
@@ -39,12 +39,11 @@ _triggers_map = {'nonStandard': _trigger_custom('nonStandard'),
                  'METNoMu120': _trigger_shift(9),
                  'IsoTau50':   _trigger_shift(10),
                  'IsoTau180':  _trigger_shift(11), }
-assert( set(_nonStandTriggers).issubset( set(_triggers_map.keys()) ) )
 
 #######################################################################################################
 ########### CUTS ######################################################################################
 #######################################################################################################
-_cuts = {'METNoMu120': {'metnomu_et': ('>', [120,140,160,180,200]), 'mhtnomu_et': ('>', [120,140,160,180,200])},
+_cuts = {'METNoMu120': {'metnomu_et': ('>', [120,180]), 'mhtnomu_et': ('>', [100,160])},
          'IsoTau50':   {'dau1_pt': ('>', [80]), 'dau1_eta': ('<', [2.0]), 'met_et': ('>', [150])},
          }
 assert( set(_cuts.keys()).issubset(set(_triggers_map.keys())) )
@@ -65,6 +64,14 @@ for k,v in _cuts_ignored.items():
     if k in v:
         raise ValueError('[configuration, var={}] It is redundant to specify the same variable: cuts are never applied to variables being displayed. Remove it.'.format(k))
 
+#######################################################################################################
+########### CORRELATION MATRIX ########################################################################
+#######################################################################################################
+_corr = {'etau': {},
+         'mutau': {},
+         'tautau': {}
+         }
+    
 #######################################################################################################
 ########### 2D PLOTS ##################################################################################
 #######################################################################################################

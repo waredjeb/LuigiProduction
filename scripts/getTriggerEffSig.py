@@ -214,9 +214,9 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
         svfit_mass = lf.getLeaf('tauH_SVFIT_mass')
         bH_mass    = lf.getLeaf('bH_mass_raw')
 
-        #mcut = ((svfit_mass-129.)*(svfit_mass-129.))/(53.*53.) + ((bH_mass-169.)*(bH_mass-169.))/(145.*145.) <  1.0
-        #if mcut: # inverted elliptical mass cut (-> ttCR)
-        #    continue
+        mcut = ((svfit_mass-129.)*(svfit_mass-129.))/(53.*53.) + ((bH_mass-169.)*(bH_mass-169.))/(145.*145.) <  1.0
+        if mcut: # inverted elliptical mass cut (-> ttCR)
+            continue
         
         #        print('passed selection')
         mcweight   = lf.getLeaf( "MC_weight" )
