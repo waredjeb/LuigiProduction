@@ -34,6 +34,9 @@ from utils.utils import (
 
 from luigi_conf import _cuts, _cuts_ignored, _2Dpairs, _sel
 
+hRefName = lambda a,b : 'Ref_{}_{}'.format(a,b)
+hTrigName = lambda a,b,c,d : 'Trig_{}_{}_{}_CUTS_{}'.format(a,b,joinNTC(c),d)
+
 def isChannelConsistent(chn, passMu, pairtype):
     return ( ( chn=='all'    and pairtype<_sel['all']['pairType'][1]  ) or
              ( chn=='mutau'  and pairtype==_sel['mutau']['pairType'][1] ) or
@@ -164,9 +167,8 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
         hRef[i], hTrig[i] = ({} for _ in range(2))
         for j in variables:
             binning = (nbins[j][i], binedges[j][i])
-            href_name = 'Ref_{}_{}'.format(i,j)
             hTrig[i][j]={}
-            hRef[i][j] = ROOT.TH1D(href_name,'', *binning)
+            hRef[i][j] = ROOT.TH1D( hRefName(i, j), '', *binning)
             for k in triggercomb:
                 hTrig[i][j][joinNTC(k)]={}
 
@@ -256,12 +258,11 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
                 passTriggerBits.setdefault(trig, checkBit(trigBit, getTriggerBit(trig, isData)))
 
                 passCuts[trig][var] = passesCuts(trig, [var], lf, args.debug)
-                print(passCuts[trig][var])
-                quit()
+                # if var=='dau2_eta':
+                #     print(trig, var, passCuts[trig][var])
 
                 # for pckey,pcval in pCuts.items():
                 #     passRequirements[trig][var][pckey] = ( passTriggerBits[trig] and pcval )
-
         for i in channels:
             if isChannelConsistent(i, passMu, pairtype):
 
@@ -279,25 +280,39 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
                             [ passTriggerBits[x] for x in tcomb ]
                         )
 
-                        #logic AND to intersect all cuts for this trigger combination
-                        passCutsIntersection = functools.reduce(
-                            lambda x,y: x and y,
-                            [ passCuts[x][j] for k in atrig for atrig in tcomb ]
-                        )
-
+                        # The following is tricky, as we are considering, simultaneously:
+                        # - all trigger intersection combinations
+                        # - all cut combinations for each trigger combination (see '_cuts')
                         
+                        # Logic AND to intersect all cuts for this trigger combination
+                        # Each element will contain one possible cut combination
+                        # for the trigger combination 'tcomb' being considered
+                        print(tcomb)
+                        #cutsCombinations = list(it.product( *(passCuts[k][j] for atrig in tcomb for k in atrig) ))
+                        cutsCombinations = list(it.product( *(passCuts[atrig][j] for atrig in tcomb) ))
+                        print(cutsCombinations)
+
+                        # One dict item per cut combination
+                        # - key: all cut strings joined
+                        # - value: logical and of all cuts
+                        passCutsIntersection = { '_\u2229_'.join(e[0] for e in elem): 
+                                                 functools.reduce(                 
+                                                     lambda x,y: x and y,
+                                                     [ e[1] for e in elem ]
+                                                 )
+                                                 for elem in cutsCombinations
+                                                }
+                        print(passCutsIntersection)
+                        quit()
+
                         if passAllTriggerBits:
-                            pass
-                            #for pckey,pcval in passCuts[].items():
 
-                                
-                        for kreq,vreq in passRequirements[k][j].items():
-                            if kreq not in hTrig[i][j][k]:
-                                htrig_name = 'Trig_{}_{}_{}_CUTS_{}'.format(i,j,k,kreq)
-                                hTrig[i][j][k][kreq] = ROOT.TH1D(htrig_name, '', *binning)
-
-                            if vreq:
-                                hTrig[i][j][k][kreq].Fill(fillVar[j][i], evtW)
+                            for pckey,pcval in passCutsIntersection.items():
+                                htrig_name = hTrigName(i,j,joinNTC(tcomb),kreq)
+                                hTrig[i][j][k].setdefault(pckey,
+                                                          ROOT.TH1D(htrig_name, '', *binning))
+                                if pcval:
+                                    hTrig[i][j][joinNTC(tcomb)][pckey].Fill(fillVar[j][i], evtW)
 
                 # fill 2D efficiencies (currently only reference vs trigger, i.e.,
                 # all events pass the reference cut)
@@ -336,24 +351,25 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
     # Writing histograms to the current file
     for i in channels:
         for j in variables:
-            hRef[i][j].Write('Ref_{}_{}'.format(i,j))
-            for k in triggers:
-                for khist,vhist in hTrig[i][j][k].items():
-                    vhist.Write('Trig_{}_{}_{}_CUTS_{}'.format(i,j,k,khist))
-                for khist,vhist in hNoRef[i][j][k].items():
-                    vhist.Write('NoRef_{}_{}_{}_CUTS_{}'.format(i,j,k,khist))
+            hRef[i][j].Write( hRefName(i,j) )
+            for tcomb in triggercomb:
+                for khist,vhist in hTrig[i][j][joinNTC(tcomb)].items():
+                    vhist.Write( hTrigName(i,j,joinNTC(tcomb),khist) )
 
     # Writing 2D efficiencies to the current file
-    for i in channels:
-        for _,j in effRefVsTrig[i].items():
-            for _,k in j.items():
-                for _,q in k.items():
-                    q.Write()
+    # for i in channels:
+    #     for _,j in effRefVsTrig[i].items():
+    #         for _,k in j.items():
+    #             for _,q in k.items():
+    #                 q.Write()
 
     f_out.Close()
     f_in.Close()
 
-# -- Parse input arguments
+# Run with:
+# python3 /home/llr/cms/alves/CMSSW_12_2_0_pre1/src/METTriggerStudies/scripts/getTriggerEffSig.py --indir /data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_2018_UL_backgrounds_test11Jan22/ --outdir /data_CMS/cms/alves/TriggerScaleFactors/UL_v1 --sample SKIM_TT_fullyHad --isData 0 --file output_2.root --subtag _default --channels all etau mutau tautau mumu --triggers METNoMu120 IsoTau50 --variables mht_et mhtnomu_et met_et dau2_eta dau2_pt HH_mass metnomu_et dau1_eta dau1_pt HT20 --tprefix hist_ --binedges_fname /data_CMS/cms/alves/TriggerScaleFactors/UL_v1/binedges.hdf5 --nocut_dummy_str NoCut
+
+# Parse input arguments
 parser = argparse.ArgumentParser(description='Command line parser')
 
 parser.add_argument('--binedges_fname', dest='binedges_fname', required=True, help='where the bin edges are stored')
