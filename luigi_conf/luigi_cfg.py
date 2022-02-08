@@ -6,14 +6,14 @@ from luigi.util import inherits
 
 from . import _inputs, _data, _mc_processes, _triggers_map, _channels
 from . import _variables_eff, _variables_dist
-from . import _nonStandTriggers, _trigger_custom, _trigger_shift, _triggers_map
+from . import _trigger_shift, _triggers_map
 
 ######################################################################## 
 ### ARGUMENT PARSING ###################################################
 ########################################################################
 # hierarchies are used in conjunction with the '--force' flag
 _tasks_before_condor = { 'bins': 2, 'submit': 1 }
-_tasks_after_condor = { 'hadd': 2, 'comp': 1, 'drawsf': 1, 'drawdist': 1 }
+_tasks_after_condor = { 'hadd': 2, 'comp': 1, 'drawsf': 1, 'drawdist': 1, 'drawcounts': 1 }
 max_task_number = max(list(_tasks_after_condor.values())+list(_tasks_before_condor.values()))
 
 parser = argparse.ArgumentParser(formatter_class=RawTextHelpFormatter)
@@ -116,6 +116,11 @@ parser.add_argument(
     choices=[0,1,2],
     default=0,
     help="0: Does not draw the distributions (default).\n1: Also draws the distributions.\n2: Only draws the distributions."
+)
+parser.add_argument(
+    '--counts',
+    action='store_true',
+    help="Only runs the 'counting' workflow: check how many events pass each intersection of triggers. The default is to run the full workflow."
 )
 parser.add_argument(
     '--debug_workflow',
@@ -250,7 +255,7 @@ class cfg(luigi.Config):
     #### drawDistributions
     ####
     _rawname = set_task_name('drawdist')
-    _selected_mc_processes = _mc_processes[FLAGS.mc_process]
+    _selected_mc_processes =_mc_processes[FLAGS.mc_process]
     _selected_data = _data[FLAGS.data]
     
     drawdist_params = luigi.DictParameter(
@@ -269,6 +274,30 @@ class cfg(luigi.Config):
                   'binedges_filename': binedges_filename,
                   'subtag': subtag,
                   'target_suffix': '_Sum',
+                  'debug': FLAGS.debug_workflow,} )
+
+
+    ####
+    #### drawCounts
+    ####
+    _rawname = set_task_name('drawcounts')
+    _selected_mc_processes = _mc_processes[FLAGS.mc_process]
+    _selected_data = _data[FLAGS.data]
+    
+    drawcounts_params = luigi.DictParameter(
+        default={ 'taskname': _rawname,
+                  'hierarchy': _tasks_after_condor[_rawname],
+                  'data_name': FLAGS.data,
+                  'mc_name': FLAGS.mc_process,
+                  'data': _selected_data,
+                  'mc_processes': _selected_mc_processes,
+                  'indir': tag_folder,
+                  'outdir': web_folder,
+                  'triggers': FLAGS.triggers,
+                  'channels': FLAGS.channels,
+                  'variables': FLAGS.variables_for_distributions,
+                  'binedges_filename': binedges_filename,
+                  'subtag': subtag,
                   'debug': FLAGS.debug_workflow,} )
 
 """

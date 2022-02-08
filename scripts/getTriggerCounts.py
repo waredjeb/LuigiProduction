@@ -4,7 +4,7 @@ Script which calculates the trigger scale factors.
 On production mode should run in the grid via scripts/submitTriggerEff.py. 
 Local run example:
 
-python3 /home/llr/cms/alves/CMSSW_12_2_0_pre1/src/METTriggerStudies/scripts/getTriggerCount.py --indir /data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_2018_UL_data_test11Jan22/ --outdir /data_CMS/cms/alves/CountTest/ --sample SKIM_MET2018 --file output_0.root --channels etau mutau tautau --subtag _default --isData 1 --tprefix count_ --triggers IsoMuIsoTau EleIsoTau VBFTau VBFTauHPS METNoMu120 IsoTau50 IsoTau180 --debug
+python3 /home/llr/cms/alves/CMSSW_12_2_0_pre1/src/METTriggerStudies/scripts/getTriggerCounts.py --indir /data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_2018_UL_data_test11Jan22/ --outdir /data_CMS/cms/alves/CountsTest/ --sample SKIM_MET2018 --file output_0.root --channels etau mutau tautau --subtag _default --isData 1 --tprefix count_ --triggers IsoMuIsoTau EleIsoTau VBFTau VBFTauHPS METNoMu120 IsoTau50 IsoTau180 --debug
 """
 import re
 import os
@@ -24,7 +24,7 @@ import itertools as it
 
 import sys
 sys.path.append(os.path.join(os.environ['CMSSW_BASE'], 'src', 'METTriggerStudies'))
-print(sys.path[-1])
+
 from utils.utils import getTriggerBit, LeafManager
 
 from luigi_conf import _cuts, _cuts_ignored, _2Dpairs, _sel
@@ -43,12 +43,12 @@ def isChannelConsistent(chn, passMu, pairtype):
              ( chn=='ee'     and pairtype==_sel['ee']['pairType'][1] ) )
 
 def joinTriggerBits(tuple_element):
-    inters = '\u2229'
+    inters = ' \u2229 '
     return inters.join(tuple_element)
     
-def getTriggerCount(indir, outdir, sample, fileName,
-                    channels, triggers,
-                    subtag, tprefix, isData ):
+def getTriggerCounts(indir, outdir, sample, fileName,
+                     channels, triggers,
+                     subtag, tprefix, isData ):
     # -- Check if outdir exists, if not create it
     if not os.path.exists(outdir):
         os.makedirs(outdir)
@@ -112,7 +112,7 @@ def getTriggerCount(indir, outdir, sample, fileName,
                 if isChannelConsistent(chn, passMu, pairtype) and passLEP:
 
                     passAllTriggerBits = functools.reduce(
-                        lambda x,y: x and y, #logic OR to join all triggers in this option
+                        lambda x,y: x and y, #logic AND to join all triggers in this option
                         [ checkBit(trigBit, getTriggerBit(x, isData)) for x in tcomb ]
                     )
 
@@ -153,6 +153,6 @@ parser.add_argument('--debug', action='store_true', help='debug verbosity')
 
 args = parser.parse_args()
 
-getTriggerCount( args.indir, args.outdir, args.sample, args.fileName,
-                 args.channels, args.triggers,
-                 args.subtag, args.tprefix, args.isData )
+getTriggerCounts( args.indir, args.outdir, args.sample, args.fileName,
+                  args.channels, args.triggers,
+                  args.subtag, args.tprefix, args.isData )

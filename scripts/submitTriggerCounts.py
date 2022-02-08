@@ -1,14 +1,13 @@
 ###### DOCSTRING ####################################################
 # Submits all the jobs required to obtain the trigger scale factors
 # Run example:
-# python3 -m scripts.submitTriggerCount
+# python3 -m scripts.submitTriggerCounts
 # --indir /data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_Radion_2018_fixedMETtriggers_mht_16Jun2021/
 # --outdir .
 # --tag test_cuts
 # --mc_processes TT_fullyHad
 # --data MET2018A
 # --triggers METNoMu120 METNoMu120_HT60 HT500
-# --variables met_et HT20 mht_et metnomu_et mhtnomu_et
 # --channels mutau
 # --subtag SUBTAG
 # --targetsPrefix hist_eff_
@@ -24,7 +23,7 @@ import ROOT
 from utils import utils
 
 @utils.set_pure_input_namespace
-def submitTriggerCount_outputs(args):
+def submitTriggerCounts_outputs(args):
     """
     Considers the first file only per process.
     I could use 'goodfiles.txt' to know exactly which files are expected (using glob), \
@@ -41,10 +40,10 @@ def submitTriggerCount_outputs(args):
     return t
         
 @utils.set_pure_input_namespace
-def submitTriggerCount(args):
+def submitTriggerCounts(args):
     home = os.environ['HOME']
     cmssw = os.path.join(os.environ['CMSSW_VERSION'], 'src')
-    prog = 'python3 {}'.format( os.path.join(home, cmssw, 'METTriggerStudies', 'scripts', 'getTriggerCount.py') )
+    prog = 'python3 {}'.format( os.path.join(home, cmssw, 'METTriggerStudies', 'scripts', 'getTriggerCounts.py') )
 
     # -- Job steering files
     currFolder = os.getcwd()
@@ -56,6 +55,7 @@ def submitTriggerCount(args):
         #### Check input folder
         inputfiles = [ os.path.join(idir, thisProc + '/goodfiles.txt') for idir in args.indir ]
         fexists = [ os.path.exists( inpf ) for inpf in inputfiles ]
+        print(inputfiles)
         if sum(fexists) != 1: #check one and only one is True
             raise ValueError('The process {} could be found.'.format(thisProc))
         inputdir = args.indir[ fexists.index(True) ] #this is the only correct input directory
@@ -72,18 +72,17 @@ def submitTriggerCount(args):
         #### Write shell executable (python scripts must be wrapped in shell files to run on HTCondor)
         outSubmDir = 'submission'
         jobDir = os.path.join(jobsDir, args.tag, outSubmDir)
-        jobFile = os.path.join(jobDir, 'jobCount_{}.sh'.format(thisProc))
+        jobFile = os.path.join(jobDir, 'jobCounts_{}.sh'.format(thisProc))
 
         command =  ( ( '{prog} --indir {indir} --outdir {outdir} --sample {sample} --isData {isData} '
                        '--file ${{1}} --subtag {subtag} --channels {channels} '
-                       '--triggers {triggers} --variables {variables} --tprefix {tprefix} '
+                       '--triggers {triggers} --tprefix {tprefix} '
                        '\n' )
                      .format( prog=prog, indir=inputdir, outdir=args.outdir,
                               sample=thisProc, isData=int(thisProc in args.data),
                               subtag=args.subtag,
                               channels=' '.join(args.channels,),
                               triggers=' '.join(args.triggers,),
-                              variables=' '.join(args.variables,),
                               tprefix=args.targetsPrefix)
                     )
 
@@ -104,7 +103,7 @@ def submitTriggerCount(args):
 
         #### Write submission file
         submDir = os.path.join(jobsDir, args.tag, outSubmDir)
-        submFile = os.path.join(submDir, 'jobCount_' + thisProc + '.submit')
+        submFile = os.path.join(submDir, 'jobCounts_' + thisProc + '.submit')
 
         outCheckDir = 'outputs'
         queue = 'short'
@@ -137,7 +136,7 @@ def submitTriggerCount(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Command line parser')
 
-    parser.add_argument('-a', '--indir',      dest='indir',            required=True, help='in directory')
+    parser.add_argument('-a', '--indir',      dest='indir',            required=True, help='in directory', nargs='+', type=str)
     parser.add_argument('-o', '--outdir',     dest='outdir',           required=True, help='out directory')
     parser.add_argument('-t', '--tag',        dest='tag',              required=True, help='tag')
     parser.add_argument('--subtag',           dest='subtag',           required=True, help='subtag')
@@ -150,9 +149,7 @@ if __name__ == '__main__':
                         help='Select the channels over which the workflow will be run.' )
     parser.add_argument('--triggers',         dest='triggers',         required=True, nargs='+', type=str,
                         help='Select the triggers over which the workflow will be run.' )
-    parser.add_argument('--variables',        dest='variables',        required=True, nargs='+', type=str,
-                        help='Select the variables over which the workflow will be run.' )
     parser.add_argument('--debug', action='store_true', help='debug verbosity')
     args = parser.parse_args()
 
-    submitTriggerCount( args )
+    submitTriggerCounts( args )

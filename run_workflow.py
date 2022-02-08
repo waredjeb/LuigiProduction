@@ -14,7 +14,9 @@ lcfg = cfg() #luigi configuration
 # includes of individual tasks
 from scripts.defineBinning import defineBinning, defineBinning_outputs
 from scripts.submitTriggerEff import submitTriggerEff, submitTriggerEff_outputs
+from scripts.submitTriggerCounts import submitTriggerCounts, submitTriggerCounts_outputs
 from scripts.haddTriggerEff import haddTriggerEff, haddTriggerEff_outputs
+from scripts.addTriggerCounts import addTriggerCounts, addTriggerCounts_outputs
 from scripts.drawTriggerSF import drawTriggerSF, drawTriggerSF_outputs
 from scripts.draw2DTriggerSF import draw2DTriggerSF, draw2DTriggerSF_outputs
 from scripts.drawDistributions import drawDistributions, drawDistributions_outputs
@@ -283,10 +285,10 @@ class Draw2DTriggerScaleFactors(ForceableEnsureRecentTarget):
                                 dataset_name=self.args.mc_name) ]
 
 ########################################################################
-### DRAW VARIABLES' DSITRIBUTIONS ######################################
+### DRAW VARIABLES' DISTRIBUTIONS ######################################
 ########################################################################
 class DrawDistributions(ForceableEnsureRecentTarget):
-    args = utils.dotDict(lcfg.drawdist_params)
+    args = utils.dotDict(lcfg.drawcounts_params)
     args.update( {'targetsPrefix': lcfg.targets_prefix,
                   'tag': lcfg.tag,
                   } )
@@ -324,6 +326,43 @@ class DrawDistributions(ForceableEnsureRecentTarget):
                                 dataset_name=self.args.mc_name) ]
 
 ########################################################################
+### DRAW TRIGGER INTERSECTION COUNTS ###################################
+########################################################################
+class DrawTriggerCounts(ForceableEnsureRecentTarget):
+    samples = luigi.ListParameter()
+    dataset_name = luigi.Parameter()
+    args = utils.dotDict(lcfg.drawcounts_params)
+    args.update( {'tag': lcfg.tag,
+                  } )
+    
+    target_path = get_target_path( args.taskname )
+    
+    @WorkflowDebugger(flag=FLAGS.debug_workflow)
+    def output(self):
+        self.args['samples'] = luigi_to_raw( self.samples )
+        self.args['dataset_name'] = self.dataset_name
+        targets = []
+        targets_list = addTriggerCounts_outputs( self.args )
+
+        #define luigi targets
+        for t in targets_list:
+            targets.append( luigi.LocalTarget(t) )
+
+        #write the target files for debugging
+        utils.remove( self.target_path )
+        with open( self.target_path, 'w' ) as f:
+            for t in targets_list:
+                f.write( t )
+
+        return targets
+
+    @WorkflowDebugger(flag=FLAGS.debug_workflow)
+    def run(self):
+        self.args['samples'] = luigi_to_raw( self.samples )
+        self.args['dataset_name'] = self.dataset_name
+        addTriggerCounts( self.args )
+
+########################################################################
 ### MAIN ###############################################################
 ########################################################################
 if __name__ == "__main__":
@@ -349,9 +388,22 @@ if __name__ == "__main__":
     
     #8 categories => at most 8 workers required
     if FLAGS.submit:
-        last_task = SubmitTriggerEff(force=FLAGS.force>0)
+        last_task = [ SubmitTriggerCounts(force=FLAGS.force>0),
+                      SubmitTriggerEff(force=FLAGS.force>0),
+                      ]
+        if FLAGS.counts: #overwrites
+            last_task = [ SubmitTriggerCounts(force=FLAGS.force>0), ]
+
     else:
-        last_tasks = []
+        count_tasks = [ DrawTriggerCounts(force=FLAGS.force>0,
+                                          samples=lcfg._selected_data,
+                                          dataset_name=FLAGS.data),
+                        DrawTriggerCounts(force=FLAGS.force>0,
+                                          samples=lcfg._selected_mc_processes,
+                                          dataset_name=FLAGS.mc_process),
+                       ]
+
+        last_tasks = count_tasks[:]
         if FLAGS.distributions:
             last_tasks += [ DrawDistributions(force=FLAGS.force>0) ]
             
@@ -359,6 +411,9 @@ if __name__ == "__main__":
             last_tasks += [ Draw1DTriggerScaleFactors(force=FLAGS.force>0),
                             #Draw2DTriggerScaleFactors(force=FLAGS.force>0)
             ]
+
+        if FLAGS.counts: #overwrites
+            last_tasks = count_tasks
             
     if FLAGS.scheduler == 'central':
         luigi.build([last_task] if FLAGS.submit else last_tasks,

@@ -5,7 +5,8 @@ Sanity checks included.
 _extensions = ( 'png', 'pdf',
                 #'C'
                )
-_channels = ( 'all', 'etau', 'mutau', 'tautau', 'mumu' )
+#_channels = ( 'all', 'etau', 'mutau', 'tautau', 'mumu' )
+_channels = ( 'etau', 'mutau', 'tautau' )
 _sel = { 'all':    {'pairType': ('<',  3),},
          'mutau':  {'pairType': ('==', 0),},
          'etau':   {'pairType': ('==', 1),},
@@ -28,17 +29,24 @@ _variables_join = set(_variables_eff + _variables_dist)
 ########### TRIGGERS ##################################################################################
 #######################################################################################################
 #_nonStandTriggers = ['IsoMuIsoTau', 'METNoMu120', ] #example for custom trigger combination, currently meaningless
-_trigger_custom = lambda x : {'mc': _nonStandTriggers, 'data': _nonStandTriggers}
-_trigger_shift = lambda x : {'mc': x, 'data': x+5}
+#_trigger_custom = lambda x : {'mc': _nonStandTriggers, 'data': _nonStandTriggers}
+_trigger_linear = lambda x : {'mc': x, 'data': x}
+_trigger_shift  = lambda x : {'mc': x, 'data': x+5}
 _triggers_map = {#'nonStandard': _trigger_custom('nonStandard'),
                  #others: 0-3 map directly, 4 maps to 7
-                 'IsoMuIsoTau': {'mc': 5, 'data': 8},
-                 'EleIsoTau':   {'mc': 6, 'data': 10},
-                 'VBFTau':     _trigger_shift(7),
-                 'VBFTauHPS':  _trigger_shift(8),
-                 'METNoMu120': _trigger_shift(9),
-                 'IsoTau50':   _trigger_shift(10),
-                 'IsoTau180':  _trigger_shift(11), }
+    'IsoMu24':      _trigger_linear(0),
+    'IsoMu27':      _trigger_linear(1),
+    'Ele32':        _trigger_linear(2),
+    'Ele35':        _WPTight_Gsf_v(3),
+    'IsoTau':      {'mc': 4, 'data': 7},
+    'IsoMuIsoTau': {'mc': 5, 'data': 8},
+    'EleIsoTau':   {'mc': 6, 'data': 10},
+    'VBFTau':     _trigger_shift(7),
+    'VBFTauHPS':  _trigger_shift(8),
+    'METNoMu120': _trigger_shift(9),
+    'IsoTau50':   _trigger_shift(10),
+    'IsoTau180':  _trigger_shift(11),
+}
 
 #######################################################################################################
 ########### CUTS ######################################################################################
