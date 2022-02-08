@@ -13,11 +13,10 @@ def add_slash(s):
   s = s if s[-1] == '/' else s + '/'
   return s
 
-class dotDict(dict):
-    """dot.notation access to dictionary attributes"""
-    __getattr__ = dict.get
-    __setattr__ = dict.__setitem__
-    __delattr__ = dict.__delitem__
+def checkBit(number, bitpos):
+    bitdigit = 1
+    res = bool(number&(bitdigit<<bitpos))
+    return res
             
 def create_single_dir(p):
   """Creates a directory if it does not exist"""
@@ -44,6 +43,12 @@ def debug(message, flag=True):
   decorator = ' ============ '
   if flag:
     print( decorator + message + decorator )
+
+class dotDict(dict):
+  """dot.notation access to dictionary attributes"""
+  __getattr__ = dict.get
+  __setattr__ = dict.__setitem__
+  __delattr__ = dict.__delitem__
 
 def getKeyList(afile, inherits=['TH1']):
   tmp = []
@@ -76,7 +81,17 @@ def getTriggerBit(trigger_name, isData):
   """
   s = 'data' if isData else 'mc'
   return _triggers_map[trigger_name][s]
-        
+
+def isIsoMuon(trigBit, isData):
+  s = 'data' if isData else 'mc'
+  cond1 = checkBit(trigBit, _triggers_map['IsoMu24'][s])
+  cond2 = checkBit(trigBit, _triggers_map['IsoMu27'][s])
+  return  cond1 or cond2
+  
+def joinNameTriggerIntersection(tuple_element):
+    inters = '_\u2229_'
+    return inters.join(tuple_element)
+
 class LeafManager():
     """
     Class to manage TTree branch leafs, making sure they exist.

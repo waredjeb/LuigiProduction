@@ -22,16 +22,17 @@ from collections import defaultdict
 import itertools as it
 
 import sys
-sys.path.append(os.path.join(os.environ['CMSSW_BASE'], 'src', 'METTriggerStudies'))
-print(sys.path[-1])
-from utils.utils import getTriggerBit, LeafManager
+sys.path.append( os.path.join(os.environ['CMSSW_BASE'], 'src', 'METTriggerStudies'))
+
+from utils.utils import (
+    checkBit,
+    getTriggerBit,
+    isIsoMuon,
+    joinNameTriggerIntersection as joinNTC,
+    LeafManager
+    )
 
 from luigi_conf import _cuts, _cuts_ignored, _2Dpairs, _sel
-
-def checkBit(number, bitpos):
-    bitdigit = 1
-    res = bool(number&(bitdigit<<bitpos))
-    return res
 
 def isChannelConsistent(chn, passMu, pairtype):
     return ( ( chn=='all'    and pairtype<_sel['all']['pairType'][1]  ) or
@@ -131,8 +132,6 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
 
     f_in = ROOT.TFile( fname )
     t_in = f_in.Get('HTauTauTree')
-
-    fillVar = {}
     lf = LeafManager( fname, t_in )
 
     # Recover binning
@@ -152,52 +151,49 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
                 binedges[var][chn] = np.array(subgroup[chn][:])
                 nbins[var][chn] = len(binedges[var][chn]) - 1
 
+    # set all possible trigger combinations of intersections with any number of elements
+    triggercomb = list( it.chain.from_iterable(it.combinations(triggers, x)
+                                               for x in range(1,len(triggers)+1)) )
+
     # Define 1D histograms:
     #  hRef: pass the reference trigger
     #  hTrig: pass the reference trigger + trigger under study
-    #  hNoRef: does not pass the reference trigger BUT passes the trigger under study
-    hRef, hNoRef, hTrig = ({} for _ in range(3))
+    hRef, hTrig = ({} for _ in range(2))
 
     for i in channels:
-        hRef[i], hTrig[i], hNoRef[i] = ({} for _ in range(3))
+        hRef[i], hTrig[i] = ({} for _ in range(2))
         for j in variables:
             binning = (nbins[j][i], binedges[j][i])
             href_name = 'Ref_{}_{}'.format(i,j)
             hTrig[i][j]={}
-            hNoRef[i][j] = {}
             hRef[i][j] = ROOT.TH1D(href_name,'', *binning)
-            for k in triggers:
-                hTrig[i][j][k]={}
-                hNoRef[i][j][k] = {}
+            for k in triggercomb:
+                hTrig[i][j][joinNTC(k)]={}
 
     # Define 2D efficiencies:
     #  effRefVsTrig: efficiency for passing the reference trigger
-    effRefVsTrig, = ({} for _ in range(1))
-    addVarNames = lambda var1,var2 : var1 + '_VERSUS_' + var2
+    # effRefVsTrig, = ({} for _ in range(1))
+    # addVarNames = lambda var1,var2 : var1 + '_VERSUS_' + var2
     
-    for i in channels:
-        effRefVsTrig[i], = ({} for _ in range(1))                        
+    # for i in channels:
+    #     effRefVsTrig[i], = ({} for _ in range(1))                        
 
-        for k in triggers:
-            if k in _2Dpairs.keys():
-                for j in _2Dpairs[k]:
-                    vname = addVarNames(j[0],j[1])
-                    if vname not in effRefVsTrig[i]: #creates subdictionary if it does not exist
-                        effRefVsTrig[i][vname] = {}
-                    effRefVsTrig[i][vname][k] = {}
+    #     for k in triggers:
+    #         if k in _2Dpairs.keys():
+    #             for j in _2Dpairs[k]:
+    #                 vname = addVarNames(j[0],j[1])
+    #                 if vname not in effRefVsTrig[i]: #creates subdictionary if it does not exist
+    #                     effRefVsTrig[i][vname] = {}
+    #                 effRefVsTrig[i][vname][k] = {}
     
     for entry in range(0,t_in.GetEntries()):
         t_in.GetEntry(entry)
 
-        pairtype = lf.getLeaf( 'pairType' )
         mhh = lf.getLeaf( 'HHKin_mass' )
         if mhh<1:
             continue
-        #        print('mass ok')
-        nleps      = lf.getLeaf( 'nleps'      )
-        nbjetscand = lf.getLeaf( 'nbjetscand' )
-        isOS       = lf.getLeaf( 'isOS'       )
 
+        pairtype = lf.getLeaf( 'pairType' )
         dau1_eleiso = lf.getLeaf( 'dau1_eleMVAiso'    )
         dau1_muiso  = lf.getLeaf( 'dau1_iso'          )
         dau1_tauiso = lf.getLeaf( 'dau1_deepTauVsJet' )
@@ -218,28 +214,26 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
         if mcut: # inverted elliptical mass cut (-> ttCR)
             continue
         
-        #        print('passed selection')
-        mcweight   = lf.getLeaf( "MC_weight" )
+        #mcweight   = lf.getLeaf( "MC_weight" )
         pureweight = lf.getLeaf( "PUReweight" )
         trigsf     = lf.getLeaf( "trigSF" )
         lumi       = lf.getLeaf( "lumi" )
         idandiso   = lf.getLeaf( "IdAndIsoSF_deep_pt")
         
-        if np.isnan(mcweight): mcweight=1
+        #if np.isnan(mcweight): mcweight=1
         if np.isnan(pureweight): pureweight=1
         if np.isnan(trigsf): trigsf=1
         if np.isnan(lumi): lumi=1
         if np.isnan(idandiso): idandiso=1
 
         evtW = pureweight*trigsf*lumi*idandiso
-        if np.isnan(evtW):
-            evtW = 1
-        if isData:
+        if np.isnan(evtW) or isData:
             evtW = 1
 
-        MET    = lf.getLeaf('met_et')
-        HTfull = lf.getLeaf('HT20')
+        #MET    = lf.getLeaf('met_et')
+        #HTfull = lf.getLeaf('HT20')
 
+        fillVar = {}
         for v in variables:
             fillVar[v] = {}
             for chn in channels:
@@ -247,36 +241,26 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
                 if fillVar[v][chn]>binedges[v][chn][-1]:
                     fillVar[v][chn]=binedges[v][chn][-1] # include overflow
 
-        passMET = lf.getLeaf('isMETtrigger')
-        passLEP = lf.getLeaf('isLeptrigger')
-        passTAU = lf.getLeaf('isSingleTautrigger')
-        passTAUMET = lf.getLeaf('isTauMETtrigger')
-
         trigBit = lf.getLeaf('pass_triggerbit')
+        
+        #passMET = lf.getLeaf('isMETtrigger')
+        passLEP = lf.getLeaf('isLeptrigger')
+        #passTAU = lf.getLeaf('isSingleTautrigger')
+        #passTAUMET = lf.getLeaf('isTauMETtrigger')
+        passMu = passLEP and isIsoMuon(trigBit, isData)
 
-        passTriggerBits, passRequirements = ({} for _ in range(2))
+        passTriggerBits, passCuts = ({} for _ in range(2))
         for trig in triggers:
-            passRequirements[trig] = {}
+            passCuts[trig] = {}
             for var in variables:
-                passRequirements[trig][var] = {}
-                if trig == 'nonStandard':
-                    raise NotImplementedError
-                    # if trig not in passTriggerBits:
-                    #     passTriggerBits[trig] = functools.reduce(
-                    #         lambda x,y: x or y, #logic OR to join all triggers in this option
-                    #         [ checkBit(trigBit, getTriggerBit(x, isData)) for x in getTriggerBit(trig, isData) ]
-                    #     )
-                    # #AT SOME POINT I SHOULD ADD THE CUTS LIKE IN THE 'ELSE' CLAUSE
-                    # passRequirements[trig][var] = passTriggerBits[trig]
-                else:
-                    if trig not in passTriggerBits:
-                        passTriggerBits[trig] = checkBit(trigBit, getTriggerBit(trig, isData))
+                passTriggerBits.setdefault(trig, checkBit(trigBit, getTriggerBit(trig, isData)))
 
-                    pCuts = passesCuts(trig, [var], lf, args.debug)
-                    for pckey,pcval in pCuts.items():
-                        passRequirements[trig][var][pckey] = ( passTriggerBits[trig] and pcval )
+                passCuts[trig][var] = passesCuts(trig, [var], lf, args.debug)
+                print(passCuts[trig][var])
+                quit()
 
-        passMu = passLEP and (checkBit(trigBit,0) or checkBit(trigBit,1))
+                # for pckey,pcval in pCuts.items():
+                #     passRequirements[trig][var][pckey] = ( passTriggerBits[trig] and pcval )
 
         for i in channels:
             if isChannelConsistent(i, passMu, pairtype):
@@ -284,54 +268,64 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
                 # fill histograms for 1D efficiencies
                 for j in variables:
                     binning = (nbins[j][i], binedges[j][i])
-                    
-                    if passLEP:
-                        hRef[i][j].Fill(fillVar[j][i], evtW)
-                        for k in triggers:
-                            for kreq,vreq in passRequirements[k][j].items():
-                                if kreq not in hTrig[i][j][k]:
-                                    htrig_name = 'Trig_{}_{}_{}_CUTS_{}'.format(i,j,k,kreq)
-                                    hTrig[i][j][k][kreq] = ROOT.TH1D(htrig_name, '', *binning)
 
-                                if vreq:
-                                    hTrig[i][j][k][kreq].Fill(fillVar[j][i], evtW)
-                    else:
-                        for k in triggers:
-                            for kreq,vreq in passRequirements[k][j].items():
-                                if kreq not in hNoRef[i][j][k]:
-                                    hnoref_name = 'NoRef_{}_{}_{}_CUTS_{}'.format(i,j,k,kreq)
-                                    hNoRef[i][j][k][kreq] = ROOT.TH1D(hnoref_name, '', *binning)
+                    hRef[i][j].Fill(fillVar[j][i], evtW)
 
-                                if vreq:
-                                    hNoRef[i][j][k][kreq].Fill(fillVar[j][i], evtW)
+                    for tcomb in triggercomb:
+
+                        #logic AND to intersect all triggers in this combination
+                        passTriggerBitsIntersection = functools.reduce(
+                            lambda x,y: x and y,
+                            [ passTriggerBits[x] for x in tcomb ]
+                        )
+
+                        #logic AND to intersect all cuts for this trigger combination
+                        passCutsIntersection = functools.reduce(
+                            lambda x,y: x and y,
+                            [ passCuts[x][j] for k in atrig for atrig in tcomb ]
+                        )
+
+                        
+                        if passAllTriggerBits:
+                            pass
+                            #for pckey,pcval in passCuts[].items():
+
+                                
+                        for kreq,vreq in passRequirements[k][j].items():
+                            if kreq not in hTrig[i][j][k]:
+                                htrig_name = 'Trig_{}_{}_{}_CUTS_{}'.format(i,j,k,kreq)
+                                hTrig[i][j][k][kreq] = ROOT.TH1D(htrig_name, '', *binning)
+
+                            if vreq:
+                                hTrig[i][j][k][kreq].Fill(fillVar[j][i], evtW)
 
                 # fill 2D efficiencies (currently only reference vs trigger, i.e.,
                 # all events pass the reference cut)
-                for k in triggers:
-                    if k in _2Dpairs.keys():
-                        for j in _2Dpairs[k]:
-                            vname = addVarNames(j[0],j[1])
+                # for k in triggers:
+                #     if k in _2Dpairs.keys():
+                #         for j in _2Dpairs[k]:
+                #             vname = addVarNames(j[0],j[1])
 
-                            if passLEP:
-                                pCuts = passesCuts(k, [j[0], j[1]], lf, args.debug)
-                                for pckey,pcval in pCuts.items():
-                                    if pckey not in effRefVsTrig[i][vname][k]:
-                                        effRefVsTrig_name = 'effRefVsTrig_{}_{}_{}'.format(i,k,vname)
-                                        effRefVsTrig_name += '_CUTS_' + pckey
-                                        effRefVsTrig[i][vname][k][pckey] = ROOT.TEfficiency( effRefVsTrig_name,
-                                                                                             '',
-                                                                                             nbins[j[0]][i],
-                                                                                             binedges[j[0]][i],
-                                                                                             nbins[j[1]][i],
-                                                                                             binedges[j[1]][i] )
-                                        effRefVsTrig[i][vname][k][pckey].SetConfidenceLevel(0.683)
-                                        #Clopper-Pearson (default)
-                                        effRefVsTrig[i][vname][k][pckey].SetStatisticOption(0)
+                #             if passLEP:
+                #                 pCuts = passesCuts(k, [j[0], j[1]], lf, args.debug)
+                #                 for pckey,pcval in pCuts.items():
+                #                     if pckey not in effRefVsTrig[i][vname][k]:
+                #                         effRefVsTrig_name = 'effRefVsTrig_{}_{}_{}'.format(i,k,vname)
+                #                         effRefVsTrig_name += '_CUTS_' + pckey
+                #                         effRefVsTrig[i][vname][k][pckey] = ROOT.TEfficiency( effRefVsTrig_name,
+                #                                                                              '',
+                #                                                                              nbins[j[0]][i],
+                #                                                                              binedges[j[0]][i],
+                #                                                                              nbins[j[1]][i],
+                #                                                                              binedges[j[1]][i] )
+                #                         effRefVsTrig[i][vname][k][pckey].SetConfidenceLevel(0.683)
+                #                         #Clopper-Pearson (default)
+                #                         effRefVsTrig[i][vname][k][pckey].SetStatisticOption(0)
                     
-                                    trigger_flag = ( passTriggerBits[k] and pcval )
-                                    effRefVsTrig[i][vname][k][pckey].Fill( trigger_flag,
-                                                                           fillVar[j[0]][i],
-                                                                           fillVar[j[1]][i] )
+                #                     trigger_flag = ( passTriggerBits[k] and pcval )
+                #                     effRefVsTrig[i][vname][k][pckey].Fill( trigger_flag,
+                #                                                            fillVar[j[0]][i],
+                #                                                            fillVar[j[1]][i] )
                                 
     file_id = ''.join( c for c in fileName[-10:] if c.isdigit() ) 
     outName = os.path.join(outdir, tprefix + sample + '_' + file_id + subtag + '.root')
