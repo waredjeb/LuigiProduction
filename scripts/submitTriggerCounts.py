@@ -55,7 +55,7 @@ def submitTriggerCounts(args):
         #### Check input folder
         inputfiles = [ os.path.join(idir, thisProc + '/goodfiles.txt') for idir in args.indir ]
         fexists = [ os.path.exists( inpf ) for inpf in inputfiles ]
-        print(inputfiles)
+
         if sum(fexists) != 1: #check one and only one is True
             raise ValueError('The process {} could be found.'.format(thisProc))
         inputdir = args.indir[ fexists.index(True) ] #this is the only correct input directory
@@ -76,14 +76,14 @@ def submitTriggerCounts(args):
 
         command =  ( ( '{prog} --indir {indir} --outdir {outdir} --sample {sample} --isData {isData} '
                        '--file ${{1}} --subtag {subtag} --channels {channels} '
-                       '--triggers {triggers} --tprefix {tprefix} '
+                       '--triggers {triggers} --tprefix counts_ '
                        '\n' )
                      .format( prog=prog, indir=inputdir, outdir=args.outdir,
                               sample=thisProc, isData=int(thisProc in args.data),
                               subtag=args.subtag,
                               channels=' '.join(args.channels,),
                               triggers=' '.join(args.triggers,),
-                              tprefix=args.targetsPrefix)
+                             )
                     )
 
         os.system('mkdir -p {}'.format(jobDir))
@@ -114,7 +114,7 @@ def submitTriggerCounts(args):
             s.write('Executable = {}\n'.format(jobFile))
             s.write('Arguments = $(filename) \n'.format(jobFile))
             s.write('input = /dev/null\n')
-            _outfile = ( '{d}/{t}/{o}/{p}/Cluster$(Cluster)_Process$(Process)'
+            _outfile = ( '{d}/{t}/{o}/{p}/Cluster$(Cluster)_Process$(Process)_Counts'
                          .format(d=jobsDir, t=args.tag, o=outCheckDir, p=thisProc) )
             s.write('output = {}.o\n'.format(_outfile))
             s.write('error  = {}.e\n'.format(_outfile))

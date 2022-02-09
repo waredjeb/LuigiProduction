@@ -10,20 +10,22 @@ from utils import utils
 
 from matplotlib import pyplot as plt, cm, colors
 from matplotlib.font_manager import FontProperties
-plt.rcParams.update({'font.size': 29})
+plt.rcParams.update({'font.size': 32})
 
 @utils.set_pure_input_namespace
 def addTriggerCounts_outputs(args):
+    extensions = ('.png', '.txt')
     Path(args.outdir).mkdir(parents=False, exist_ok=True)
-    t = []
+    t = tuple([] for _ in range(len(extensions)))
     for chn in args.channels:
-        t.append( os.path.join( args.outdir, args.dataset_name + '_' + chn + '_triggerCounts.png' ) )
+        for i,ext in enumerate(extensions):
+            t[i].append( os.path.join( args.outdir, args.dataset_name + '_' + chn + '_triggerCounts.' + ext ) )
     return t
 
 @utils.set_pure_input_namespace
 def addTriggerCounts(args):
     """Adds ROOT histograms"""
-    regex = re.compile( 'counts_.+_[0-9]{1,5}' + args.subtag + '.txt' )
+    regex = re.compile( 'hist_.+_[0-9]{1,5}' + args.subtag + '.txt' )
 
     inputs_join = []
     for smpl in args.samples:
@@ -32,6 +34,9 @@ def addTriggerCounts(args):
                 if regex.match( os.path.basename(afile) ):
                     inputs_join.append( os.path.join(root, afile) )
 
+    if len(inputs_join)==0:
+        raise ValueError('The regular expression likely did now work as expected.')
+        
     counter, counterRef = ({} for _ in range(2))
     for afile in inputs_join:
         with open(afile, 'r') as f:
@@ -46,7 +51,7 @@ def addTriggerCounts(args):
                 else:
                     counterRef[chn] += int(count)
 
-    outputs = addTriggerCounts_outputs(args)
+    outputs_png, outputs_txt = addTriggerCounts_outputs(args)
 
     for ic,k1 in enumerate(counter):
         triggers = np.array([x+' \n('+str(y)+')' for x,y in counter[k1].items()])
@@ -61,7 +66,7 @@ def addTriggerCounts(args):
         vals = vals[~zeromask]
         triggers = triggers[~zeromask]
 
-        ncols = 3
+        ncols = 4
         remainder = vals.shape[0] % ncols
         nrows = int(vals.shape[0] / ncols) + bool(remainder)
 
@@ -69,8 +74,11 @@ def addTriggerCounts(args):
         triggers = list(np.pad(triggers, (0,nrows*ncols-triggers.shape[0])))
         vals = list(np.pad(vals, (0,nrows*ncols-vals.shape[0])))
 
-        # for i,j in zip(vals,triggers):
-        #     print(i, j)
+        with open( outputs_txt[ic], 'w') as ftxt:
+            for i,j in zip(vals,triggers):
+                if i != 0: #do not print the padding
+                    #remove the extra info after the line break
+                    ftxt.write(str(i) + '\t' +  str(j).split('\n')[0] + '\n')
 
         triggers = np.reshape(triggers, (nrows,ncols))
         vals = np.reshape(vals, (nrows,ncols)) + 0.001
@@ -99,7 +107,7 @@ def addTriggerCounts(args):
                      ' (' + k1 + ': ' + str(counterRef[k1]) + ' events)' ),
                    fontdict={'fontsize': 70, 'fontweight': 30}
                    )
-        plt.savefig( outputs[ic] )
+        plt.savefig( outputs_png[ic] )
     
 # Run with:
 # python3 /home/llr/cms/alves/CMSSW_12_2_0_pre1/src/METTriggerStudies/scripts/addTriggerCounts.py --indir /data_CMS/cms/alves/TriggerScaleFactors/CountsTest/ --outdir /data_CMS/cms/alves/TriggerScaleFactors/CountTest/ --samples SKIM_MET2018 --channels etau mutau tautau --subtag _default --tprefix count_ --triggers IsoMuIsoTau EleIsoTau VBFTau VBFTauHPS METNoMu120 IsoTau50 IsoTau180 --debug

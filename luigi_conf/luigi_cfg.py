@@ -67,7 +67,8 @@ parser.add_argument(
     '--triggers',
     nargs='+', #1 or more arguments
     type=str,
-    required=True,
+    required=False,
+    default=list(_triggers_map.keys()),
     choices=_triggers_map.keys(),
     help='Select the processes over which the workflow will be run.'
 )
@@ -184,7 +185,7 @@ class cfg(luigi.Config):
                   'debug': FLAGS.debug_workflow} )
 
     ####
-    #### submitTriggerEff
+    #### submitTriggerEff, submitTriggerCounts
     ####
     _rawname = set_task_name('submit')
     submit_params = luigi.DictParameter(

@@ -35,7 +35,7 @@ from utils.utils import (
 from luigi_conf import _cuts, _cuts_ignored, _2Dpairs, _sel
 
 hRefName = lambda a,b : 'Ref_{}_{}'.format(a,b)
-hTrigName = lambda a,b,c,d : 'Trig_{}_{}_{}_CUTS_{}'.format(a,b,joinNTC(c),d)
+hTrigName = lambda a,b,c,d : 'Trig_{}_{}_{}_CUTS_{}'.format(a,b,c,d)
 
 def isChannelConsistent(chn, passMu, pairtype):
     return ( ( chn=='all'    and pairtype<_sel['all']['pairType'][1]  ) or
@@ -169,8 +169,8 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
             binning = (nbins[j][i], binedges[j][i])
             hTrig[i][j]={}
             hRef[i][j] = ROOT.TH1D( hRefName(i, j), '', *binning)
-            for k in triggercomb:
-                hTrig[i][j][joinNTC(k)]={}
+            for tcomb in triggercomb:
+                hTrig[i][j][joinNTC(tcomb)]={}
 
     # Define 2D efficiencies:
     #  effRefVsTrig: efficiency for passing the reference trigger
@@ -287,30 +287,34 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
                         # Logic AND to intersect all cuts for this trigger combination
                         # Each element will contain one possible cut combination
                         # for the trigger combination 'tcomb' being considered
-                        print(tcomb)
                         #cutsCombinations = list(it.product( *(passCuts[k][j] for atrig in tcomb for k in atrig) ))
-                        cutsCombinations = list(it.product( *(passCuts[atrig][j] for atrig in tcomb) ))
-                        print(cutsCombinations)
+                        cutsCombinations = list(it.product( *(passCuts[atrig][j].items() for atrig in tcomb) ))
+                        if args.debug:
+                            print(tcomb, j)
+                            print(cutsCombinations)
 
                         # One dict item per cut combination
                         # - key: all cut strings joined
                         # - value: logical and of all cuts
-                        passCutsIntersection = { '_\u2229_'.join(e[0] for e in elem): 
+                        passCutsIntersection = { '_PLUS_'.join(e[0] for e in elem): 
                                                  functools.reduce(                 
                                                      lambda x,y: x and y,
                                                      [ e[1] for e in elem ]
                                                  )
                                                  for elem in cutsCombinations
                                                 }
-                        print(passCutsIntersection)
-                        quit()
+                        if args.debug:
+                            print(passCutsIntersection)
+                            print()
 
-                        if passAllTriggerBits:
+                        if passTriggerBitsIntersection:
 
                             for pckey,pcval in passCutsIntersection.items():
-                                htrig_name = hTrigName(i,j,joinNTC(tcomb),kreq)
-                                hTrig[i][j][k].setdefault(pckey,
-                                                          ROOT.TH1D(htrig_name, '', *binning))
+                                htrig_name = hTrigName(i,j,joinNTC(tcomb),pckey)
+
+                                if pckey not in hTrig[i][j][joinNTC(tcomb)]:
+                                    hTrig[i][j][joinNTC(tcomb)][pckey] = ROOT.TH1D(htrig_name, '', *binning)
+                                #hTrig[i][j][joinNTC(tcomb)].setdefault(pckey, ROOT.TH1D(htrig_name, '', *binning))
                                 if pcval:
                                     hTrig[i][j][joinNTC(tcomb)][pckey].Fill(fillVar[j][i], evtW)
 

@@ -118,6 +118,47 @@ class SubmitTriggerEff(ForceableEnsureRecentTarget):
 
 
 ########################################################################
+### SUBMIT TRIGGER COUNTS USING HTCONDOR ###############################
+########################################################################
+class SubmitTriggerCounts(ForceableEnsureRecentTarget):
+    args = utils.dotDict(lcfg.submit_params)
+    args.update( {'targetsPrefix': lcfg.targets_prefix,
+                  'tag': lcfg.tag,
+                  } )
+    
+    target_path = get_target_path( args.taskname )
+    
+    @WorkflowDebugger(flag=FLAGS.debug_workflow)
+    def output(self):
+        targets = []
+        targets_list = submitTriggerCounts_outputs( self.args )
+
+        #define luigi targets
+        for t in targets_list:
+            targets.append( luigi.LocalTarget(t) )
+
+        #write the target files for debugging
+        utils.remove( self.target_path )
+        with open( self.target_path, 'w' ) as f:
+            for t in targets_list:
+                f.write( t + '\n' )
+
+        return targets
+
+    @WorkflowDebugger(flag=FLAGS.debug_workflow)
+    def run(self):
+        submitTriggerCounts( self.args )
+
+        time.sleep(1.0)
+        os.system('condor_q')
+
+    @WorkflowDebugger(flag=FLAGS.debug_workflow)
+    def requires(self):
+        force_flag = set_force_boolean(self.args.hierarchy)
+        return DefineBinning(force=force_flag)
+
+
+########################################################################
 ### HADD TRIGGER EFFICIENCIES ##########################################
 ########################################################################
 class HaddTriggerEff(ForceableEnsureRecentTarget):
@@ -342,17 +383,19 @@ class DrawTriggerCounts(ForceableEnsureRecentTarget):
         self.args['samples'] = luigi_to_raw( self.samples )
         self.args['dataset_name'] = self.dataset_name
         targets = []
-        targets_list = addTriggerCounts_outputs( self.args )
+        targets_png, targets_txt = addTriggerCounts_outputs( self.args )
 
         #define luigi targets
-        for t in targets_list:
-            targets.append( luigi.LocalTarget(t) )
+        for tpng,ttxt in zip(targets_png,targets_txt):
+            targets.append( luigi.LocalTarget(tpng) )
+            targets.append( luigi.LocalTarget(ttxt) )
 
         #write the target files for debugging
         utils.remove( self.target_path )
         with open( self.target_path, 'w' ) as f:
-            for t in targets_list:
-                f.write( t )
+            for tpng,ttxt in zip(targets_png,targets_txt):
+                f.write( tpng )
+                f.write( ttxt )
 
         return targets
 
@@ -388,11 +431,11 @@ if __name__ == "__main__":
     
     #8 categories => at most 8 workers required
     if FLAGS.submit:
-        last_task = [ SubmitTriggerCounts(force=FLAGS.force>0),
-                      SubmitTriggerEff(force=FLAGS.force>0),
+        last_tasks = [ SubmitTriggerCounts(force=FLAGS.force>0),
+                       SubmitTriggerEff(force=FLAGS.force>0),
                       ]
         if FLAGS.counts: #overwrites
-            last_task = [ SubmitTriggerCounts(force=FLAGS.force>0), ]
+            last_tasks = [ SubmitTriggerCounts(force=FLAGS.force>0), ]
 
     else:
         count_tasks = [ DrawTriggerCounts(force=FLAGS.force>0,
@@ -416,10 +459,10 @@ if __name__ == "__main__":
             last_tasks = count_tasks
             
     if FLAGS.scheduler == 'central':
-        luigi.build([last_task] if FLAGS.submit else last_tasks,
+        luigi.build(last_tasks,
                     workers=FLAGS.workers, local_scheduler=False, log_level='INFO')
     if FLAGS.scheduler == 'local':
-        luigi.build([last_task] if FLAGS.submit else last_tasks,
+        luigi.build(last_tasks,
                     local_scheduler=True, log_level='INFO')
 
 else:

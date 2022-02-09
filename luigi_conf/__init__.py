@@ -33,20 +33,19 @@ _variables_join = set(_variables_eff + _variables_dist)
 _trigger_linear = lambda x : {'mc': x, 'data': x}
 _trigger_shift  = lambda x : {'mc': x, 'data': x+5}
 _triggers_map = {#'nonStandard': _trigger_custom('nonStandard'),
-                 #others: 0-3 map directly, 4 maps to 7
-    'IsoMu24':      _trigger_linear(0),
-    'IsoMu27':      _trigger_linear(1),
-    'Ele32':        _trigger_linear(2),
-    'Ele35':        _trigger_linear(3),
+    'IsoMu24':     _trigger_linear(0),
+    'IsoMu27':     _trigger_linear(1),
+    'Ele32':       _trigger_linear(2),
+    'Ele35':       _trigger_linear(3),
     'IsoTau':      {'mc': 4, 'data': 7},
     'IsoMuIsoTau': {'mc': 5, 'data': 8},
     'EleIsoTau':   {'mc': 6, 'data': 10},
-    'VBFTau':     _trigger_shift(7),
-    'VBFTauHPS':  _trigger_shift(8),
-    'METNoMu120': _trigger_shift(9),
-    'IsoTau50':   _trigger_shift(10),
-    'IsoTau180':  _trigger_shift(11),
-}
+    'VBFTau':      _trigger_shift(7),
+    'VBFTauHPS':   _trigger_shift(8),
+    'METNoMu120':  _trigger_shift(9),
+    'IsoTau50':    _trigger_shift(10),
+    'IsoTau180':   _trigger_shift(11),
+}                   
 
 #######################################################################################################
 ########### CUTS ######################################################################################

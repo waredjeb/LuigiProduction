@@ -117,7 +117,7 @@ def submitTriggerEff(args):
             s.write('Executable = {}\n'.format(jobFile))
             s.write('Arguments = $(filename) \n'.format(jobFile))
             s.write('input = /dev/null\n')
-            _outfile = ( '{d}/{t}/{o}/{p}/Cluster$(Cluster)_Process$(Process)'
+            _outfile = ( '{d}/{t}/{o}/{p}/Cluster$(Cluster)_Process$(Process)_Eff'
                          .format(d=jobsDir, t=args.tag, o=outCheckDir, p=thisProc) )
             s.write('output = {}.o\n'.format(_outfile))
             s.write('error  = {}.e\n'.format(_outfile))

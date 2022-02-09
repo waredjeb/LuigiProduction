@@ -89,7 +89,7 @@ def isIsoMuon(trigBit, isData):
   return  cond1 or cond2
   
 def joinNameTriggerIntersection(tuple_element):
-    inters = '_\u2229_'
+    inters = '_PLUS_'
     return inters.join(tuple_element)
 
 class LeafManager():
