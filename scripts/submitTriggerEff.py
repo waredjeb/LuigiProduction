@@ -18,25 +18,32 @@ import sys
 sys.path.append("..")
 
 import os
+import re
 import argparse
 import ROOT
 
 from utils import utils
 
 @utils.setPureInputNamespace
-def submitTriggerEff_outputs(args):
+def submitTrigger_outputs(args, param='root'):
     """
-    Considers the first file only per process.
-    I could use 'goodfiles.txt' to know exactly which files are expected (using glob), \
-    but would turn into a nightmare as soon as some HTCondor jobs failed.
+    Produces all outputs of the submitTriggerEff task.
+    Limitation: As soon as one file is not produced, luigi
+    reruns everything.
     """
-    extension = '.root'
+    assert(param in ('root', 'txt'))
+    extension = '.' + param
     t = []
+    exp = re.compile('.+output(_[0-9]{1,5}).root')
     _all_processes = args.data + args.mc_processes
     for thisProc in _all_processes:
+        inputs = utils.getROOTInputFiles(thisProc, args)
+
         folder = os.path.join( args.outdir, thisProc )
-        basename = args.targetsPrefix + thisProc + '_0' + args.subtag + extension
-        t.append( os.path.join(folder, basename) )
+        for inp in inputs:
+            number = exp.search(inp)
+            basename = args.targetsPrefix + thisProc + number.group(1) + args.subtag + extension
+            t.append( os.path.join(folder, basename) )
 
     return t
         
@@ -52,23 +59,8 @@ def submitTriggerEff(args):
 
     _all_processes = args.data + args.mc_processes
     for thisProc in _all_processes:
-
-        #### Check input folder
-        inputfiles = [ os.path.join(idir, thisProc + '/goodfiles.txt') for idir in args.indir ]
-        fexists = [ os.path.exists( inpf ) for inpf in inputfiles ]
-        if sum(fexists) != 1: #check one and only one is True
-            raise ValueError('The process {} could be found.'.format(thisProc))
-        inputdir = args.indir[ fexists.index(True) ] #this is the only correct input directory
-
-        inputfiles = os.path.join(inputdir, thisProc + '/goodfiles.txt')
-
-        #### Parse input list
-        filelist=[]
-        with open(inputfiles) as fIn:
-            for line in fIn:
-                if '.root' in line:
-                    filelist.append(line)
-
+        filelist = utils.getROOTInputFiles(thisProc, args)
+        
         #### Write shell executable (python scripts must be wrapped in shell files to run on HTCondor)
         outSubmDir = 'submission'
         jobDir = os.path.join(jobsDir, args.tag, outSubmDir)

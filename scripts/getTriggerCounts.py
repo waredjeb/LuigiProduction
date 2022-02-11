@@ -27,10 +27,17 @@ from utils.utils import (
     getTriggerBit,
     isChannelConsistent,
     joinNameTriggerIntersection as joinNTC,
-    LeafManager
+    LeafManager,
+    setCustomTriggerBit,
 )
 
-from luigi_conf import _cuts, _cuts_ignored, _2Dpairs, _sel
+from luigi_conf import (
+    _cuts,
+    _cuts_ignored,
+    _2Dpairs,
+    _sel,
+    _triggers_custom
+)
 
 def checkBit(number, bitpos):
     bitdigit = 1
@@ -105,7 +112,7 @@ def getTriggerCounts(indir, outdir, sample, fileName,
                     passAllTriggerBits = functools.reduce(
                         lambda x,y: x and y, #logic AND to join all triggers in this option
                         [ ( checkBit(trigBit, getTriggerBit(x, isData))
-                            if x != 'VBFTauCustom' else setVBFCustomTriggerBit(trigBit, run, x, isData) )
+                            if x not in _triggers_custom else setCustomTriggerBit(x, trigBit, run, isData) )
                           for x in tcomb ]
                     )
 

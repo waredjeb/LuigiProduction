@@ -41,6 +41,7 @@ from luigi_conf import (
     _2Dpairs,
     _cuts,
     _cuts_ignored,
+    _triggers_custom,
 )
 
 def passesCuts(trig, variables, leavesmanager, debug):
@@ -251,8 +252,8 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
         passTriggerBits, passCuts = ({} for _ in range(2))
         for trig in triggers:
             
-            if trig == 'VBFTauCustom':
-                passTriggerBits[trig] = setVBFCustomTriggerBit(trigBit, run, trig, isData)
+            if trig in _triggers_custom:
+                passTriggerBits[trig] = setCustomTriggerBit(trig, trigBit, run, isData)
             else:
                 passTriggerBits[trig] = checkBit(trigBit, getTriggerBit(trig, isData))
                 

@@ -21,23 +21,6 @@ import argparse
 import ROOT
 
 from utils import utils
-
-@utils.setPureInputNamespace
-def submitTriggerCounts_outputs(args):
-    """
-    Considers the first file only per process.
-    I could use 'goodfiles.txt' to know exactly which files are expected (using glob), \
-    but would turn into a nightmare as soon as some HTCondor jobs failed.
-    """
-    extension = '.txt'
-    t = []
-    _all_processes = args.data + args.mc_processes
-    for thisProc in _all_processes:
-        folder = os.path.join( args.outdir, thisProc )
-        basename = args.targetsPrefix + thisProc + '_0' + args.subtag + extension
-        t.append( os.path.join(folder, basename) )
-
-    return t
         
 @utils.setPureInputNamespace
 def submitTriggerCounts(args):

@@ -6,15 +6,21 @@ import inspect
 from utils import utils
 
 from luigi_conf.luigi_utils import WorkflowDebugger
-from luigi_conf.luigi_utils import is_force_mistake, ForceableEnsureRecentTarget
+from luigi_conf.luigi_utils import (
+    ForceableEnsureRecentTarget,
+    is_force_mistake,
+    )
 from luigi_conf.luigi_cfg import cfg, FLAGS
 
+from luigi_conf import (
+    _placeholder_cuts,
+    )
 lcfg = cfg() #luigi configuration
 
 # includes of individual tasks
 from scripts.defineBinning import defineBinning, defineBinning_outputs
-from scripts.submitTriggerEff import submitTriggerEff, submitTriggerEff_outputs
-from scripts.submitTriggerCounts import submitTriggerCounts, submitTriggerCounts_outputs
+from scripts.submitTriggerEff import submitTriggerEff, submitTrigger_outputs
+from scripts.submitTriggerCounts import submitTriggerCounts
 from scripts.haddTriggerEff import haddTriggerEff, haddTriggerEff_outputs
 from scripts.addTriggerCounts import addTriggerCounts, addTriggerCounts_outputs
 from scripts.drawTriggerSF import drawTriggerSF, drawTriggerSF_outputs
@@ -90,7 +96,7 @@ class SubmitTriggerEff(ForceableEnsureRecentTarget):
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def output(self):
         targets = []
-        targets_list = submitTriggerEff_outputs( self.args )
+        targets_list = submitTrigger_outputs( self.args, param='root' )
 
         #define luigi targets
         for t in targets_list:
@@ -131,7 +137,7 @@ class SubmitTriggerCounts(ForceableEnsureRecentTarget):
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def output(self):
         targets = []
-        targets_list = submitTriggerCounts_outputs( self.args )
+        targets_list = submitTrigger_outputs( self.args, param='txt' )
 
         #define luigi targets
         for t in targets_list:
@@ -257,7 +263,7 @@ class Draw1DTriggerScaleFactors(ForceableEnsureRecentTarget):
         
         #define luigi targets
         for t in targets_list:
-            newt = t.replace('_XXX','')
+            newt = t.replace(_placeholder_cuts,'')
             targets.append( luigi.LocalTarget(newt) )
 
         #write the target files for debugging

@@ -35,20 +35,28 @@ _variables_join = set(_variables_eff + _variables_dist)
 #######################################################################################################
 _trigger_linear = lambda x : {'mc': x, 'data': x}
 _trigger_shift  = lambda x : {'mc': x, 'data': x+5}
+# https://twiki.cern.ch/twiki/bin/viewauth/CMS/TauTrigger
 _triggers_map = {
     'IsoMu24':     _trigger_linear(0),
     'IsoMu27':     _trigger_linear(1),
     'Ele32':       _trigger_linear(2),
     'Ele35':       _trigger_linear(3),
-    'IsoTau':      {'mc': 4, 'data': 7},
-    'IsoMuIsoTau': {'mc': 5, 'data': 8},
-    'EleIsoTau':   {'mc': 6, 'data': 10},
-    'VBFTauCustom':  {'VBFTau': _trigger_shift(7), 'VBFTauHPS': _trigger_shift(8)},
+    'IsoTauCustom': {'IsoTau':    {'mc': 4, 'data': (4,5,6)},
+                     'IsoTauHPS': {'mc': 4, 'data': 7}},
+    'IsoMuIsoTauCustom': { 'IsoMuIsoTau':    {'mc': 5, 'data': 9},
+                           'IsoMuIsoTauHPS': {'mc': 5, 'data': 8} },
+    'EleIsoTauCustom': {'EleIsoTau': {'mc': 6, 'data': 11},
+                        'EleIsoTauHPS': {'mc': 6, 'data': 10}},
+    'VBFTauCustom':  {'VBFTau':    {'mc': 8, 'data': 12},
+                      'VBFTauHPS': _trigger_shift(8)},
     'METNoMu120':  _trigger_shift(9),
     'IsoTau50':    _trigger_shift(10),
     'IsoTau180':   _trigger_shift(11),
 }
- 
+_triggers_custom = { 'VBFTauCustom', 'IsoTauCustom',
+                     'IsoMuIsoTauCustom', 'EleIsoTauCustom' }
+assert(_triggers_custom.issubset(set(_triggers_map.keys())))
+
 #######################################################################################################
 ########### CUTS ######################################################################################
 #######################################################################################################

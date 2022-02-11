@@ -88,6 +88,25 @@ def getHistoNames(opt):
     currentFunction = inspect.getframeinfo(frame).function
     raise ValueError('[{}] option not supported.'.format(currentFunction))
 
+def getROOTInputFiles(proc, args):
+    #### Check input folder
+    inputfiles = [ os.path.join(idir, proc + '/goodfiles.txt') for idir in args.indir ]
+    fexists = [ os.path.exists( inpf ) for inpf in inputfiles ]
+    if sum(fexists) != 1: #check one and only one is True
+        raise ValueError('The process {} could be found.'.format(proc))
+    inputdir = args.indir[ fexists.index(True) ] #this is the only correct input directory
+
+    inputfiles = os.path.join(inputdir, proc + '/goodfiles.txt')
+
+    #### Parse input list
+    filelist=[]
+    with open(inputfiles) as fIn:
+        for line in fIn:
+            if '.root' in line:
+                filelist.append(line)
+
+    return filelist
+
 def getROOTObject(name, afile):
   _keys = afile.GetListOfKeys()
   if name not in _keys:
@@ -187,25 +206,51 @@ def setPureInputNamespace(func):
   """
   Decorator which forces the input namespace to be a "bare" one.
   Used when luigi calls a function with a luigi.DictParameter().
-  It can however be made more ganeral.
+  'param' can be used to pass additional arguments to the function being decorated.
   """
-  def wrapper(args):
+  def wrapper(args, param=None):
     if not isinstance(args, (argparse.Namespace, SimpleNamespace)):
       args = SimpleNamespace(**args)
-    return func(args)
+    if param:
+      return func(args, param)
+    else:
+      return func(args)
 
   return wrapper
 
-def setVBFCustomTriggerBit(trigBit, run, trigger, isData):
+def setCustomTriggerBit(trigger, trigBit, run, isData):
   """
   The VBF trigger was updated during data taking, adding HPS
   https://twiki.cern.ch/twiki/bin/viewauth/CMS/TauTrigger
   """
+  if trigger not in _triggers_custom:
+    import inspect
+    currentFunction = inspect.getframeinfo(frame).function
+    raise ValueError('[{}] option not supported.'.format(currentFunction))
+
   if run < 317509 and isData:
-    bits = checkBit(trigBit, _triggers_map[trigger]['VBFTau']['data'])
+    if trigger == 'VBFTauCustom':
+      bits = checkBit(trigBit, _triggers_map[trigger]['VBFTau']['data'])
+    elif trigger == 'IsoTauCustom':
+      bits = ( checkBit(trigBit, _triggers_map[trigger]['IsoTau']['data'][0]) or
+               checkBit(trigBit, _triggers_map[trigger]['IsoTau']['data'][1]) or
+               checkBit(trigBit, _triggers_map[trigger]['IsoTau']['data'][2]) )
+    elif trigger == 'IsoMuIsoTauCustom':
+      bits = checkBit(trigBit, _triggers_map[trigger]['IsoMuIsoTau']['data'])
+    elif trigger == 'EleIsoTauCustom':
+      bits = checkBit(trigBit, _triggers_map[trigger]['EleIsoTau']['data'])
+
   else:
     s = 'data' if isData else 'mc'
-    bits = checkBit(trigBit, _triggers_map[trigger]['VBFTauHPS'][s]) #VBF_HPS
+    if trigger == 'VBFTauCustom':
+      bits = checkBit(trigBit, _triggers_map[trigger]['VBFTauHPS'][s])
+    elif trigger == 'IsoTauCustom':
+      bits = checkBit(trigBit, _triggers_map[trigger]['IsoTauHPS'][s])
+    elif trigger == 'IsoMuIsoTauCustom':
+      bits = checkBit(trigBit, _triggers_map[trigger]['IsoMuIsoTauHPS'][s])
+    elif trigger == 'EleIsoTauCustom':
+      bits = checkBit(trigBit, _triggers_map[trigger]['EleIsoTauHPS'][s])
+
   return bits
 
 def slashToUnderscoreAndKeep(s, n=4):

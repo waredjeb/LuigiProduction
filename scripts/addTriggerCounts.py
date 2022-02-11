@@ -35,7 +35,10 @@ def addTriggerCounts(args):
                     inputs_join.append( os.path.join(root, afile) )
 
     if len(inputs_join)==0:
-        raise ValueError('The regular expression likely did now work as expected.')
+        m =  '\nThe walk was performed in {} .\n'.format(os.path.join(args.indir, smpl))
+        m += 'The regular expression was {}.\n'.format(regex.pattern)
+        m += 'The regular expression could not retrieve any files.'
+        raise ValueError(m)
         
     counter, counterRef = ({} for _ in range(2))
     for afile in inputs_join:

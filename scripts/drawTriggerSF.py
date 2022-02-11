@@ -23,6 +23,7 @@ from utils.utils import (
   getKeyList,
   getROOTObject,
   getHistoNames,
+  joinNameTriggerIntersection as joinNTC,
   redrawBorder,
   replacePlaceholder,
   restoreBinning,
@@ -53,7 +54,7 @@ def drawEfficienciesAndScaleFactors(args, proc, channel, variable, trig, save_na
           .format(proc=proc, channel=channel, variable=variable, trig=trig))
 
   hnames = { 'ref':  getHistoNames('Ref1D')(channel, variable),
-             'trig': getHistoNames('Trig1D')(channel, variable, trig)
+             'trig': getHistoNames('Trig1D')(channel, variable, joinNTC(trig))
             }
 
   keylist_data = getKeyList(file_data, inherits=['TH1'])
@@ -84,6 +85,14 @@ def drawEfficienciesAndScaleFactors(args, proc, channel, variable, trig, save_na
     if key.startswith( hnames['trig'] ):
       histos_data['trig'][key] = getROOTObject(key, file_data)
 
+  
+  print('================================')
+  print(hnames['trig'])
+  print( replacePlaceholder('cuts', hnames['trig'], '') )
+  print(histos_mc)
+  quit()
+  emptycanvas = TCanvas( 'emptycanvas', 'emptycanvas', 600, 600 )
+  
   eff_data, eff_mc = ({} for _ in range(2))
   for khisto, vhisto in histos_data['trig'].items():
     eff_data[khisto] = TGraphAsymmErrors( vhisto, histos_data['ref'])
