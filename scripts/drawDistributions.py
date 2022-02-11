@@ -160,11 +160,11 @@ def plotDist(args, channel, variable, trig, save_names, binedges, nbins):
     c_stack.SaveAs( aname )
 
 
-@utils.set_pure_input_namespace
+@utils.setPureInputNamespace
 def drawDistributions_outputs(args):
   def _save_figures(base, figname, outputs, extensions):
     """Saves the output names, modifying the list in-place"""
-    utils.create_single_dir( base )   
+    utils.createSingleDir( base )   
     for ext,out in zip(extensions, outputs):
       dotString = '.' if '.' not in ext else ''
       out.append( os.path.join( base, figname + dotString + ext ) )
@@ -188,7 +188,7 @@ def drawDistributions_outputs(args):
   #join all outputs in the same list
   return sum(outputs, []), extensions
 
-@utils.set_pure_input_namespace
+@utils.setPureInputNamespace
 def drawDistributions(args):
   outputs, extensions = drawDistributions_outputs(args)
   

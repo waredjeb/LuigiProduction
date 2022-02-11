@@ -26,24 +26,22 @@ sys.path.append( os.path.join(os.environ['CMSSW_BASE'], 'src', 'METTriggerStudie
 
 from utils.utils import (
     checkBit,
+    generateTriggerCombinations,
+    getHistoNames,
     getTriggerBit,
+    isChannelConsistent,
     isIsoMuon,
     joinNameTriggerIntersection as joinNTC,
-    LeafManager
-    )
+    LeafManager,
+    replacePlaceholder,
+    setVBFCustomTriggerBit,
+)
 
-from luigi_conf import _cuts, _cuts_ignored, _2Dpairs, _sel
-
-hRefName = lambda a,b : 'Ref_{}_{}'.format(a,b)
-hTrigName = lambda a,b,c,d : 'Trig_{}_{}_{}_CUTS_{}'.format(a,b,c,d)
-
-def isChannelConsistent(chn, passMu, pairtype):
-    return ( ( chn=='all'    and pairtype<_sel['all']['pairType'][1]  ) or
-             ( chn=='mutau'  and pairtype==_sel['mutau']['pairType'][1] ) or
-             ( chn=='etau'   and pairtype==_sel['etau']['pairType'][1] )  or
-             ( chn=='tautau' and pairtype==_sel['tautau']['pairType'][1] ) or
-             ( chn=='mumu'   and pairtype==_sel['mumu']['pairType'][1] ) or
-             ( chn=='ee'     and pairtype==_sel['ee']['pairType'][1] ) )
+from luigi_conf import (
+    _2Dpairs,
+    _cuts,
+    _cuts_ignored,
+)
 
 def passesCuts(trig, variables, leavesmanager, debug):
     """
@@ -135,6 +133,7 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
 
     f_in = ROOT.TFile( fname )
     t_in = f_in.Get('HTauTauTree')
+
     lf = LeafManager( fname, t_in )
 
     # Recover binning
@@ -154,10 +153,8 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
                 binedges[var][chn] = np.array(subgroup[chn][:])
                 nbins[var][chn] = len(binedges[var][chn]) - 1
 
-    # set all possible trigger combinations of intersections with any number of elements
-    triggercomb = list( it.chain.from_iterable(it.combinations(triggers, x)
-                                               for x in range(1,len(triggers)+1)) )
-
+    triggercomb = generateTriggerCombinations(triggers)
+    
     # Define 1D histograms:
     #  hRef: pass the reference trigger
     #  hTrig: pass the reference trigger + trigger under study
@@ -168,7 +165,7 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
         for j in variables:
             binning = (nbins[j][i], binedges[j][i])
             hTrig[i][j]={}
-            hRef[i][j] = ROOT.TH1D( hRefName(i, j), '', *binning)
+            hRef[i][j] = ROOT.TH1D( getHistoNames('Ref1D')(i, j), '', *binning)
             for tcomb in triggercomb:
                 hTrig[i][j][joinNTC(tcomb)]={}
 
@@ -244,27 +241,27 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
                     fillVar[v][chn]=binedges[v][chn][-1] # include overflow
 
         trigBit = lf.getLeaf('pass_triggerbit')
-        
+
+        run = lf.getLeaf('RunNumber')
         #passMET = lf.getLeaf('isMETtrigger')
         passLEP = lf.getLeaf('isLeptrigger')
         #passTAU = lf.getLeaf('isSingleTautrigger')
         #passTAUMET = lf.getLeaf('isTauMETtrigger')
-        passMu = passLEP and isIsoMuon(trigBit, isData)
 
         passTriggerBits, passCuts = ({} for _ in range(2))
         for trig in triggers:
+            
+            if trig == 'VBFTauCustom':
+                passTriggerBits[trig] = setVBFCustomTriggerBit(trigBit, run, trig, isData)
+            else:
+                passTriggerBits[trig] = checkBit(trigBit, getTriggerBit(trig, isData))
+                
             passCuts[trig] = {}
             for var in variables:
-                passTriggerBits.setdefault(trig, checkBit(trigBit, getTriggerBit(trig, isData)))
-
                 passCuts[trig][var] = passesCuts(trig, [var], lf, args.debug)
-                # if var=='dau2_eta':
-                #     print(trig, var, passCuts[trig][var])
 
-                # for pckey,pcval in pCuts.items():
-                #     passRequirements[trig][var][pckey] = ( passTriggerBits[trig] and pcval )
         for i in channels:
-            if isChannelConsistent(i, passMu, pairtype):
+            if isChannelConsistent(i, pairtype):
 
                 # fill histograms for 1D efficiencies
                 for j in variables:
@@ -296,7 +293,7 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
                         # One dict item per cut combination
                         # - key: all cut strings joined
                         # - value: logical and of all cuts
-                        passCutsIntersection = { '_PLUS_'.join(e[0] for e in elem): 
+                        passCutsIntersection = { (args.intersection_str).join(e[0] for e in elem): 
                                                  functools.reduce(                 
                                                      lambda x,y: x and y,
                                                      [ e[1] for e in elem ]
@@ -310,8 +307,7 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
                         if passTriggerBitsIntersection:
 
                             for pckey,pcval in passCutsIntersection.items():
-                                htrig_name = hTrigName(i,j,joinNTC(tcomb),pckey)
-
+                                htrig_name = replacePlaceholder('cuts', getHistoNames('Trig1D')(i,j,joinNTC(tcomb)), pckey)
                                 if pckey not in hTrig[i][j][joinNTC(tcomb)]:
                                     hTrig[i][j][joinNTC(tcomb)][pckey] = ROOT.TH1D(htrig_name, '', *binning)
                                 #hTrig[i][j][joinNTC(tcomb)].setdefault(pckey, ROOT.TH1D(htrig_name, '', *binning))
@@ -355,10 +351,11 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
     # Writing histograms to the current file
     for i in channels:
         for j in variables:
-            hRef[i][j].Write( hRefName(i,j) )
+            hRef[i][j].Write( getHistoNames('Ref1D')(i,j) )
             for tcomb in triggercomb:
                 for khist,vhist in hTrig[i][j][joinNTC(tcomb)].items():
-                    vhist.Write( hTrigName(i,j,joinNTC(tcomb),khist) )
+                    writeName = replacePlaceholder('cuts', getHistoNames('Trig1D')(i,j,joinNTC(tcomb)), khist)
+                    vhist.Write( writeName )
 
     # Writing 2D efficiencies to the current file
     # for i in channels:
@@ -391,6 +388,8 @@ parser.add_argument('--triggers',    dest='triggers',    required=True, nargs='+
                     help='Select t   he triggers over w  hich the workflow will be run.' )
 parser.add_argument('--variables',   dest='variables',   required=True, nargs='+', type=str,
                     help='Select the variables over which the workflow will be run.' )
+parser.add_argument('--intersection_str', dest='intersection_str', required=False, default='_PLUS_',
+                    help='String used to represent set intersection between triggers.')
 parser.add_argument('--nocut_dummy_str', dest='nocut_dummy_str', required=True,
                     help='Dummy string associated to trigger histograms were no cuts are applied.')
 parser.add_argument('--debug', action='store_true', help='debug verbosity')

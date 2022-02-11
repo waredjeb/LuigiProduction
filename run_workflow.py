@@ -417,8 +417,8 @@ if __name__ == "__main__":
         print('Workflow interrupted.')
         exit(0)
 
-    utils.create_single_dir( lcfg.tag_folder )
-    utils.create_single_dir( lcfg.targets_folder )
+    utils.createSingleDir( lcfg.tag_folder )
+    utils.createSingleDir( lcfg.targets_folder )
 
     # for t in _tasks_tag:
     #     if t == 'preprocessing':

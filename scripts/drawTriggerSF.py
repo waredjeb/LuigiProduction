@@ -3,28 +3,38 @@ import re
 import argparse
 import ctypes
 import numpy as np
-import h5py
 from copy import copy
 
 import ROOT
 ROOT.gROOT.SetBatch(True)
 from ROOT import TCanvas
 from ROOT import TPad
-from ROOT import TStyle
 from ROOT import TFile
 from ROOT import TEfficiency
 from ROOT import TGraphAsymmErrors
 from ROOT import TH1D
 from ROOT import TH2D
 from ROOT import TLatex
-from ROOT import TLine
 from ROOT import TLegend
-from ROOT import TString
 
-from utils import utils
-from luigi_conf import _extensions
+from utils.utils import (
+  createSingleDir,
+  generateTriggerCombinations,
+  getKeyList,
+  getROOTObject,
+  getHistoNames,
+  redrawBorder,
+  replacePlaceholder,
+  restoreBinning,
+  setPureInputNamespace,
+)
 
-def checkTrigger(args, proc, channel, variable, trig, save_names, binedges, nbins):
+from luigi_conf import (
+  _extensions,
+  _placeholder_cuts,
+)
+
+def drawEfficienciesAndScaleFactors(args, proc, channel, variable, trig, save_names, binedges, nbins):
   _name = lambda a,b,c,d : a + b + c + d + '.root'
 
   name_data = os.path.join(args.indir, _name( args.targetsPrefix, args.data_name,
@@ -42,25 +52,37 @@ def checkTrigger(args, proc, channel, variable, trig, save_names, binedges, nbin
     print('[=debug=]  - Args: proc={proc}, channel={channel}, variable={variable}, trig={trig}'
           .format(proc=proc, channel=channel, variable=variable, trig=trig))
 
-  histo_names = { 'ref': 'Ref_{}_{}'.format(channel, variable),
-                  'trig': 'Trig_{}_{}_{}'.format(channel, variable, trig)
-                  # 'noref' : 'NoRef_{}_{}_{}'.format(channel, variable, trig)
-                 }
+  hnames = { 'ref':  getHistoNames('Ref1D')(channel, variable),
+             'trig': getHistoNames('Trig1D')(channel, variable, trig)
+            }
 
-  keylist_data = utils.getKeyList(file_data, inherits=['TH1'])
-  keylist_mc = utils.getKeyList(file_mc, inherits=['TH1'])
+  keylist_data = getKeyList(file_data, inherits=['TH1'])
+  keylist_mc = getKeyList(file_mc, inherits=['TH1'])
 
-  
+  # print(len(keylist_data))
+  # print(len(keylist_mc))
+
+  # for k in keylist_data:
+  #   if k not in keylist_mc:
+  #     print(k)
+
+  # print()
+
+  # for k in keylist_mc:
+  #   if k not in keylist_data:
+  #     print(k)
+
   histos_data, histos_mc = ({} for _ in range(2))
-  histos_data['ref'] = utils.getROOTObject(histo_names['ref'], file_data)
-  histos_mc['ref'] = utils.getROOTObject(histo_names['ref'], file_mc)
+  histos_data['ref'] = getROOTObject(hnames['ref'], file_data)
+  histos_mc['ref'] = getROOTObject(hnames['ref'], file_mc)
+
   histos_data['trig'], histos_mc['trig'] = ({} for _ in range(2))
   for key in keylist_mc:
-    if key.startswith( histo_names['trig'] ):
-      histos_mc['trig'][key] = utils.getROOTObject(key, file_mc)
+    if key.startswith( replacePlaceholder('cuts', hnames['trig'], '') ):
+      histos_mc['trig'][key] = getROOTObject(key, file_mc)
   for key in keylist_data:
-    if key.startswith( histo_names['trig'] ):
-      histos_data['trig'][key] = utils.getROOTObject(key, file_data)
+    if key.startswith( hnames['trig'] ):
+      histos_data['trig'][key] = getROOTObject(key, file_data)
 
   eff_data, eff_mc = ({} for _ in range(2))
   for khisto, vhisto in histos_data['trig'].items():
@@ -163,7 +185,7 @@ def checkTrigger(args, proc, channel, variable, trig, save_names, binedges, nbin
     print('[=debug=] Plotting...')  
 
   for akey in sf:
-    canvas_name = os.path.basename(save_names[0]).split('.')[0].replace('XXX',akey)
+    canvas_name = replacePlaceholder('cuts', os.path.basename(save_names[0]).split('.')[0], akey)
     canvas = TCanvas( canvas_name, 'canvas', 600, 600 )
     ROOT.gStyle.SetOptStat(0)
     ROOT.gStyle.SetOptTitle(0)
@@ -215,7 +237,7 @@ def checkTrigger(args, proc, channel, variable, trig, save_names, binedges, nbin
     leg.AddEntry(eff_mc[akey],   proc,   'p')
     leg.Draw('same')
 
-    utils.redrawBorder()
+    redrawBorder()
 
     lX, lY, lYstep = 0.25, 0.84, 0.04
     l = TLatex()
@@ -228,8 +250,18 @@ def checkTrigger(args, proc, channel, variable, trig, save_names, binedges, nbin
     latexChannel.replace('tau','#tau_{h}')
     latexChannel.replace('Tau','#tau_{h}')
 
+    ucode = '\u2229'
+    splitstr = trig.split(args.intersection_str)
+    trig_names_str = ''
+    for i,elem in enumerate(splitstr):
+      if elem == splitstr[-1]:
+        trig_names_str += elem
+      else:
+        trig_names_str += elem + '_' + ucode
+        trig_names_str += ( '_\n' if i%2==0 else '_' )
+    trig_start_str = 'Trigger' + ('' if len(splitstr)==1 else 's') + ': '
     l.DrawLatex( lX, lY,        'Channel: '+latexChannel)
-    l.DrawLatex( lX, lY-lYstep, 'Trigger: '+trig)
+    l.DrawLatex( lX, lY-lYstep, trig_start_str+trig_names_str)
 
     canvas.cd()
     pad2 = TPad('pad2','pad2',0,0.0,1,0.35)
@@ -268,30 +300,44 @@ def checkTrigger(args, proc, channel, variable, trig, save_names, binedges, nbin
     sf[akey].GetXaxis().SetTitle(variable)
     sf[akey].Draw('same P0')
 
-    utils.redrawBorder()
+    redrawBorder()
 
     for aname in save_names:
       _regex = re.findall(r'^.*(CUTS_.+)$', akey)
       assert(len(_regex)==1)
       _regex = _regex[0]
       _regex = _regex.replace('>', 'L').replace('<', 'S').replace('.', 'p')
-      _name = aname.replace('XXX', _regex )
+      _name = replacePlaceholder('cuts', aname, _regex )
       canvas.SaveAs( _name )
 
-@utils.set_pure_input_namespace
+def _getCanvasName(proc, chn, var, trig, data_name, subtag, intersection_str):
+    """
+    A 'XXX' placeholder is added for later replacement by all cuts considered
+      for the same channel, variable and trigger combination.
+    Without the placeholder one would have to additionally calculate the number
+      of cuts beforehand, which adds complexity with no major benefit.
+    """
+    trigstr = intersection_str.join(trig)
+    add = proc + '_' + chn + '_' + var + '_' + trigstr
+    n = 'trigSF_' + data_name + '_' + add + subtag
+    n += _placeholder_cuts
+    return n
+
+@setPureInputNamespace
 def drawTriggerSF_outputs(args):
   outputs = [[] for _ in range(len(_extensions))]
   processes = args.mc_processes if args.draw_independent_MCs else [args.mc_name]
+
+  triggercomb = generateTriggerCombinations(args.triggers)
   
   for proc in processes:
     for ch in args.channels:
       for var in args.variables:
-        for trig in args.triggers:
-          add = proc + '_' + ch + '_' + var + '_' + trig
-          canvas_name = 'trigSF_' + args.data_name + '_' + add + args.subtag
-          canvas_name += '_XXX' # placeholder for later replacement
+        for tcomb in triggercomb:
+          canvas_name = _getCanvasName(proc, ch, var, tcomb,
+                                       args.data_name, args.subtag, args.intersection_str)
           thisbase = os.path.join(args.outdir, ch, var, '')
-          utils.create_single_dir( thisbase )
+          createSingleDir( thisbase )
 
           for ext,out in zip(_extensions, outputs):
             out.append( os.path.join( thisbase, canvas_name + '.' + ext ) )
@@ -299,30 +345,25 @@ def drawTriggerSF_outputs(args):
   #join all outputs in the same list
   return sum(outputs, []), _extensions
     
-@utils.set_pure_input_namespace
+@setPureInputNamespace
 def drawTriggerSF(args):
   outputs, extensions = drawTriggerSF_outputs(args)
   processes = args.mc_processes if args.draw_independent_MCs else [args.mc_name]
-  
-  # Recover binning
-  binedges, nbins = ({} for _ in range(2))
-  with h5py.File(args.binedges_filename, 'r') as f:
-    group = f[args.subtag]
-    for var in args.variables:
-      subgroup = group[var]
-      binedges[var], nbins[var] = ({} for _ in range(2))
-      for chn in args.channels:
-        binedges[var][chn] = subgroup[chn][:]
-        nbins[var][chn] = len(binedges[var][chn]) - 1
 
-  dt = len(args.triggers)
+  triggercomb = generateTriggerCombinations(args.triggers)
+  
+  binedges, nbins = restoreBinning(args.binedges_filename, args.channels,
+                                   args.variables, args.subtag)
+  
+  dt = len(triggercomb)
   dv = len(args.variables) * dt
   dc = len(args.channels) * dv
   dp = len(processes) * dc
+  
   for ip,proc in enumerate(processes):
     for ic,chn in enumerate(args.channels):
       for iv,var in enumerate(args.variables):
-        for it,trig in enumerate(args.triggers):
+        for it,tcomb in enumerate(triggercomb):
           index = ip*dc + ic*dv + iv*dt + it
           names = [ outputs[index + dp*x] for x in range(len(extensions)) ]
 
@@ -332,8 +373,8 @@ def drawTriggerSF(args):
             print("process={}, channel={}, variable={}, trigger={}".format(proc, chn, var, trig))
             print()
 
-          checkTrigger( args, proc, chn, var, trig, names,
-                        binedges[var][chn], nbins[var][chn] )
+          drawEfficienciesAndScaleFactors( args, proc, chn, var, tcomb, names,
+                                           binedges[var][chn], nbins[var][chn] )
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Draw trigger scale factors')
@@ -345,6 +386,8 @@ if __name__ == '__main__':
     parser.add_argument('-p', '--mc_processes', help='MC processes to be analyzed', required=True)
     parser.add_argument('--binedges_filename', dest='binedges_filename', required=True, help='in directory')
     parser.add_argument('--draw_independent_MCs', action='store_true', help='debug verbosity')
+    parser.add_argument('--intersection_str', dest='intersection_str', required=False, default='_PLUS_',
+                    help='String used to represent set intersection between triggers.')
     parser.add_argument('--nocut_dummy_str', dest='tprefix', required=True,
                         help='Dummy string associated to trigger histograms were no cuts are applied.')
     parser.add_argument('--debug', action='store_true', help='debug verbosity')

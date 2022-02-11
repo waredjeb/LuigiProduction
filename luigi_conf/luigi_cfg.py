@@ -160,7 +160,8 @@ class cfg(luigi.Config):
     web_folder = os.path.join(web_storage, tag)
     targets_folder = os.path.join(data_storage, tag, 'targets')
     targets_default_name = 'DefaultTarget.txt'
-    targets_prefix = 'hist_'    
+    targets_prefix = 'hist_'
+    intersection_str = '_PLUS_'
     nocut_dummy_str = 'NoCut'
     
     binedges_filename = os.path.join(tag_folder, 'binedges.hdf5')
@@ -201,8 +202,9 @@ class cfg(luigi.Config):
                   'variables': variables_join,
                   'targetsPrefix': targets_prefix,
                   'subtag': subtag,
+                  'intersection_str': intersection_str,
                   'nocut_dummy_str': nocut_dummy_str,
-                  'debug': FLAGS.debug_workflow} )
+                  'debug': FLAGS.debug_workflow } )
 
     ####
     #### haddTriggerEff
@@ -248,6 +250,7 @@ class cfg(luigi.Config):
                   'variables': FLAGS.variables_for_efficiencies,
                   'binedges_filename': binedges_filename,
                   'subtag': subtag,
+                  'intersection_str': intersection_str,
                   'nocut_dummy_str': nocut_dummy_str,
                   'target_suffix': '_Sum',
                   'debug': FLAGS.debug_workflow,} )

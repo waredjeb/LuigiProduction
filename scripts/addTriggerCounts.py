@@ -12,7 +12,7 @@ from matplotlib import pyplot as plt, cm, colors
 from matplotlib.font_manager import FontProperties
 plt.rcParams.update({'font.size': 32})
 
-@utils.set_pure_input_namespace
+@utils.setPureInputNamespace
 def addTriggerCounts_outputs(args):
     extensions = ('.png', '.txt')
     Path(args.outdir).mkdir(parents=False, exist_ok=True)
@@ -22,7 +22,7 @@ def addTriggerCounts_outputs(args):
             t[i].append( os.path.join( args.outdir, args.dataset_name + '_' + chn + '_triggerCounts.' + ext ) )
     return t
 
-@utils.set_pure_input_namespace
+@utils.setPureInputNamespace
 def addTriggerCounts(args):
     """Adds ROOT histograms"""
     regex = re.compile( 'hist_.+_[0-9]{1,5}' + args.subtag + '.txt' )

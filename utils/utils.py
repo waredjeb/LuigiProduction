@@ -1,14 +1,22 @@
+
 import os
+import operator
 import argparse
 import functools
+import itertools as it
+import h5py
 from types import SimpleNamespace
 
 import ROOT
 from ROOT import TLine
 
-from luigi_conf import _triggers_map
+from luigi_conf import (
+  _placeholder_cuts,
+  _sel,
+  _triggers_map,
+)
   
-def add_slash(s):
+def addSlash(s):
   """Adds single slash to path if absent"""
   s = s if s[-1] == '/' else s + '/'
   return s
@@ -18,7 +26,7 @@ def checkBit(number, bitpos):
     res = bool(number&(bitdigit<<bitpos))
     return res
             
-def create_single_dir(p):
+def createSingleDir(p):
   """Creates a directory if it does not exist"""
   try:
     if not os.path.exists(p): 
@@ -29,7 +37,7 @@ def create_single_dir(p):
     print(m)
     raise
     
-def create_single_file(f):
+def createSingleFile(f):
   """Creates a dummy file if it does not exist"""
   try:
     os.remove(f)
@@ -50,6 +58,11 @@ class dotDict(dict):
   __setattr__ = dict.__setitem__
   __delattr__ = dict.__delitem__
 
+def generateTriggerCombinations(trigs):
+    """Set all possible trigger combinations of intersections with any number of elements"""
+    return list( it.chain.from_iterable(it.combinations(trigs, x)
+                                        for x in range(1,len(trigs)+1)) )
+
 def getKeyList(afile, inherits=['TH1']):
   tmp = []
   keylist = ROOT.TIter(afile.GetListOfKeys())
@@ -64,7 +77,17 @@ def getKeyList(afile, inherits=['TH1']):
     h = key.ReadObj()
     tmp.append( h.GetName() )
   return tmp
-    
+
+def getHistoNames(opt):
+  if opt == 'Ref1D':
+    return lambda a,b : 'Ref_{}_{}'.format(a,b)
+  elif opt == 'Trig1D':
+    return lambda a,b,c : 'Trig_{}_{}_{}{}'.format(a,b,c,_placeholder_cuts)
+  else:
+    import inspect
+    currentFunction = inspect.getframeinfo(frame).function
+    raise ValueError('[{}] option not supported.'.format(currentFunction))
+
 def getROOTObject(name, afile):
   _keys = afile.GetListOfKeys()
   if name not in _keys:
@@ -82,11 +105,13 @@ def getTriggerBit(trigger_name, isData):
   s = 'data' if isData else 'mc'
   return _triggers_map[trigger_name][s]
 
-def isIsoMuon(trigBit, isData):
-  s = 'data' if isData else 'mc'
-  cond1 = checkBit(trigBit, _triggers_map['IsoMu24'][s])
-  cond2 = checkBit(trigBit, _triggers_map['IsoMu27'][s])
-  return  cond1 or cond2
+def isChannelConsistent(chn, pairtype):
+  opdict = { '<':  operator.lt,
+             '>':  operator.gt,
+             '==': operator.eq }
+
+  op, val = _sel[chn]['pairType']
+  return opdict[op](pairtype, val)
   
 def joinNameTriggerIntersection(tuple_element):
     inters = '_PLUS_'
@@ -136,22 +161,29 @@ def remove(f):
   if os.path.exists( f ):
     os.remove( f )
 
-def slash_to_underscore_and_keep(s, n=4):
-  """Replaces slashes by underscores, keeping only the last 'n' slash-separated strings"""
-  return '_'.join( s.split('/')[-n:] )
+def replacePlaceholder(opt, string, add):
+  if opt == 'cuts':
+    res = string.replace(_placeholder_cuts, '_CUTS_' + add )
+  else:
+    import inspect
+    currentFunction = inspect.getframeinfo(frame).function
+    raise ValueError('[{}] option not supported.'.format(currentFunction))
+  return res
 
-def upify(s):
-  """capitalizes the first letter of the passed string"""
-  return s[0].upper() + s[1:]
+def restoreBinning(afile, channels, variables, subtag):
+  """Restore the binning saved by the worflow"""
+  binedges, nbins = ({} for _ in range(2))
+  with h5py.File(afile, 'r') as f:
+    group = f[subtag]
+    for var in variables:
+      subgroup = group[var]
+      binedges[var], nbins[var] = ({} for _ in range(2))
+      for chn in channels:
+        binedges[var][chn] = subgroup[chn][:]
+        nbins[var][chn] = len(binedges[var][chn]) - 1
+  return binedges, nbins
 
-def write_dummy_file(f):
-  try:
-    with open(fname, 'x') as f:
-      f.write('Dummy text.')
-  except FileExistsError:
-    pass
-
-def set_pure_input_namespace(func):
+def setPureInputNamespace(func):
   """
   Decorator which forces the input namespace to be a "bare" one.
   Used when luigi calls a function with a luigi.DictParameter().
@@ -164,3 +196,29 @@ def set_pure_input_namespace(func):
 
   return wrapper
 
+def setVBFCustomTriggerBit(trigBit, run, trigger, isData):
+  """
+  The VBF trigger was updated during data taking, adding HPS
+  https://twiki.cern.ch/twiki/bin/viewauth/CMS/TauTrigger
+  """
+  if run < 317509 and isData:
+    bits = checkBit(trigBit, _triggers_map[trigger]['VBFTau']['data'])
+  else:
+    s = 'data' if isData else 'mc'
+    bits = checkBit(trigBit, _triggers_map[trigger]['VBFTauHPS'][s]) #VBF_HPS
+  return bits
+
+def slashToUnderscoreAndKeep(s, n=4):
+  """Replaces slashes by underscores, keeping only the last 'n' slash-separated strings"""
+  return '_'.join( s.split('/')[-n:] )
+
+def upify(s):
+  """capitalizes the first letter of the passed string"""
+  return s[0].upper() + s[1:]
+
+def writeDummyFile(f):
+  try:
+    with open(fname, 'x') as f:
+      f.write('Dummy text.')
+  except FileExistsError:
+    pass

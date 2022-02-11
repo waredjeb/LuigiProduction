@@ -25,6 +25,7 @@ sys.path.append(os.path.join(os.environ['CMSSW_BASE'], 'src', 'METTriggerStudies
 from utils.utils import (
     checkBit,
     getTriggerBit,
+    isChannelConsistent,
     joinNameTriggerIntersection as joinNTC,
     LeafManager
 )
@@ -35,14 +36,6 @@ def checkBit(number, bitpos):
     bitdigit = 1
     res = bool(number&(bitdigit<<bitpos))
     return res
-
-def isChannelConsistent(chn, passMu, pairtype):
-    return ( ( chn=='all'    and pairtype<_sel['all']['pairType'][1]  ) or
-             ( chn=='mutau'  and pairtype==_sel['mutau']['pairType'][1] ) or
-             ( chn=='etau'   and pairtype==_sel['etau']['pairType'][1] )  or
-             ( chn=='tautau' and pairtype==_sel['tautau']['pairType'][1] ) or
-             ( chn=='mumu'   and pairtype==_sel['mumu']['pairType'][1] ) or
-             ( chn=='ee'     and pairtype==_sel['ee']['pairType'][1] ) )
     
 def getTriggerCounts(indir, outdir, sample, fileName,
                      channels, triggers,
@@ -102,16 +95,18 @@ def getTriggerCounts(indir, outdir, sample, fileName,
             continue
 
         trigBit = lf.getLeaf('pass_triggerbit')
+        run = lf.getLeaf('RunNumber')
         passLEP = lf.getLeaf('isLeptrigger')
-        passMu = passLEP and (checkBit(trigBit,0) or checkBit(trigBit,1))
 
         for tcomb in triggercomb:
             for chn in channels:
-                if isChannelConsistent(chn, passMu, pairtype) and passLEP:
+                if isChannelConsistent(chn, pairtype) and passLEP:
 
                     passAllTriggerBits = functools.reduce(
                         lambda x,y: x and y, #logic AND to join all triggers in this option
-                        [ checkBit(trigBit, getTriggerBit(x, isData)) for x in tcomb ]
+                        [ ( checkBit(trigBit, getTriggerBit(x, isData))
+                            if x != 'VBFTauCustom' else setVBFCustomTriggerBit(trigBit, run, x, isData) )
+                          for x in tcomb ]
                     )
 
                     counterRef[chn] += 1

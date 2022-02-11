@@ -22,7 +22,7 @@ import ROOT
 
 from utils import utils
 
-@utils.set_pure_input_namespace
+@utils.setPureInputNamespace
 def submitTriggerCounts_outputs(args):
     """
     Considers the first file only per process.
@@ -39,7 +39,7 @@ def submitTriggerCounts_outputs(args):
 
     return t
         
-@utils.set_pure_input_namespace
+@utils.setPureInputNamespace
 def submitTriggerCounts(args):
     home = os.environ['HOME']
     cmssw = os.path.join(os.environ['CMSSW_VERSION'], 'src')

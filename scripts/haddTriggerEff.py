@@ -7,7 +7,7 @@ def _subpaths(args):
     _tbase2 = args.target_suffix + args.subtag
     return _tbase1, _tbase2
 
-@utils.set_pure_input_namespace
+@utils.setPureInputNamespace
 def haddTriggerEff_outputs(args):
     targets = []
 
@@ -25,7 +25,7 @@ def haddTriggerEff_outputs(args):
         
     return targets
 
-@utils.set_pure_input_namespace
+@utils.setPureInputNamespace
 def haddTriggerEff(args):
     """Adds ROOT histograms"""
     targets = haddTriggerEff_outputs(args)

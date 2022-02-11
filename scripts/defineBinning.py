@@ -17,7 +17,12 @@ import uproot as up
 import pandas as pd
 import argparse
 
-from utils.utils import getTriggerBit, LeafManager, set_pure_input_namespace
+from utils.utils import (
+    getTriggerBit,
+    LeafManager,
+    setPureInputNamespace,
+)
+
 from luigi_conf import _binedges, _sel
 
 def skipDataLoop(args):
@@ -26,12 +31,12 @@ def skipDataLoop(args):
             return False
     return True
 
-@set_pure_input_namespace
+@setPureInputNamespace
 def defineBinning_outputs(args):
     assert( os.path.splitext(args.binedges_filename)[1] == '.hdf5' )
     return os.path.join(args.outdir, args.binedges_filename)
 
-@set_pure_input_namespace
+@setPureInputNamespace
 def defineBinning(args):
     """
     Determine histogram quantiles

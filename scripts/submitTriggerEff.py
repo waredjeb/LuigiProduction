@@ -23,7 +23,7 @@ import ROOT
 
 from utils import utils
 
-@utils.set_pure_input_namespace
+@utils.setPureInputNamespace
 def submitTriggerEff_outputs(args):
     """
     Considers the first file only per process.
@@ -40,7 +40,7 @@ def submitTriggerEff_outputs(args):
 
     return t
         
-@utils.set_pure_input_namespace
+@utils.setPureInputNamespace
 def submitTriggerEff(args):
     home = os.environ['HOME']
     cmssw = os.path.join(os.environ['CMSSW_VERSION'], 'src')
@@ -77,7 +77,7 @@ def submitTriggerEff(args):
         command =  ( ( '{prog} --indir {indir} --outdir {outdir} --sample {sample} --isData {isData} '
                        '--file ${{1}} --subtag {subtag} --channels {channels} '
                        '--triggers {triggers} --variables {variables} --tprefix {tprefix} '
-                       '--binedges_fname {bename} --nocut_dummy_str {nocutstr}\n' )
+                       '--binedges_fname {bename} --intersection_str {inters} --nocut_dummy_str {nocutstr}\n' )
                      .format( prog=prog, indir=inputdir, outdir=args.outdir,
                               sample=thisProc, isData=int(thisProc in args.data),
                               subtag=args.subtag,
@@ -86,6 +86,7 @@ def submitTriggerEff(args):
                               variables=' '.join(args.variables,),
                               tprefix=args.targetsPrefix,
                               bename=args.binedges_filename,
+                              inters=args.intersection_str,
                               nocutstr=args.nocut_dummy_str)
                     )
 
@@ -155,6 +156,10 @@ if __name__ == '__main__':
                         help='Select the triggers over which the workflow will be run.' )
     parser.add_argument('--variables',        dest='variables',        required=True, nargs='+', type=str,
                         help='Select the variables over which the workflow will be run.' )
+    parser.add_argument('--intersection_str', dest='intersection_str', required=False, default='_PLUS_',
+                        help='String used to represent set intersection between triggers.')
+    parser.add_argument('--nocut_dummy_str', dest='tprefix', required=True,
+                        help='Dummy string associated to trigger histograms were no cuts are applied.')
     parser.add_argument('--debug', action='store_true', help='debug verbosity')
     args = parser.parse_args()
 
