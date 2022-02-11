@@ -14,6 +14,7 @@ from luigi_conf import (
   _placeholder_cuts,
   _sel,
   _triggers_map,
+  _triggers_custom,
 )
   
 def addSlash(s):
@@ -105,7 +106,7 @@ def getROOTInputFiles(proc, args):
             if '.root' in line:
                 filelist.append(line)
 
-    return filelist
+    return filelist, inputdir
 
 def getROOTObject(name, afile):
   _keys = afile.GetListOfKeys()

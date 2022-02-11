@@ -37,7 +37,7 @@ def submitTrigger_outputs(args, param='root'):
     exp = re.compile('.+output(_[0-9]{1,5}).root')
     _all_processes = args.data + args.mc_processes
     for thisProc in _all_processes:
-        inputs = utils.getROOTInputFiles(thisProc, args)
+        inputs, _ = utils.getROOTInputFiles(thisProc, args)
 
         folder = os.path.join( args.outdir, thisProc )
         for inp in inputs:
@@ -59,7 +59,7 @@ def submitTriggerEff(args):
 
     _all_processes = args.data + args.mc_processes
     for thisProc in _all_processes:
-        filelist = utils.getROOTInputFiles(thisProc, args)
+        filelist, inputdir = utils.getROOTInputFiles(thisProc, args)
         
         #### Write shell executable (python scripts must be wrapped in shell files to run on HTCondor)
         outSubmDir = 'submission'

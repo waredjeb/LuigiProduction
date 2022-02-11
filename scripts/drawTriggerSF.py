@@ -85,13 +85,10 @@ def drawEfficienciesAndScaleFactors(args, proc, channel, variable, trig, save_na
     if key.startswith( hnames['trig'] ):
       histos_data['trig'][key] = getROOTObject(key, file_data)
 
-  
-  print('================================')
-  print(hnames['trig'])
-  print( replacePlaceholder('cuts', hnames['trig'], '') )
-  print(histos_mc)
-  quit()
-  emptycanvas = TCanvas( 'emptycanvas', 'emptycanvas', 600, 600 )
+  #some triggers naturally never fire for some channels
+  if len(histos_mc['trig']) == 0:
+    print('WARNING: {} {}'.format(trig, channel))
+    return
   
   eff_data, eff_mc = ({} for _ in range(2))
   for khisto, vhisto in histos_data['trig'].items():

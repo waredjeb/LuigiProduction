@@ -14,7 +14,7 @@ plt.rcParams.update({'font.size': 32})
 
 @utils.setPureInputNamespace
 def addTriggerCounts_outputs(args):
-    extensions = ('.png', '.txt')
+    extensions = ('png', 'txt')
     Path(args.outdir).mkdir(parents=False, exist_ok=True)
     t = tuple([] for _ in range(len(extensions)))
     for chn in args.channels:
@@ -25,7 +25,7 @@ def addTriggerCounts_outputs(args):
 @utils.setPureInputNamespace
 def addTriggerCounts(args):
     """Adds ROOT histograms"""
-    regex = re.compile( 'hist_.+_[0-9]{1,5}' + args.subtag + '.txt' )
+    regex = re.compile( 'counts_.+_[0-9]{1,5}' + args.subtag + '.txt' )
 
     inputs_join = []
     for smpl in args.samples:
