@@ -25,7 +25,7 @@ def addTriggerCounts_outputs(args):
 @utils.setPureInputNamespace
 def addTriggerCounts(args):
     """Adds ROOT histograms"""
-    regex = re.compile( 'counts_.+_[0-9]{1,5}' + args.subtag + '.txt' )
+    regex = re.compile( args.tprefix + '.+_[0-9]{1,5}' + args.subtag + '.txt' )
 
     inputs_join = []
     for smpl in args.samples:
@@ -87,6 +87,7 @@ def addTriggerCounts(args):
         vals = np.reshape(vals, (nrows,ncols)) + 0.001
         norm = colors.LogNorm(vals.min(), vals.max(), clip=False)
 
+        ## Saving the same information on a pictur
         fig, ax = plt.subplots(figsize=(30, 16))
         # hide axes
         fig.patch.set_visible(False)
@@ -101,8 +102,7 @@ def addTriggerCounts(args):
                            )
 
         atable.scale(4,10)
-        # atable.auto_set_font_size(False)
-        # atable.set_fontsize(100)
+
         for (row, col), cell in atable.get_celld().items():
             cell.set_text_props(fontproperties=FontProperties(weight='bold'))
             
@@ -111,7 +111,7 @@ def addTriggerCounts(args):
                    fontdict={'fontsize': 70, 'fontweight': 30}
                    )
         plt.savefig( outputs_png[ic] )
-    
+        
 # Run with:
 # python3 /home/llr/cms/alves/CMSSW_12_2_0_pre1/src/METTriggerStudies/scripts/addTriggerCounts.py --indir /data_CMS/cms/alves/TriggerScaleFactors/CountsTest/ --outdir /data_CMS/cms/alves/TriggerScaleFactors/CountTest/ --samples SKIM_MET2018 --channels etau mutau tautau --subtag _default --tprefix count_ --triggers IsoMuIsoTau EleIsoTau VBFTau VBFTauHPS METNoMu120 IsoTau50 IsoTau180 --debug
 

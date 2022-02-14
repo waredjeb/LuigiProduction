@@ -32,13 +32,13 @@ def getHistogramMaxCounts(h):
 
 def plotDist(args, channel, variable, trig, save_names, binedges, nbins):
   _name_join = lambda l: functools.reduce(lambda x,y: x + y, l)
-  _name_data = _name_join([args.targetsPrefix, args.data_name, args.target_suffix, args.subtag])
+  _name_data = _name_join([args.targetsPrefix, args.data_name, args.tsuffix, args.subtag])
   name_data = os.path.join(args.indir, _name_data + '.root')
   file_data = TFile( name_data, 'READ');
 
   files_mc, names_mc = ([] for _ in range(2))
   _tbase1 = _name_join([args.targetsPrefix, args.mc_name])
-  _tbase2 = _name_join([args.target_suffix, args.subtag])
+  _tbase2 = _name_join([args.tsuffix, args.subtag])
   for proc in args.mc_processes:
     names_mc.append( os.path.join(args.indir, _name_join(_tbase1 + '_' + proc + _tbase2)) )
     files_mc.append( TFile( names_mc[-1] + '.root', 'READ') )

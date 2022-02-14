@@ -30,11 +30,10 @@ from utils.utils import (
     getHistoNames,
     getTriggerBit,
     isChannelConsistent,
-    isIsoMuon,
     joinNameTriggerIntersection as joinNTC,
     LeafManager,
     replacePlaceholder,
-    setVBFCustomTriggerBit,
+    setCustomTriggerBit,
 )
 
 from luigi_conf import (

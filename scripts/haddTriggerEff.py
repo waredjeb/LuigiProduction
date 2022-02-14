@@ -3,8 +3,8 @@ import sys
 from utils import utils
 
 def _subpaths(args):
-    _tbase1 = args.targetsPrefix + args.dataset_name
-    _tbase2 = args.target_suffix + args.subtag
+    _tbase1 = args.tprefix + args.dataset_name
+    _tbase2 = args.tsuffix + args.subtag
     return _tbase1, _tbase2
 
 @utils.setPureInputNamespace

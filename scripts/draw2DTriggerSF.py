@@ -57,11 +57,11 @@ def check2DTrigger(args, proc, channel, var, trig, save_names):
     _name = lambda a,b,c,d : a + b + c + d + '.root'
     histo_options = 'colz text'
     name_data = os.path.join(args.indir, _name( args.targetsPrefix, args.data_name,
-                                                args.target_suffix, args.subtag ) )
+                                                args.tsuffix, args.subtag ) )
     file_data = TFile( name_data, 'READ')
     
     name_mc = os.path.join(args.indir, _name( args.targetsPrefix, args.mc_name,
-                                            args.target_suffix, args.subtag ))
+                                            args.tsuffix, args.subtag ))
     file_mc   = TFile( name_mc, 'READ');
 
     if args.debug:

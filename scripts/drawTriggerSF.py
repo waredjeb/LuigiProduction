@@ -38,12 +38,12 @@ from luigi_conf import (
 def drawEfficienciesAndScaleFactors(args, proc, channel, variable, trig, save_names, binedges, nbins):
   _name = lambda a,b,c,d : a + b + c + d + '.root'
 
-  name_data = os.path.join(args.indir, _name( args.targetsPrefix, args.data_name,
-                                                args.target_suffix, args.subtag ) )
+  name_data = os.path.join(args.indir, _name( args.tprefix, args.data_name,
+                                                args.tsuffix, args.subtag ) )
   file_data = TFile.Open(name_data)
   
-  name_mc = os.path.join(args.indir, _name( args.targetsPrefix, args.mc_name,
-                                            args.target_suffix, args.subtag ))
+  name_mc = os.path.join(args.indir, _name( args.tprefix, args.mc_name,
+                                            args.tsuffix, args.subtag ))
   file_mc   = TFile.Open(name_mc)
   
   if args.debug:
@@ -59,20 +59,31 @@ def drawEfficienciesAndScaleFactors(args, proc, channel, variable, trig, save_na
 
   keylist_data = getKeyList(file_data, inherits=['TH1'])
   keylist_mc = getKeyList(file_mc, inherits=['TH1'])
+  
+  for k in keylist_data:
+    if k not in keylist_mc:
+      m = 'Histogram {} was present in data but not in MC.\n'.format(k)
+      m += 'This is possible, but highly unlikely (based on statistics).\n'
+      m += 'Check everything is correct, and edit this check if so.'
+      raise ValueError(m)
 
-  # print(len(keylist_data))
-  # print(len(keylist_mc))
+  keys_to_remove = []
+  for k in keylist_mc:
+    if k not in keylist_data:
+      histo = getROOTObject(k, file_mc)
+      stats_cut = 10
+      if histo.GetNbinsX() < stats_cut:
+        keys_to_remove.append(k)
+      else:
+        m = 'Histogram {} was present in MC but not in data.\n'.format(k)
+        m += 'The current statistics cut is {}, but this one had {} events.\n'.format(stats_cut, histo.GetNbinsX())
+        m += 'Check everything is correct, and edit this check if so.'
+        raise ValueError(m)
 
-  # for k in keylist_data:
-  #   if k not in keylist_mc:
-  #     print(k)
-
-  # print()
-
-  # for k in keylist_mc:
-  #   if k not in keylist_data:
-  #     print(k)
-
+  for k in keys_to_remove:
+    keylist_mc.remove(k)
+  assert(set(keylist_data)==set(keylist_mc))
+    
   histos_data, histos_mc = ({} for _ in range(2))
   histos_data['ref'] = getROOTObject(hnames['ref'], file_data)
   histos_mc['ref'] = getROOTObject(hnames['ref'], file_mc)
@@ -81,11 +92,10 @@ def drawEfficienciesAndScaleFactors(args, proc, channel, variable, trig, save_na
   for key in keylist_mc:
     if key.startswith( replacePlaceholder('cuts', hnames['trig'], '') ):
       histos_mc['trig'][key] = getROOTObject(key, file_mc)
-  for key in keylist_data:
-    if key.startswith( hnames['trig'] ):
       histos_data['trig'][key] = getROOTObject(key, file_data)
 
-  #some triggers naturally never fire for some channels
+  # some triggers or their intersection naturally never fire for some channels
+  # example: 'IsoMu24' for the etau channel
   if len(histos_mc['trig']) == 0:
     print('WARNING: {} {}'.format(trig, channel))
     return
@@ -205,7 +215,7 @@ def drawEfficienciesAndScaleFactors(args, proc, channel, variable, trig, save_na
 
     axor = TH2D('axor'+akey,'axor'+akey, nbins,
                 binedges[0]-halfbinwidths[0]/2, binedges[-1]+halfbinwidths[-1]/2,
-                100, -0.1, 1.3)
+                100, -0.1, 1.4)
     axor.GetYaxis().SetTitle('Efficiency')
     axor.GetXaxis().SetLabelOffset(1)
     axor.GetXaxis().SetLabelOffset(1.)
@@ -245,7 +255,7 @@ def drawEfficienciesAndScaleFactors(args, proc, channel, variable, trig, save_na
 
     redrawBorder()
 
-    lX, lY, lYstep = 0.25, 0.84, 0.04
+    lX, lY, lYstep = 0.25, 0.84, 0.1
     l = TLatex()
     l.SetNDC()
     l.SetTextFont(72)
@@ -256,16 +266,19 @@ def drawEfficienciesAndScaleFactors(args, proc, channel, variable, trig, save_na
     latexChannel.replace('tau','#tau_{h}')
     latexChannel.replace('Tau','#tau_{h}')
 
-    ucode = '\u2229'
-    splitstr = trig.split(args.intersection_str)
-    trig_names_str = ''
-    for i,elem in enumerate(splitstr):
-      if elem == splitstr[-1]:
-        trig_names_str += elem
+    splitcounter = 0
+    ucode = '+'
+    trig_names_str = '#splitline{'
+    for i,elem in enumerate(trig):
+      splitcounter += 1
+      if elem == trig[-1]:
+        trig_names_str += elem + '}{}' + '}'*(splitcounter-1)
       else:
-        trig_names_str += elem + '_' + ucode
-        trig_names_str += ( '_\n' if i%2==0 else '_' )
-    trig_start_str = 'Trigger' + ('' if len(splitstr)==1 else 's') + ': '
+        trig_names_str += elem + ' ' + ucode
+        trig_names_str += '}{#splitline{'
+    print('========================= ', trig_names_str)
+
+    trig_start_str = 'Trigger' + ('' if len(trig)==1 else 's') + ': '
     l.DrawLatex( lX, lY,        'Channel: '+latexChannel)
     l.DrawLatex( lX, lY-lYstep, trig_start_str+trig_names_str)
 
@@ -386,7 +399,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Draw trigger scale factors')
 
     parser.add_argument('-i', '--indir', help='Inputs directory', required=True)
-    parser.add_argument('-x', '--targetsPrefix', help='prefix to the names of the produced outputs (targets in luigi lingo)', required=True)
+    parser.add_argument('-x', '--tprefix', help='prefix to the names of the produced outputs (targets in luigi lingo)', required=True)
     parser.add_argument('-t', '--tag', help='string to diferentiate between different workflow runs', required=True)
     parser.add_argument('-d', '--data', help='dataset to be analyzed/plotted', required=True)
     parser.add_argument('-p', '--mc_processes', help='MC processes to be analyzed', required=True)

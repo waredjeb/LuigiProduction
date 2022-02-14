@@ -86,8 +86,8 @@ class DefineBinning(ForceableEnsureRecentTarget):
 ### SUBMIT TRIGGER EFFICIENCIES USING HTCONDOR #########################
 ########################################################################
 class SubmitTriggerEff(ForceableEnsureRecentTarget):
-    args = utils.dotDict(lcfg.submit_params)
-    args.update( {'targetsPrefix': lcfg.targets_prefix,
+    args = utils.dotDict(lcfg.submit_params_eff)
+    args.update( {'tprefix': lcfg.target_prefix[0],
                   'tag': lcfg.tag,
                   } )
     
@@ -127,8 +127,8 @@ class SubmitTriggerEff(ForceableEnsureRecentTarget):
 ### SUBMIT TRIGGER COUNTS USING HTCONDOR ###############################
 ########################################################################
 class SubmitTriggerCounts(ForceableEnsureRecentTarget):
-    args = utils.dotDict(lcfg.submit_params)
-    args.update( {'targetsPrefix': lcfg.targets_prefix,
+    args = utils.dotDict(lcfg.submit_params_counts)
+    args.update( {'tprefix': lcfg.target_prefix[1],
                   'tag': lcfg.tag,
                   } )
     
@@ -169,10 +169,10 @@ class SubmitTriggerCounts(ForceableEnsureRecentTarget):
 ########################################################################
 class HaddTriggerEff(ForceableEnsureRecentTarget):
     samples = luigi.ListParameter()
-    target_suffix = luigi.Parameter()
+    tsuffix = luigi.Parameter()
     dataset_name = luigi.Parameter()
     args = utils.dotDict(lcfg.hadd_params)
-    args.update( {'targetsPrefix': lcfg.targets_prefix,
+    args.update( {'tprefix': lcfg.target_prefix[0],
                   'tag': lcfg.tag,
                   } )
     
@@ -181,7 +181,7 @@ class HaddTriggerEff(ForceableEnsureRecentTarget):
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def output(self):
         self.args['samples'] = luigi_to_raw( self.samples )
-        self.args['target_suffix'] = self.target_suffix
+        self.args['tsuffix'] = self.tsuffix
         self.args['dataset_name'] = self.dataset_name
         targets = []
         targets_list = haddTriggerEff_outputs( self.args )
@@ -201,57 +201,16 @@ class HaddTriggerEff(ForceableEnsureRecentTarget):
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def run(self):
         self.args['samples'] = luigi_to_raw( self.samples )
-        self.args['target_suffix'] = self.target_suffix
+        self.args['tsuffix'] = self.tsuffix
         self.args['dataset_name'] = self.dataset_name
         haddTriggerEff( self.args )
-        
-########################################################################
-### COMPARE TRIGGERS ###################################################
-########################################################################
-# class CompareTriggers(ForceableEnsureRecentTarget):
-#     p = utils.dotDict(lcfg.comp_params)
-    
-#     #drawsf_args
-#     args = luigi.DictParameter(
-#         default={'inDir': p.indir,
-#                  'targetsPrefix': lcfg.targets_prefix,
-#                  'tag': lcfg.tag,
-#                  'processes': p.processes,
-#                  } )
-#     target_path = get_target_path( p.taskname )
-    
-#     @WorkflowDebugger(flag=FLAGS.debug_workflow)
-#     def output(self):
-#         targets = []
-#         targets_list = drawTriggerSF_outputs( self.args )
-
-#         #define luigi targets
-#         for t in targets_list:
-#             targets.append( luigi.LocalTarget(t) )
-
-#         #write the target files for debugging
-#         utils.remove( self.target_path )
-#         with open( self.target_path, 'w' ) as f:
-#             for t in targets_list:
-#                 f.write( t )
-                
-#         return targets
-
-#     @WorkflowDebugger(flag=FLAGS.debug_workflow)
-#     def run(self):
-#         drawTriggerSF( self.args )
-            
-#     @WorkflowDebugger(flag=FLAGS.debug_workflow)
-#     def requires(self):
-#         force_flag = FLAGS.force > p.hierarchy
-#         return HaddTriggerEff(force=force_flag)
 
 ########################################################################
 ### DRAW 1D TRIGGER SCALE FACTORS #######################################
 ########################################################################
 class Draw1DTriggerScaleFactors(ForceableEnsureRecentTarget):
     args = utils.dotDict(lcfg.drawsf_params)
-    args.update( {'targetsPrefix': lcfg.targets_prefix,
+    args.update( {'tprefix': lcfg.target_prefix[0],
                   'tag': lcfg.tag,
                   } )
     target_path = get_target_path( args.taskname )
@@ -282,10 +241,10 @@ class Draw1DTriggerScaleFactors(ForceableEnsureRecentTarget):
     def requires(self):
         force_flag = set_force_boolean(self.args.hierarchy)
         return [ HaddTriggerEff(force=force_flag, samples=self.args.data,
-                                target_suffix=self.args.target_suffix,
+                                tsuffix=self.args.tsuffix,
                                 dataset_name=self.args.data_name),
                  HaddTriggerEff(force=force_flag, samples=self.args.mc_processes,
-                                target_suffix=self.args.target_suffix,
+                                tsuffix=self.args.tsuffix,
                                 dataset_name=self.args.mc_name) ]
 
 ########################################################################
@@ -293,7 +252,7 @@ class Draw1DTriggerScaleFactors(ForceableEnsureRecentTarget):
 ########################################################################
 class Draw2DTriggerScaleFactors(ForceableEnsureRecentTarget):
     args = utils.dotDict(lcfg.drawsf_params)
-    args.update( {'targetsPrefix': lcfg.targets_prefix,
+    args.update( {'tprefix': lcfg.target_prefix[0],
                   'tag': lcfg.tag,
                   } )
     target_path = get_target_path( args.taskname )
@@ -325,10 +284,10 @@ class Draw2DTriggerScaleFactors(ForceableEnsureRecentTarget):
     def requires(self):
         force_flag = set_force_boolean( self.args.hierarchy )
         return [ HaddTriggerEff(force=force_flag, samples=self.args.data,
-                                target_suffix=self.args.target_suffix,
+                                tsuffix=self.args.tsuffix,
                                 dataset_name=self.args.data_name),
                  HaddTriggerEff(force=force_flag, samples=self.args.mc_processes,
-                                target_suffix=self.args.target_suffix,
+                                tsuffix=self.args.tsuffix,
                                 dataset_name=self.args.mc_name) ]
 
 ########################################################################
@@ -336,7 +295,7 @@ class Draw2DTriggerScaleFactors(ForceableEnsureRecentTarget):
 ########################################################################
 class DrawDistributions(ForceableEnsureRecentTarget):
     args = utils.dotDict(lcfg.drawcounts_params)
-    args.update( {'targetsPrefix': lcfg.targets_prefix,
+    args.update( {'tprefix': lcfg.target_prefix[0],
                   'tag': lcfg.tag,
                   } )
     target_path = get_target_path( args.taskname )
@@ -366,10 +325,10 @@ class DrawDistributions(ForceableEnsureRecentTarget):
     def requires(self):
         force_flag = set_force_boolean(self.args.hierarchy)
         return [ HaddTriggerEff(force=force_flag, samples=self.args.data,
-                                target_suffix=self.args.target_suffix,
+                                tsuffix=self.args.tsuffix,
                                 dataset_name=self.args.data_name),
                  HaddTriggerEff(force=force_flag, samples=self.args.mc_processes,
-                                target_suffix=self.args.target_suffix,
+                                tsuffix=self.args.tsuffix,
                                 dataset_name=self.args.mc_name) ]
 
 ########################################################################
@@ -380,7 +339,8 @@ class DrawTriggerCounts(ForceableEnsureRecentTarget):
     dataset_name = luigi.Parameter()
     args = utils.dotDict(lcfg.drawcounts_params)
     args.update( {'tag': lcfg.tag,
-                  } )
+                  'tprefix': lcfg.target_prefix[1],}
+                )
     
     target_path = get_target_path( args.taskname )
     
