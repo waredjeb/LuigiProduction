@@ -19,7 +19,6 @@ from ROOT import TLegend
 
 from utils.utils import (
   createSingleDir,
-  generateTriggerCombinations,
   getKeyList,
   getROOTObject,
   getHistoNames,
@@ -343,57 +342,56 @@ def _getCanvasName(proc, chn, var, trig, data_name, subtag, intersection_str):
     return n
 
 @setPureInputNamespace
-def drawTriggerSF_outputs(args):
+def drawTriggerSF_outputs(args, trigger_combination):
   outputs = [[] for _ in range(len(_extensions))]
   processes = args.mc_processes if args.draw_independent_MCs else [args.mc_name]
-
-  triggercomb = generateTriggerCombinations(args.triggers)
   
   for proc in processes:
     for ch in args.channels:
       for var in args.variables:
-        for tcomb in triggercomb:
-          canvas_name = _getCanvasName(proc, ch, var, tcomb,
-                                       args.data_name, args.subtag, args.intersection_str)
-          thisbase = os.path.join(args.outdir, ch, var, '')
-          createSingleDir( thisbase )
+        canvas_name = _getCanvasName(proc, ch, var,
+                                     trigger_combination,
+                                     args.data_name, args.subtag,
+                                     args.intersection_str)
+        thisbase = os.path.join(args.outdir, ch, var, '')
+        createSingleDir( thisbase )
 
-          for ext,out in zip(_extensions, outputs):
-            out.append( os.path.join( thisbase, canvas_name + '.' + ext ) )
+        for ext,out in zip(_extensions, outputs):
+          out.append( os.path.join( thisbase, canvas_name + '.' + ext ) )
 
   #join all outputs in the same list
   return sum(outputs, []), _extensions
     
 @setPureInputNamespace
-def drawTriggerSF(args):
-  outputs, extensions = drawTriggerSF_outputs(args)
+def drawTriggerSF(args, trigger_combination):
+  outputs, extensions = drawTriggerSF_outputs(args, trigger_combination)
   processes = args.mc_processes if args.draw_independent_MCs else [args.mc_name]
-
-  triggercomb = generateTriggerCombinations(args.triggers)
   
   binedges, nbins = restoreBinning(args.binedges_filename, args.channels,
                                    args.variables, args.subtag)
   
-  dt = len(triggercomb)
-  dv = len(args.variables) * dt
+  dv = len(args.variables)
   dc = len(args.channels) * dv
   dp = len(processes) * dc
   
   for ip,proc in enumerate(processes):
     for ic,chn in enumerate(args.channels):
       for iv,var in enumerate(args.variables):
-        for it,tcomb in enumerate(triggercomb):
-          index = ip*dc + ic*dv + iv*dt + it
-          names = [ outputs[index + dp*x] for x in range(len(extensions)) ]
+        index = ip*dc + ic*dv + iv
+        names = [ outputs[index + dp*x] for x in range(len(extensions)) ]
 
-          if args.debug:
-            for name in names:
-              print('[=debug=] {}'.format(name))
-            print("process={}, channel={}, variable={}, trigger={}".format(proc, chn, var, trig))
-            print()
+        if args.debug:
+          for name in names:
+            print('[=debug=] {}'.format(name))
+            m = "process={}, channel={}".format(proc, chn)
+            m += ", variable={}, trigger={}".format(var, trig)
+            m += ", trigger_combination={}\n".format(trigger_combination)
+          print(m)
 
-          drawEfficienciesAndScaleFactors( args, proc, chn, var, tcomb, names,
-                                           binedges[var][chn], nbins[var][chn] )
+        drawEfficienciesAndScaleFactors( args, proc, chn, var,
+                                         trigger_combination,
+                                         names,
+                                         binedges[var][chn], nbins[var][chn] )
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Draw trigger scale factors')

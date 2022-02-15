@@ -210,6 +210,7 @@ class HaddTriggerEff(ForceableEnsureRecentTarget):
 ########################################################################
 class Draw1DTriggerScaleFactors(ForceableEnsureRecentTarget):
     args = utils.dotDict(lcfg.drawsf_params)
+    trigger_combination = luigi.TupleParameter()
     args.update( {'tprefix': lcfg.target_prefix[0],
                   'tag': lcfg.tag,
                   } )
@@ -218,7 +219,8 @@ class Draw1DTriggerScaleFactors(ForceableEnsureRecentTarget):
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def output(self):
         targets = []
-        targets_list, _ = drawTriggerSF_outputs( self.args )
+        targets_list, _ = drawTriggerSF_outputs( self.args,
+                                                 self.trigger_combination )
         
         #define luigi targets
         for t in targets_list:
@@ -235,7 +237,8 @@ class Draw1DTriggerScaleFactors(ForceableEnsureRecentTarget):
 
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def run(self):
-        drawTriggerSF( self.args )
+        drawTriggerSF( self.args,
+                       self.trigger_combination )
 
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def requires(self):
@@ -417,9 +420,18 @@ if __name__ == "__main__":
             last_tasks += [ DrawDistributions(force=FLAGS.force>0) ]
             
         if FLAGS.distributions != 2:
-            last_tasks += [ Draw1DTriggerScaleFactors(force=FLAGS.force>0),
-                            #Draw2DTriggerScaleFactors(force=FLAGS.force>0)
-            ]
+            triggercomb = utils.generateTriggerCombinations(FLAGS.triggers)
+
+            #one task per trigger combination
+            for tcomb in triggercomb:
+                last_tasks += [
+                    Draw1DTriggerScaleFactors(
+                        force=FLAGS.force>0,
+                        trigger_combination=tcomb)
+                ]
+            
+            # last_tasks += [ Draw1DTriggerScaleFactors(force=FLAGS.force>0),
+            #                 Draw2DTriggerScaleFactors(force=FLAGS.force>0) ]
 
         if FLAGS.counts: #overwrites
             last_tasks = count_tasks

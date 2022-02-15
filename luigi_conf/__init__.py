@@ -111,6 +111,8 @@ for x in _binedges.values():
 ########### DATA AND MC SAMPLES #######################################################################
 #######################################################################################################
 #_inputs = '/data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_Radion_2018_fixedMETtriggers_mht_16Jun2021/'
+# future inputs:
+# /data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_2018_UL_feb22/
 _inputs = [ '/data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_2018_UL_data_test11Jan22/', #data
             '/data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_2018_UL_signal_test11Jan22/', #MC signal
             '/data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_2018_UL_backgrounds_test11Jan22/', #MC backgrounds
