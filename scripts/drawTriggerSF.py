@@ -405,7 +405,7 @@ if __name__ == '__main__':
     parser.add_argument('--draw_independent_MCs', action='store_true', help='debug verbosity')
     parser.add_argument('--intersection_str', dest='intersection_str', required=False, default='_PLUS_',
                     help='String used to represent set intersection between triggers.')
-    parser.add_argument('--nocut_dummy_str', dest='tprefix', required=True,
+    parser.add_argument('--nocut_dummy_str', dest='nocut_dummy_str', required=True,
                         help='Dummy string associated to trigger histograms were no cuts are applied.')
     parser.add_argument('--debug', action='store_true', help='debug verbosity')
     args = parser.parse_args()

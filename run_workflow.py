@@ -19,8 +19,10 @@ lcfg = cfg() #luigi configuration
 
 # includes of individual tasks
 from scripts.defineBinning import defineBinning, defineBinning_outputs
-from scripts.submitTriggerEff import submitTriggerEff, submitTrigger_outputs
-from scripts.submitTriggerCounts import submitTriggerCounts
+from scripts.writeHTCondorSubmissionFiles import (
+    writeHTCondorSubmissionFiles,
+    writeHTCondorSubmissionFiles_outputs,
+)
 from scripts.haddTriggerEff import haddTriggerEff, haddTriggerEff_outputs
 from scripts.addTriggerCounts import addTriggerCounts, addTriggerCounts_outputs
 from scripts.drawTriggerSF import drawTriggerSF, drawTriggerSF_outputs
@@ -33,7 +35,11 @@ re_txt = re.compile('\.txt')
 ########################################################################
 ### HELPER FUNCTIONS ###################################################
 ########################################################################
-def get_target_path(taskname):
+def convertToLuigiLocalTargets(tlist):
+    """Converts a list of files into a list of luigi targets."""
+    return [ luigi.LocalTarget(t) for t in tlist ]
+
+def getTargetPath(taskname):
     target_path = os.path.join(lcfg.targets_folder,
                                re_txt.sub( '_'+taskname+'.txt',
                                            lcfg.targets_default_name ) ) 
@@ -65,7 +71,7 @@ class DefineBinning(ForceableEnsureRecentTarget):
     args = utils.dotDict(lcfg.bins_params)
     args.update( {'tag': lcfg.tag} )
     
-    target_path = get_target_path( args.taskname )
+    target_path = getTargetPath( args.taskname )
     
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def output(self):
@@ -83,84 +89,40 @@ class DefineBinning(ForceableEnsureRecentTarget):
         defineBinning( self.args )
 
 ########################################################################
-### SUBMIT TRIGGER EFFICIENCIES USING HTCONDOR #########################
+### WRITE HTCONDOR FILES FOR TOTAL AND PASSED TRIGGER HISTOGRAMS #######
 ########################################################################
-class SubmitTriggerEff(ForceableEnsureRecentTarget):
-    args = utils.dotDict(lcfg.submit_params_eff)
-    args.update( {'tprefix': lcfg.target_prefix[0],
-                  'tag': lcfg.tag,
-                  } )
-    
-    target_path = get_target_path( args.taskname )
+class WriteHTCondorProcessingFiles(ForceableEnsureRecentTarget):
+    params = utils.dotDict(lcfg.submit_params)
+    params.update( {'tag': lcfg.tag, } )
+
+    mode = luigi.ChoiceParameter(choices=lcfg.modes.keys(),
+                                 var_type=str)
+
+    target_path = getTargetPath( params.taskname )
     
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def output(self):
-        targets = []
-        targets_list = submitTrigger_outputs( self.args, param='root' )
-
-        #define luigi targets
-        for t in targets_list:
-            targets.append( luigi.LocalTarget(t) )
+        self.params['mode'] = self.mode
+        o1, o2, _, _ = writeHTCondorSubmissionFiles_outputs(self.params)
 
         #write the target files for debugging
         utils.remove( self.target_path )
         with open( self.target_path, 'w' ) as f:
-            for t in targets_list:
-                f.write( t + '\n' )
+            for t in o1: f.write( t + '\n' )
+            for t in o2: f.write( t + '\n' )
 
-        return targets
-
+        _c1 = convertToLuigiLocalTargets(o1)
+        _c2 = convertToLuigiLocalTargets(o2)
+        return _c1 + _c2
+    
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def run(self):
-        submitTriggerEff( self.args )
-
-        time.sleep(1.0)
-        os.system('condor_q')
+        self.params['mode'] = self.mode
+        writeHTCondorSubmissionFiles(self.params)
 
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def requires(self):
-        force_flag = set_force_boolean(self.args.hierarchy)
-        return DefineBinning(force=force_flag)
-
-
-########################################################################
-### SUBMIT TRIGGER COUNTS USING HTCONDOR ###############################
-########################################################################
-class SubmitTriggerCounts(ForceableEnsureRecentTarget):
-    args = utils.dotDict(lcfg.submit_params_counts)
-    args.update( {'tprefix': lcfg.target_prefix[1],
-                  'tag': lcfg.tag,
-                  } )
-    
-    target_path = get_target_path( args.taskname )
-    
-    @WorkflowDebugger(flag=FLAGS.debug_workflow)
-    def output(self):
-        targets = []
-        targets_list = submitTrigger_outputs( self.args, param='txt' )
-
-        #define luigi targets
-        for t in targets_list:
-            targets.append( luigi.LocalTarget(t) )
-
-        #write the target files for debugging
-        utils.remove( self.target_path )
-        with open( self.target_path, 'w' ) as f:
-            for t in targets_list:
-                f.write( t + '\n' )
-
-        return targets
-
-    @WorkflowDebugger(flag=FLAGS.debug_workflow)
-    def run(self):
-        submitTriggerCounts( self.args )
-
-        time.sleep(1.0)
-        os.system('condor_q')
-
-    @WorkflowDebugger(flag=FLAGS.debug_workflow)
-    def requires(self):
-        force_flag = set_force_boolean(self.args.hierarchy)
+        force_flag = set_force_boolean(self.params.hierarchy)
         return DefineBinning(force=force_flag)
 
 
@@ -172,31 +134,25 @@ class HaddTriggerEff(ForceableEnsureRecentTarget):
     tsuffix = luigi.Parameter()
     dataset_name = luigi.Parameter()
     args = utils.dotDict(lcfg.hadd_params)
-    args.update( {'tprefix': lcfg.target_prefix[0],
-                  'tag': lcfg.tag,
-                  } )
+    args.update( { 'tprefix': lcfg.modes['histos'],
+                   'tag': lcfg.tag, } )
     
-    target_path = get_target_path( args.taskname )
+    target_path = getTargetPath( args.taskname )
     
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def output(self):
         self.args['samples'] = luigi_to_raw( self.samples )
         self.args['tsuffix'] = self.tsuffix
         self.args['dataset_name'] = self.dataset_name
-        targets = []
-        targets_list = haddTriggerEff_outputs( self.args )
-
-        #define luigi targets
-        for t in targets_list:
-            targets.append( luigi.LocalTarget(t) )
+        tlist = haddTriggerEff_outputs( self.args )
 
         #write the target files for debugging
         utils.remove( self.target_path )
         with open( self.target_path, 'w' ) as f:
-            for t in targets_list:
+            for t in tlist:
                 f.write( t )
 
-        return targets
+        return convertToLuigiLocalTargets(tlist)
 
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def run(self):
@@ -211,10 +167,8 @@ class HaddTriggerEff(ForceableEnsureRecentTarget):
 class Draw1DTriggerScaleFactors(ForceableEnsureRecentTarget):
     args = utils.dotDict(lcfg.drawsf_params)
     trigger_combination = luigi.TupleParameter()
-    args.update( {'tprefix': lcfg.target_prefix[0],
-                  'tag': lcfg.tag,
-                  } )
-    target_path = get_target_path( args.taskname )
+    args.update( { 'tag': lcfg.tag, } )
+    target_path = getTargetPath( args.taskname )
     
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def output(self):
@@ -255,10 +209,10 @@ class Draw1DTriggerScaleFactors(ForceableEnsureRecentTarget):
 ########################################################################
 class Draw2DTriggerScaleFactors(ForceableEnsureRecentTarget):
     args = utils.dotDict(lcfg.drawsf_params)
-    args.update( {'tprefix': lcfg.target_prefix[0],
+    args.update( {'tprefix': lcfg.modes['histos'],
                   'tag': lcfg.tag,
                   } )
-    target_path = get_target_path( args.taskname )
+    target_path = getTargetPath( args.taskname )
     
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def output(self):
@@ -298,10 +252,10 @@ class Draw2DTriggerScaleFactors(ForceableEnsureRecentTarget):
 ########################################################################
 class DrawDistributions(ForceableEnsureRecentTarget):
     args = utils.dotDict(lcfg.drawcounts_params)
-    args.update( {'tprefix': lcfg.target_prefix[0],
+    args.update( {'tprefix': lcfg.modes['histos'],
                   'tag': lcfg.tag,
                   } )
-    target_path = get_target_path( args.taskname )
+    target_path = getTargetPath( args.taskname )
     
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def output(self):
@@ -342,10 +296,10 @@ class DrawTriggerCounts(ForceableEnsureRecentTarget):
     dataset_name = luigi.Parameter()
     args = utils.dotDict(lcfg.drawcounts_params)
     args.update( {'tag': lcfg.tag,
-                  'tprefix': lcfg.target_prefix[1],}
+                  'tprefix': lcfg.modes['counts'],}
                 )
     
-    target_path = get_target_path( args.taskname )
+    target_path = getTargetPath( args.taskname )
     
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def output(self):
@@ -375,6 +329,17 @@ class DrawTriggerCounts(ForceableEnsureRecentTarget):
         addTriggerCounts( self.args )
 
 ########################################################################
+### TRIGGERING ALL HTCONDOR WRITING CLASSES ############################
+########################################################################
+class WriteAll(luigi.WrapperTask):
+    #date = luigi.DateParameter(default=datetime.date.today())
+    def requires(self):
+        yield WriteHTCondorProcessingFiles( mode='histos' )
+        yield WriteHTCondorProcessingFiles( mode='counts' )
+        # yield WriteHTCondorHaddFiles()
+        # yield WriteHTCondorEfficiencyFiles()
+        
+########################################################################
 ### MAIN ###############################################################
 ########################################################################
 if __name__ == "__main__":
@@ -388,24 +353,10 @@ if __name__ == "__main__":
 
     utils.createSingleDir( lcfg.tag_folder )
     utils.createSingleDir( lcfg.targets_folder )
-
-    # for t in _tasks_tag:
-    #     if t == 'preprocessing':
-    #         for cat in cfg().pp_categories:
-    #             fname = regex_txt.sub('_'+cat+'.txt', os.path.join(t_tag, cfg().targets_tag[t]))
-    #             write_dummy_file(fname)
-    #     else:
-    #         fname = os.path.join(t_tag, cfg().targets_tag[t])
-    #         write_dummy_file(fname)
     
-    #8 categories => at most 8 workers required
     if FLAGS.submit:
-        last_tasks = [ SubmitTriggerCounts(force=FLAGS.force>0),
-                       SubmitTriggerEff(force=FLAGS.force>0),
-                      ]
-        if FLAGS.counts: #overwrites
-            last_tasks = [ SubmitTriggerCounts(force=FLAGS.force>0), ]
-
+        last_tasks = [ WriteAll() ]
+        
     else:
         count_tasks = [ DrawTriggerCounts(force=FLAGS.force>0,
                                           samples=lcfg._selected_data,

@@ -143,24 +143,29 @@ def set_task_name(n):
 ### LUIGI CONFIGURATION ################################################
 ########################################################################
 class cfg(luigi.Config):
+    # auxiliary, not used by scripts
     base_name = 'TriggerScaleFactors'
     data_base = os.path.join( '/data_CMS/', 'cms' )
     user = os.environ['USER']
     data_storage = os.path.join(data_base, user, base_name)
-    data_target = 'MET2018_sum'
     web_storage = os.path.join('/eos/', 'home-b',
                                FLAGS.outuser, 'www', base_name)
-    
-    ### Define luigi parameters ###
+
+    local_home = os.environ['HOME']
+    local_cmssw = os.path.join(os.environ['CMSSW_VERSION'], 'src')
+    local_analysis_folder = 'METTriggerStudies'
+
     # general
+    modes = {'histos': 'hist_',
+             'counts': 'counts_'}
     tag = FLAGS.tag
     subtag = ( FLAGS.subtag if FLAGS.subtag==''
                else ( '_' + FLAGS.subtag if FLAGS.subtag[0] != '_' else FLAGS.subtag ) )
     tag_folder = os.path.join(data_storage, tag)
     web_folder = os.path.join(web_storage, tag)
+    local_folder = os.path.join(local_home, local_cmssw, local_analysis_folder)
     targets_folder = os.path.join(data_storage, tag, 'targets')
     targets_default_name = 'DefaultTarget.txt'
-    target_prefix = ('hist_', 'counts_')
     intersection_str = '_PLUS_'
     nocut_dummy_str = 'NoCut'
     
@@ -189,27 +194,22 @@ class cfg(luigi.Config):
     #### submitTriggerEff, submitTriggerCounts
     ####
     _rawname = set_task_name('submit')
-    _submit_params_base = { 'taskname': _rawname,
-                            'hierarchy': _tasks_before_condor[_rawname],
-                            'binedges_filename': binedges_filename,
-                            'indir': _inputs,
-                            'outdir': tag_folder,
-                            'data': _data[FLAGS.data],
-                            'mc_processes': _mc_processes[FLAGS.mc_process],
-                            'triggers': FLAGS.triggers,
-                            'channels': FLAGS.channels,
-                            'variables': variables_join,
-                            'subtag': subtag,
-                            'intersection_str': intersection_str,
-                            'nocut_dummy_str': nocut_dummy_str,
-                            'debug': FLAGS.debug_workflow
-                           }
-    submit_params_eff = luigi.DictParameter(
-        default=dict(_submit_params_base, tprefix=target_prefix[0])
-    )
-    submit_params_counts = luigi.DictParameter(
-        default=dict(_submit_params_base, tprefix=target_prefix[1])
-    )
+    submit_params = { 'taskname': _rawname,
+                      'hierarchy': _tasks_before_condor[_rawname],
+                      'binedges_filename': binedges_filename,
+                      'indir': _inputs,
+                      'outdir': tag_folder,
+                      'localdir': local_folder,
+                      'data': _data[FLAGS.data],
+                      'mc_processes': _mc_processes[FLAGS.mc_process],
+                      'triggers': FLAGS.triggers,
+                      'channels': FLAGS.channels,
+                      'variables': variables_join,
+                      'subtag': subtag,
+                      'intersection_str': intersection_str,
+                      'nocut_dummy_str': nocut_dummy_str,
+                      'debug': FLAGS.debug_workflow
+                     }
 
     ####
     #### haddTriggerEff

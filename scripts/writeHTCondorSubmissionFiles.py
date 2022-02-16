@@ -11,7 +11,7 @@
 # --variables met_et HT20 mht_et metnomu_et mhtnomu_et
 # --channels mutau
 # --subtag SUBTAG
-# --tprefix hist_
+# --tprefix histos_
 ####################################################################
 
 import sys
@@ -25,7 +25,7 @@ import ROOT
 from utils import utils
 
 @utils.setPureInputNamespace
-def submitTrigger_outputs(args, param='root'):
+def runTrigger_outputs(args, param='root'):
     """
     Produces all outputs of the submitTriggerEff task.
     Limitation: As soon as one file is not produced, luigi
@@ -42,78 +42,111 @@ def submitTrigger_outputs(args, param='root'):
         folder = os.path.join( args.outdir, thisProc )
         for inp in inputs:
             number = exp.search(inp)
-            basename = args.tprefix + thisProc + number.group(1) + args.subtag + extension
+            basename = args.mode + '_' + thisProc + number.group(1) + args.subtag + extension
             t.append( os.path.join(folder, basename) )
 
     return t
-        
-@utils.setPureInputNamespace
-def submitTriggerEff(args):
-    home = os.environ['HOME']
-    cmssw = os.path.join(os.environ['CMSSW_VERSION'], 'src')
-    prog = 'python3 {}'.format( os.path.join(home, cmssw, 'METTriggerStudies', 'scripts', 'getTriggerEffSig.py') )
 
-    # -- Job steering files
-    currFolder = os.getcwd()
-    jobsDir = os.path.join(currFolder, 'jobs')
+@utils.setPureInputNamespace
+def writeHTCondorSubmissionFiles_outputs(args):
+    """
+    Outputs are guaranteed to have the same length.
+    Returns all separate paths to avoid code duplication.
+    """
+    out_jobs, out_submit, out_check = ([] for _ in range(3))
+
+    outSubmDir = 'submission'
+    jobDir = os.path.join(args.localdir, 'jobs', args.tag, outSubmDir)
+    os.system('mkdir -p {}'.format(jobDir))
+    outCheckDir = 'outputs'
+    checkDir = os.path.join(args.localdir, 'jobs', args.tag, outCheckDir)
+    os.system('mkdir -p {}'.format(checkDir))
+
+    if args.mode == 'histos':
+        name = 'jobEff_{}.{}'
+        check_name = 'Cluster$(Cluster)_Process$(Process)_Eff.o'
+    elif args.mode == 'counts':
+        name = 'jobCounts_{}.{}'
+        check_name = 'Cluster$(Cluster)_Process$(Process)_Counts.o'
 
     _all_processes = args.data + args.mc_processes
     for thisProc in _all_processes:
+        jobFile = os.path.join(jobDir, name.format(thisProc, 'sh'))
+        out_jobs.append(jobFile)
+
+        submFile = os.path.join(jobDir, name.format(thisProc, 'condor'))
+        out_submit.append(submFile)
+
+        checkFile = os.path.join(checkDir, thisProc, check_name)
+        out_check.append(checkFile)
+
+    assert(len(out_jobs)==len(_all_processes))
+    assert(len(out_submit)==len(_all_processes))
+    assert(len(out_check)==len(_all_processes))
+    return out_jobs, out_submit, out_check, _all_processes
+
+@utils.setPureInputNamespace
+def writeHTCondorSubmissionFiles(args):
+    script = os.path.join(args.localdir, 'scripts')
+    if args.mode == 'histos':
+        script = os.path.join(script, 'runTriggerEff.py')
+    elif args.mode == 'counts':
+        script = os.path.join(script, 'runTriggerCounts.py')
+    prog = 'python3 {}'.format(script)
+
+    # -- Job steering files
+    jobsDir = os.path.join(args.localdir, 'jobs')
+
+    outs_job, outs_submit, outs_check, _all_processes = writeHTCondorSubmissionFiles_outputs(args)
+    for i,thisProc in enumerate(_all_processes):
         filelist, inputdir = utils.getROOTInputFiles(thisProc, args)
         
         #### Write shell executable (python scripts must be wrapped in shell files to run on HTCondor)
-        outSubmDir = 'submission'
-        jobDir = os.path.join(jobsDir, args.tag, outSubmDir)
-        jobFile = os.path.join(jobDir, 'job_{}.sh'.format(thisProc))
-
         command =  ( ( '{prog} --indir {indir} --outdir {outdir} --sample {sample} --isData {isData} '
                        '--file ${{1}} --subtag {subtag} --channels {channels} '
-                       '--triggers {triggers} --variables {variables} --tprefix {tprefix} '
-                       '--binedges_fname {bename} --intersection_str {inters} --nocut_dummy_str {nocutstr}\n' )
+                       '--triggers {triggers} --variables {variables} --tprefix {tprefix} ' )
                      .format( prog=prog, indir=inputdir, outdir=args.outdir,
                               sample=thisProc, isData=int(thisProc in args.data),
                               subtag=args.subtag,
                               channels=' '.join(args.channels,),
                               triggers=' '.join(args.triggers,),
                               variables=' '.join(args.variables,),
-                              tprefix=args.tprefix,
-                              bename=args.binedges_filename,
-                              inters=args.intersection_str,
-                              nocutstr=args.nocut_dummy_str)
+                              tprefix=args.mode + '_')
                     )
+        
+        if args.debug:
+            command += '--debug '
 
-        os.system('mkdir -p {}'.format(jobDir))
+        if args.mode == 'histos':
+            command += ( ( '--binedges_fname {bename} --intersection_str {inters} '
+                           '--nocut_dummy_str {nocutstr}\n' )
+                         .format(bename=args.binedges_filename,
+                                 inters=args.intersection_str,
+                                 nocutstr=args.nocut_dummy_str) )
+        elif args.mode == 'counts':
+            command += '\n'
 
-        with open(jobFile, 'w') as s:
+        with open(outs_job[i], 'w') as s:
             s.write('#!/bin/bash\n')
             s.write('export X509_USER_PROXY=~/.t3/proxy.cert\n')
             s.write('export EXTRA_CLING_ARGS=-O2\n')
             s.write('source /cvmfs/cms.cern.ch/cmsset_default.sh\n')
-            s.write('cd /home/llr/cms/alves/CMSSW_12_2_0_pre1/src/\n')
+            #s.write('cd /home/llr/cms/alves/CMSSW_12_2_0_pre1/src/\n')
+            s.write('cd {}/\n'.format(args.localdir))
             s.write('eval `scramv1 runtime -sh`\n')
-            if args.debug:
-                command += ' --debug'
             s.write(command)
             s.write('echo "Process {} done."\n'.format(thisProc))
-        os.system('chmod u+rwx '+ jobFile)
+        os.system('chmod u+rwx '+ outs_job[i])
 
         #### Write submission file
-        submDir = os.path.join(jobsDir, args.tag, outSubmDir)
-        submFile = os.path.join(submDir, 'job_' + thisProc + '.submit')
-
-        outCheckDir = 'outputs'
         queue = 'short'
-        os.system('mkdir -p {}'.format(submDir))
-
-        with open(submFile, 'w') as s:
+        with open(outs_submit[i], 'w') as s:
             s.write('Universe = vanilla\n')
-            s.write('Executable = {}\n'.format(jobFile))
-            s.write('Arguments = $(filename) \n'.format(jobFile))
+            s.write('Executable = {}\n'.format(outs_job[i]))
+            s.write('Arguments = $(filename) \n')
             s.write('input = /dev/null\n')
-            _outfile = ( '{d}/{t}/{o}/{p}/Cluster$(Cluster)_Process$(Process)_Eff'
-                         .format(d=jobsDir, t=args.tag, o=outCheckDir, p=thisProc) )
-            s.write('output = {}.o\n'.format(_outfile))
-            s.write('error  = {}.e\n'.format(_outfile))
+            s.write('output = {}\n'.format(outs_check[i]))
+            s.write('error  = {}\n'.format(outs_check[i].replace('.o', '.e')))
             s.write('getenv = true\n')
             s.write('T3Queue = {}\n'.format(queue))
             s.write('WNTag=el7\n')
@@ -124,20 +157,20 @@ def submitTriggerEff(args):
                 s.write('  {}\n'.format( os.path.basename(listname).replace('\n','') ))
 
             s.write(')\n')
-        os.system('mkdir -p {}'.format( os.path.join(jobsDir, args.tag, outCheckDir, thisProc) ))
-
-        os.system('condor_submit -name llrt3condor {}'.format(submFile))
+        # os.system('mkdir -p {}'.format( os.path.join(jobsDir, args.tag, outCheckDir, thisProc) ))
+        # os.system('condor_submit -name llrt3condor {}'.format(submFile))
 
 # -- Parse options
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Command line parser')
 
     parser.add_argument('--binedges_dataset', dest='binedges_dataset', required=True, help='in directory')
+    parser.add_argument('--localdir',         dest='localdir',         default=os.getcwd(),
+                        help='out directory')
     parser.add_argument('-a', '--indir',      dest='indir',            required=True, help='in directory')
     parser.add_argument('-o', '--outdir',     dest='outdir',           required=True, help='out directory')
     parser.add_argument('-t', '--tag',        dest='tag',              required=True, help='tag')
     parser.add_argument('--subtag',           dest='subtag',           required=True, help='subtag')
-    parser.add_argument('--tprefix',          dest='tprefix',          required=True, help='target prefix')
     parser.add_argument('--mc_processes',     dest='mc_processes',     required=True, nargs='+', type=str,
                         help='list of MC process names')                
     parser.add_argument('--data',             dest='data',             required=True, nargs='+', type=str,
@@ -150,7 +183,7 @@ if __name__ == '__main__':
                         help='Select the variables over which the workflow will be run.' )
     parser.add_argument('--intersection_str', dest='intersection_str', required=False, default='_PLUS_',
                         help='String used to represent set intersection between triggers.')
-    parser.add_argument('--nocut_dummy_str', dest='tprefix', required=True,
+    parser.add_argument('--nocut_dummy_str', dest='nocut_dummy_str', required=True,
                         help='Dummy string associated to trigger histograms were no cuts are applied.')
     parser.add_argument('--debug', action='store_true', help='debug verbosity')
     args = parser.parse_args()

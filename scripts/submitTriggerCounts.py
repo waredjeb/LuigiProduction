@@ -26,7 +26,7 @@ from utils import utils
 def submitTriggerCounts(args):
     home = os.environ['HOME']
     cmssw = os.path.join(os.environ['CMSSW_VERSION'], 'src')
-    prog = 'python3 {}'.format( os.path.join(home, cmssw, 'METTriggerStudies', 'scripts', 'getTriggerCounts.py') )
+    prog = 'python3 {}'.format( os.path.join(home, cmssw, 'METTriggerStudies', 'scripts', 'runTriggerCounts.py') )
 
     # -- Job steering files
     currFolder = os.getcwd()
@@ -112,9 +112,8 @@ def submitTriggerCounts(args):
                 s.write('  {}\n'.format( os.path.basename(listname).replace('\n','') ))
 
             s.write(')\n')
-        os.system('mkdir -p {}'.format( os.path.join(jobsDir, args.tag, outCheckDir, thisProc) ))
-
-        os.system('condor_submit -name llrt3condor {}'.format(submFile))
+        # os.system('mkdir -p {}'.format( os.path.join(jobsDir, args.tag, outCheckDir, thisProc) ))
+        # os.system('condor_submit -name llrt3condor {}'.format(submFile))
 
 # -- Parse options
 if __name__ == '__main__':
