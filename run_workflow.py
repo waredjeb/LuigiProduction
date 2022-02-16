@@ -127,9 +127,9 @@ class WriteHTCondorProcessingFiles(ForceableEnsureRecentTarget):
 
 
 ########################################################################
-### HADD TRIGGER EFFICIENCIES ##########################################
+### WRITE HTCONDOR FILES FOR HADD'ING HISTOGRAMS IN ROOT FILES #########
 ########################################################################
-class HaddTriggerEff(ForceableEnsureRecentTarget):
+class WriteHTCondorHaddFiles(ForceableEnsureRecentTarget):
     samples = luigi.ListParameter()
     tsuffix = luigi.Parameter()
     dataset_name = luigi.Parameter()
@@ -144,22 +144,24 @@ class HaddTriggerEff(ForceableEnsureRecentTarget):
         self.args['samples'] = luigi_to_raw( self.samples )
         self.args['tsuffix'] = self.tsuffix
         self.args['dataset_name'] = self.dataset_name
-        tlist = haddTriggerEff_outputs( self.args )
+        o1, o2, _, _ = writeHTCondorHaddFiles_outputs( self.args )
 
         #write the target files for debugging
         utils.remove( self.target_path )
         with open( self.target_path, 'w' ) as f:
-            for t in tlist:
-                f.write( t )
+            for t in o1: f.write( t + '\n' )
+            for t in o2: f.write( t + '\n' )
 
-        return convertToLuigiLocalTargets(tlist)
+        _c1 = convertToLuigiLocalTargets(o1)
+        _c2 = convertToLuigiLocalTargets(o2)
+        return _c1 + _c2
 
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def run(self):
         self.args['samples'] = luigi_to_raw( self.samples )
         self.args['tsuffix'] = self.tsuffix
         self.args['dataset_name'] = self.dataset_name
-        haddTriggerEff( self.args )
+        writeHTCondorHaddFiles( self.args )
 
 ########################################################################
 ### DRAW 1D TRIGGER SCALE FACTORS #######################################
@@ -336,7 +338,7 @@ class WriteAll(luigi.WrapperTask):
     def requires(self):
         yield WriteHTCondorProcessingFiles( mode='histos' )
         yield WriteHTCondorProcessingFiles( mode='counts' )
-        # yield WriteHTCondorHaddFiles()
+        yield WriteHTCondorHaddFiles()
         # yield WriteHTCondorEfficiencyFiles()
         
 ########################################################################
