@@ -63,7 +63,7 @@ def writeHTCondorSubmissionFiles_outputs(args):
     os.system('mkdir -p {}'.format(checkDir))
 
     if args.mode == 'histos':
-        name = 'jobEff_{}.{}'
+        name = 'jobHistos_{}.{}'
         check_name = 'Cluster$(Cluster)_Process$(Process)_Eff.o'
     elif args.mode == 'counts':
         name = 'jobCounts_{}.{}'
@@ -172,7 +172,7 @@ if __name__ == '__main__':
                         help='list of MC process names')                
     parser.add_argument('--data',             dest='data',             required=True, nargs='+', type=str,
                         help='list of dataset s')                       
-    parser.add_argument('-c', '--channels',   dest='channels',         required=True, nargs='+', type=str,
+    parser.add_argument('--channels',   dest='channels',         required=True, nargs='+', type=str,
                         help='Select the channels over which the workflow will be run.' )
     parser.add_argument('--triggers',         dest='triggers',         required=True, nargs='+', type=str,
                         help='Select the triggers over which the workflow will be run.' )

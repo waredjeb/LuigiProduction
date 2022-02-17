@@ -22,11 +22,9 @@ from utils.utils import (
   getKeyList,
   getROOTObject,
   getHistoNames,
-  joinNameTriggerIntersection as joinNTC,
   redrawBorder,
   replacePlaceholder,
   restoreBinning,
-  setPureInputNamespace,
 )
 
 from luigi_conf import (
@@ -34,18 +32,19 @@ from luigi_conf import (
   _placeholder_cuts,
 )
 
-def drawEfficienciesAndScaleFactors(args, proc, channel, variable, trig, save_names, binedges, nbins):
+def drawEfficienciesAndScaleFactors(proc, channel, variable, trig, save_names, binedges, nbins,
+                                    tprefix, indir, subtag, data_name, debug):
   _name = lambda a,b,c,d : a + b + c + d + '.root'
 
-  name_data = os.path.join(args.indir, _name( args.tprefix, args.data_name,
-                                                args.tsuffix, args.subtag ) )
+  name_data = os.path.join(indir, _name( tprefix, data_name,
+                                         '_Sum', subtag ) )
   file_data = TFile.Open(name_data)
   
-  name_mc = os.path.join(args.indir, _name( args.tprefix, args.mc_name,
-                                            args.tsuffix, args.subtag ))
+  name_mc = os.path.join(indir, _name( tprefix, mc_name,
+                                       '_Sum', subtag ))
   file_mc   = TFile.Open(name_mc)
   
-  if args.debug:
+  if debug:
     print('[=debug=] Open files:')
     print('[=debug=]  - Data: {}'.format(name_data))
     print('[=debug=]  - MC: {}'.format(name_mc))
@@ -53,7 +52,7 @@ def drawEfficienciesAndScaleFactors(args, proc, channel, variable, trig, save_na
           .format(proc=proc, channel=channel, variable=variable, trig=trig))
 
   hnames = { 'ref':  getHistoNames('Ref1D')(channel, variable),
-             'trig': getHistoNames('Trig1D')(channel, variable, joinNTC(trig))
+             'trig': getHistoNames('Trig1D')(channel, variable, trig)
             }
 
   keylist_data = getKeyList(file_data, inherits=['TH1'])
@@ -133,7 +132,7 @@ def drawEfficienciesAndScaleFactors(args, proc, channel, variable, trig, save_na
 
       eu_mc[i] = vmc.GetErrorYhigh(i)
       ed_mc[i] = vmc.GetErrorYlow(i)
-      if args.debug:
+      if debug:
         print('xp[{}] = {} - yp[{}] = {} +{}/-{}\n'.format(i,x_mc[i],iy_mc[i],eu_mc[i],ed_mc[i]))
 
       x_data[i] = ctypes.c_double(0.)
@@ -144,7 +143,7 @@ def drawEfficienciesAndScaleFactors(args, proc, channel, variable, trig, save_na
 
       eu_data[i] = vdata.GetErrorYhigh(i)
       ed_data[i] = vdata.GetErrorYlow(i)
-      if args.debug:
+      if debug:
         print('xp[{}] = {} - yp[{}] = {} +{}/-{}\n'.format(i,x_data[i],i,y_data[i],eu_data[i],ed_data[i]))
 
       x_sf[i] = x_mc[i]
@@ -163,7 +162,7 @@ def drawEfficienciesAndScaleFactors(args, proc, channel, variable, trig, save_na
         eu_sf[i] = np.sqrt( eu_mc[i]**2 + eu_data[i]**2 )
         ed_sf[i] = np.sqrt( ed_mc[i]**2 + ed_data[i]**2 )
 
-    if args.debug:
+    if debug:
       print('=== Scale Factors ====')
       for i in range(npoints):
         print('xp[{}] = {} - yp[{}] = {} +{}/-{}\n'.format(i,x_sf[i],i,y_sf[i],eu_sf[i],ed_sf[i]))
@@ -196,7 +195,7 @@ def drawEfficienciesAndScaleFactors(args, proc, channel, variable, trig, save_na
   #############################################################################################
 
     
-  if args.debug:
+  if debug:
     print('[=debug=] Plotting...')  
 
   for akey in sf:
@@ -328,55 +327,31 @@ def drawEfficienciesAndScaleFactors(args, proc, channel, variable, trig, save_na
       _name = replacePlaceholder('cuts', aname, _regex )
       canvas.SaveAs( _name )
 
-def _getCanvasName(proc, chn, var, trig, data_name, subtag, intersection_str):
-    """
-    A 'XXX' placeholder is added for later replacement by all cuts considered
-      for the same channel, variable and trigger combination.
-    Without the placeholder one would have to additionally calculate the number
-      of cuts beforehand, which adds complexity with no major benefit.
-    """
-    trigstr = intersection_str.join(trig)
-    add = proc + '_' + chn + '_' + var + '_' + trigstr
-    n = 'trigSF_' + data_name + '_' + add + subtag
-    n += _placeholder_cuts
-    return n
-
-@setPureInputNamespace
-def drawTriggerSF_outputs(args, trigger_combination):
-  outputs = [[] for _ in range(len(_extensions))]
-  processes = args.mc_processes if args.draw_independent_MCs else [args.mc_name]
+def runEfficienciesAndScaleFactors(indir, outdir,
+                                   mc_processes, mc_name, data_name,
+                                   trigger_combination,
+                                   channels, variables,
+                                   binedges_filename, subtag,
+                                   draw_independent_MCs,
+                                   tprefix,
+                                   debug):
+  outputs, extensions, processes = runEfficienciesAndScaleFactors_outputs(outdir,
+                                                                          mc_processes, mc_name, data_name,
+                                                                          trigger_combination,
+                                                                          channels, variables,
+                                                                          subtag,
+                                                                          draw_independent_MCs)
   
-  for proc in processes:
-    for ch in args.channels:
-      for var in args.variables:
-        canvas_name = _getCanvasName(proc, ch, var,
-                                     trigger_combination,
-                                     args.data_name, args.subtag,
-                                     args.intersection_str)
-        thisbase = os.path.join(args.outdir, ch, var, '')
-        createSingleDir( thisbase )
-
-        for ext,out in zip(_extensions, outputs):
-          out.append( os.path.join( thisbase, canvas_name + '.' + ext ) )
-
-  #join all outputs in the same list
-  return sum(outputs, []), _extensions
-    
-@setPureInputNamespace
-def drawTriggerSF(args, trigger_combination):
-  outputs, extensions = drawTriggerSF_outputs(args, trigger_combination)
-  processes = args.mc_processes if args.draw_independent_MCs else [args.mc_name]
-  
-  binedges, nbins = restoreBinning(args.binedges_filename, args.channels,
-                                   args.variables, args.subtag)
+  binedges, nbins = restoreBinning(binedges_filename, channels,
+                                   variables, subtag)
   
   dv = len(args.variables)
   dc = len(args.channels) * dv
   dp = len(processes) * dc
   
   for ip,proc in enumerate(processes):
-    for ic,chn in enumerate(args.channels):
-      for iv,var in enumerate(args.variables):
+    for ic,chn in enumerate(channels):
+      for iv,var in enumerate(variables):
         index = ip*dc + ic*dv + iv
         names = [ outputs[index + dp*x] for x in range(len(extensions)) ]
 
@@ -388,26 +363,45 @@ def drawTriggerSF(args, trigger_combination):
             m += ", trigger_combination={}\n".format(trigger_combination)
           print(m)
 
-        drawEfficienciesAndScaleFactors( args, proc, chn, var,
+        drawEfficienciesAndScaleFactors( proc, chn, var,
                                          trigger_combination,
                                          names,
-                                         binedges[var][chn], nbins[var][chn] )
+                                         binedges[var][chn], nbins[var][chn],
+                                         tprefix,
+                                         indir, subtag,
+                                         data_name, debug)
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Draw trigger scale factors')
 
-    parser.add_argument('-i', '--indir', help='Inputs directory', required=True)
-    parser.add_argument('-x', '--tprefix', help='prefix to the names of the produced outputs (targets in luigi lingo)', required=True)
-    parser.add_argument('-t', '--tag', help='string to diferentiate between different workflow runs', required=True)
-    parser.add_argument('-d', '--data', help='dataset to be analyzed/plotted', required=True)
-    parser.add_argument('-p', '--mc_processes', help='MC processes to be analyzed', required=True)
-    parser.add_argument('--binedges_filename', dest='binedges_filename', required=True, help='in directory')
-    parser.add_argument('--draw_independent_MCs', action='store_true', help='debug verbosity')
-    parser.add_argument('--intersection_str', dest='intersection_str', required=False, default='_PLUS_',
+parser = argparse.ArgumentParser(description='Draw trigger scale factors')
+
+parser.add_argument('--indir', help='Inputs directory', required=True)
+parser.add_argument('--tprefix', help='prefix to the names of the produced outputs (targets in luigi lingo)', required=True)
+parser.add_argument('--tag', help='string to diferentiate between different workflow runs', required=True)
+parser.add_argument('--subtag',           dest='subtag',           required=True, help='subtag')
+parser.add_argument('--data', help='dataset to be analyzed/plotted', required=True)
+parser.add_argument('--mc_processes', help='MC processes to be analyzed', required=True)
+parser.add_argument('--binedges_filename', dest='binedges_filename', required=True, help='in directory')
+parser.add_argument('--data_name', dest='data_name', required=True, help='Data sample name')
+parser.add_argument('--mc_name', dest='mc_name', required=True, help='MC sample name')
+parser.add_argument('--triggercomb', dest='triggercomb', required=True,
+                    help='Trigger intersection combination.')
+parser.add_argument('--channels',   dest='channels',         required=True, nargs='+', type=str,
+                    help='Select the channels over which the workflow will be run.' )
+parser.add_argument('--variables',        dest='variables',        required=True, nargs='+', type=str,
+                    help='Select the variables over which the workflow will be run.' )
+parser.add_argument('--draw_independent_MCs', action='store_true', help='debug verbosity')
+parser.add_argument('--intersection_str', dest='intersection_str', required=False, default='_PLUS_',
                     help='String used to represent set intersection between triggers.')
-    parser.add_argument('--nocut_dummy_str', dest='nocut_dummy_str', required=True,
-                        help='Dummy string associated to trigger histograms were no cuts are applied.')
-    parser.add_argument('--debug', action='store_true', help='debug verbosity')
-    args = parser.parse_args()
+parser.add_argument('--nocut_dummy_str', dest='nocut_dummy_str', required=True,
+                    help='Dummy string associated to trigger histograms were no cuts are applied.')
+parser.add_argument('--debug', action='store_true', help='debug verbosity')
+args = parser.parse_args()
 
-    drawTriggerSF(args)
+runEfficienciesAndScaleFactors(args.indir, args.outdir,
+                               args.mc_processes, args.mc_name, args.data_name,
+                               args.trigger_combination,
+                               args.channels, args.variables,
+                               args.binedges_filename, args.subtag,
+                               args.draw_independent_MCs,
+                               args.tprefix,
+                               args.debug)

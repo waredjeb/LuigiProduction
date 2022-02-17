@@ -242,6 +242,7 @@ class cfg(luigi.Config):
                   'draw_independent_MCs': False,
                   'indir': tag_folder,
                   'outdir': web_folder,
+                  'localdir': local_folder,
                   'triggers': FLAGS.triggers,
                   'channels': FLAGS.channels,
                   'variables': FLAGS.variables_for_efficiencies,
