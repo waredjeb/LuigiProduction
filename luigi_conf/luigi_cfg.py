@@ -13,7 +13,7 @@ from . import _trigger_shift, _triggers_map
 ########################################################################
 # hierarchies are used in conjunction with the '--force' flag
 _tasks_before_condor = { 'bins': 2, 'submit': 1 }
-_tasks_after_condor = { 'hadd': 2, 'comp': 1, 'drawsf': 1, 'drawdist': 1, 'drawcounts': 1 }
+_tasks_after_condor = {  }
 max_task_number = max(list(_tasks_after_condor.values())+list(_tasks_before_condor.values()))
 
 parser = argparse.ArgumentParser(formatter_class=RawTextHelpFormatter)
@@ -187,14 +187,25 @@ class cfg(luigi.Config):
                   'data': _data[FLAGS.data],
                   'variables': variables_join,
                   'channels': FLAGS.channels,
+                  'tag': tag,
                   'subtag': subtag,
                   'debug': FLAGS.debug_workflow} )
 
     ####
+    #### writeHTCondorDAGFiles
+    ####
+    _rawname = set_task_name('submit')
+    write_params = { 'taskname': _rawname,
+                     'hierarchy': _tasks_before_condor[_rawname],
+                     'data_name': FLAGS.data,
+                     'localdir': local_folder,
+                     'tag': tag }
+    
+    ####
     #### submitTriggerEff, submitTriggerCounts
     ####
     _rawname = set_task_name('submit')
-    submit_params = { 'taskname': _rawname,
+    histos_params = { 'taskname': _rawname,
                       'hierarchy': _tasks_before_condor[_rawname],
                       'binedges_filename': binedges_filename,
                       'indir': _inputs,
@@ -205,6 +216,7 @@ class cfg(luigi.Config):
                       'triggers': FLAGS.triggers,
                       'channels': FLAGS.channels,
                       'variables': variables_join,
+                      'tag': tag,
                       'subtag': subtag,
                       'intersection_str': intersection_str,
                       'nocut_dummy_str': nocut_dummy_str,
@@ -214,18 +226,19 @@ class cfg(luigi.Config):
     ####
     #### haddTriggerEff
     ####
-    _rawname = set_task_name('hadd')
+    _rawname = set_task_name('submit')
     hadd_params = luigi.DictParameter(
         default={ 'taskname': _rawname,
-                  'hierarchy': _tasks_after_condor[_rawname],
+                  'hierarchy': _tasks_before_condor[_rawname],
                   'indir': tag_folder,
                   'localdir': local_folder,
+                  'tag': tag,
                   'subtag': subtag} )
 
     ####
     #### drawTriggerScaleFactors
     ####
-    _rawname = set_task_name('drawsf')
+    _rawname = set_task_name('submit')
     # clever way to flatten a nested list
     #_selected_mc_processes = sum([ _mc_processes[proc] for proc in FLAGS.mc_process ], [])
     #_selected_data = sum([ _data[x] for x in FLAGS.data ], [])
@@ -234,7 +247,7 @@ class cfg(luigi.Config):
     
     drawsf_params = luigi.DictParameter(
         default={ 'taskname': _rawname,
-                  'hierarchy': _tasks_after_condor[_rawname],
+                  'hierarchy': _tasks_before_condor[_rawname],
                   'data_name': FLAGS.data,
                   'mc_name': FLAGS.mc_process,
                   'data': _selected_data,
@@ -247,6 +260,7 @@ class cfg(luigi.Config):
                   'channels': FLAGS.channels,
                   'variables': FLAGS.variables_for_efficiencies,
                   'binedges_filename': binedges_filename,
+                  'tag': tag,
                   'subtag': subtag,
                   'intersection_str': intersection_str,
                   'nocut_dummy_str': nocut_dummy_str,
@@ -255,13 +269,13 @@ class cfg(luigi.Config):
     ####
     #### drawDistributions
     ####
-    _rawname = set_task_name('drawdist')
+    _rawname = set_task_name('submit')
     _selected_mc_processes =_mc_processes[FLAGS.mc_process]
     _selected_data = _data[FLAGS.data]
     
     drawdist_params = luigi.DictParameter(
         default={ 'taskname': _rawname,
-                  'hierarchy': _tasks_after_condor[_rawname],
+                  'hierarchy': _tasks_before_condor[_rawname],
                   'data_name': FLAGS.data,
                   'mc_name': FLAGS.mc_process,
                   'data': _selected_data,
@@ -273,6 +287,7 @@ class cfg(luigi.Config):
                   'channels': FLAGS.channels,
                   'variables': FLAGS.variables_for_distributions,
                   'binedges_filename': binedges_filename,
+                  'tag': tag,
                   'subtag': subtag,
                   'debug': FLAGS.debug_workflow,} )
 
@@ -280,13 +295,13 @@ class cfg(luigi.Config):
     ####
     #### drawCounts
     ####
-    _rawname = set_task_name('drawcounts')
+    _rawname = set_task_name('submit')
     _selected_mc_processes = _mc_processes[FLAGS.mc_process]
     _selected_data = _data[FLAGS.data]
     
     drawcounts_params = luigi.DictParameter(
         default={ 'taskname': _rawname,
-                  'hierarchy': _tasks_after_condor[_rawname],
+                  'hierarchy': _tasks_before_condor[_rawname],
                   'data_name': FLAGS.data,
                   'mc_name': FLAGS.mc_process,
                   'data': _selected_data,
@@ -297,6 +312,7 @@ class cfg(luigi.Config):
                   'channels': FLAGS.channels,
                   'variables': FLAGS.variables_for_distributions,
                   'binedges_filename': binedges_filename,
+                  'tag': tag,
                   'subtag': subtag,
                   'debug': FLAGS.debug_workflow,} )
 

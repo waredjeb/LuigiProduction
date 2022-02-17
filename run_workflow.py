@@ -30,11 +30,18 @@ from scripts.writeHTCondorHaddFiles import (
     writeHTCondorHaddFiles,
     writeHTCondorHaddFiles_outputs,
 )
-from scripts.addTriggerCounts import addTriggerCounts, addTriggerCounts_outputs
 from scripts.writeHTCondorEfficienciesAndScaleFactorsFiles import (
     writeHTCondorEfficienciesAndScaleFactorsFiles,
     writeHTCondorEfficienciesAndScaleFactorsFiles_outputs,
 )
+from scripts.writeHTCondorDAGFiles import (
+    writeHTCondorDAGFiles,
+    writeHTCondorDAGFiles_outputs,
+)
+from scripts.addTriggerCounts import (
+    addTriggerCounts,
+    addTriggerCounts_outputs
+    )
 from scripts.draw2DTriggerSF import draw2DTriggerSF, draw2DTriggerSF_outputs
 from scripts.drawDistributions import drawDistributions, drawDistributions_outputs
 
@@ -80,7 +87,6 @@ def set_force_boolean(hierarchy):
 ########################################################################
 class DefineBinning(ForceableEnsureRecentTarget):
     args = utils.dotDict(lcfg.bins_params)
-    args.update( {'tag': lcfg.tag} )
     
     target_path = getTargetPath( args.taskname )
     
@@ -103,8 +109,7 @@ class DefineBinning(ForceableEnsureRecentTarget):
 ### WRITE HTCONDOR FILES FOR TOTAL AND PASSED TRIGGER HISTOGRAMS #######
 ########################################################################
 class WriteHTCondorProcessingFiles(ForceableEnsureRecentTarget):
-    params = utils.dotDict(lcfg.submit_params)
-    params.update( {'tag': lcfg.tag, } )
+    params = utils.dotDict(lcfg.histos_params)
 
     mode = luigi.ChoiceParameter(choices=lcfg.modes.keys(),
                                  var_type=str)
@@ -144,8 +149,7 @@ class WriteHTCondorHaddFiles(ForceableEnsureRecentTarget):
     samples = luigi.ListParameter()
     dataset_name = luigi.Parameter()
     args = utils.dotDict(lcfg.hadd_params)
-    args.update( { 'tprefix': lcfg.modes['histos'],
-                   'tag': lcfg.tag, } )
+    args['tprefix'] = lcfg.modes['histos']
     
     target_path = getTargetPath( args.taskname )
     
@@ -176,8 +180,7 @@ class WriteHTCondorHaddFiles(ForceableEnsureRecentTarget):
 ########################################################################
 class WriteHTCondorEfficienciesAndScaleFactorsFiles(ForceableEnsureRecentTarget):
     params = utils.dotDict(lcfg.drawsf_params)
-    params.update( { 'tprefix': lcfg.modes['histos'],
-                     'tag': lcfg.tag, } )
+    params['tprefix'] = lcfg.modes['histos']
     target_path = getTargetPath( params.taskname )
     
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
@@ -203,9 +206,7 @@ class WriteHTCondorEfficienciesAndScaleFactorsFiles(ForceableEnsureRecentTarget)
 ########################################################################
 class Draw2DTriggerScaleFactors(ForceableEnsureRecentTarget):
     args = utils.dotDict(lcfg.drawsf_params)
-    args.update( {'tprefix': lcfg.modes['histos'],
-                  'tag': lcfg.tag,
-                  } )
+    args.update( {'tprefix': lcfg.modes['histos'], } )
     target_path = getTargetPath( args.taskname )
     
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
@@ -244,9 +245,7 @@ class Draw2DTriggerScaleFactors(ForceableEnsureRecentTarget):
 ########################################################################
 class DrawDistributions(ForceableEnsureRecentTarget):
     args = utils.dotDict(lcfg.drawcounts_params)
-    args.update( {'tprefix': lcfg.modes['histos'],
-                  'tag': lcfg.tag,
-                  } )
+    args.update( {'tprefix': lcfg.modes['histos'], } )
     target_path = getTargetPath( args.taskname )
     
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
@@ -285,9 +284,7 @@ class DrawTriggerCounts(ForceableEnsureRecentTarget):
     samples = luigi.ListParameter()
     dataset_name = luigi.Parameter()
     args = utils.dotDict(lcfg.drawcounts_params)
-    args.update( {'tag': lcfg.tag,
-                  'tprefix': lcfg.modes['counts'],}
-                )
+    args.update( {'tprefix': lcfg.modes['counts'],} )
     
     target_path = getTargetPath( args.taskname )
     
@@ -321,33 +318,56 @@ class DrawTriggerCounts(ForceableEnsureRecentTarget):
 ########################################################################
 ### TRIGGERING ALL HTCONDOR WRITING CLASSES ############################
 ########################################################################
-class SubmitAll(ForceableEnsureRecentTarget):
-    params = utils.dotDict(lcfg.drawsf_params)
-    params.update( { 'tprefix': lcfg.modes['histos'],
-                     'tag': lcfg.tag, } )
+class WriteAndSubmitDAG(ForceableEnsureRecentTarget):
+    params  = utils.dotDict(lcfg.write_params)
+    pHistos = utils.dotDict(lcfg.histos_params)
+    pHadd   = utils.dotDict(lcfg.hadd_params)
+    pEffSF  = utils.dotDict(lcfg.drawsf_params)
+    
+    pHadd['tprefix']  = lcfg.modes['histos']
+    pEffSF['tprefix'] =  lcfg.modes['histos']
+
     target_path = getTargetPath( params.taskname )
     
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def output(self):
-        o1, o2, _ = writeHTCondorEfficienciesAndScaleFactorsFiles_outputs(self.params)
+        o1 = writeHTCondorDAGFiles_outputs(self.params)
 
         #write the target files for debugging
         utils.remove( self.target_path )
         with open( self.target_path, 'w' ) as f:
             f.write( o1 + '\n' )
-            f.write( o2 + '\n' )
 
         _c1 = convertToLuigiLocalTargets(o1)
-        _c2 = convertToLuigiLocalTargets(o2)
-        return _c1 + _c2
+        return _c1
 
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def run(self):
-        writeAll(self.params)
-        out = self.output
+        self.pHistos['mode'] = 'histos'
+        _, submHistos, _, _ = writeHTCondorSubmissionFiles_outputs(self.pHistos)
+        self.pHistos['mode'] = 'counts'
+        _, submCounts, _, _ = writeHTCondorSubmissionFiles_outputs(self.pHistos)
+
+        self.pHadd['dataset_name'] = FLAGS.data
+        _, submHaddData, _   = writeHTCondorHaddFiles_outputs(self.pHadd)
+        self.pHadd['dataset_name'] = FLAGS.mc_process
+        _, submHaddMC, _   = writeHTCondorHaddFiles_outputs(self.pHadd)
+        
+        _, submEffSF, _  = writeHTCondorEfficienciesAndScaleFactorsFiles_outputs(self.pEffSF)
+
+        self.params['jobsHistos'] = submHistos
+        self.params['jobsCounts'] = submCounts
+        self.params['jobsHaddData'] = submHaddData
+        self.params['jobsHaddMC'] = submHaddMC
+        self.params['jobsEffSF'] = submEffSF
+        writeHTCondorDAGFiles( self.params )
+        
+        out = self.output()[0].path
+        print('================================')
+        print(out)
         os.system('condor_submit_dag -no_submit {}'.format(out))
-        os.system('sleep 2')
-        os.system('condor_q')
+        #os.system('sleep 2')
+        #os.system('condor_q')
 
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def requires(self):
@@ -376,7 +396,7 @@ if __name__ == "__main__":
     utils.createSingleDir( lcfg.targets_folder )
     
     if FLAGS.submit:
-        last_tasks = [ SubmitAll() ]
+        last_tasks = [ WriteAndSubmitDAG() ]
         
     else:
         count_tasks = [ DrawTriggerCounts(force=FLAGS.force>0,

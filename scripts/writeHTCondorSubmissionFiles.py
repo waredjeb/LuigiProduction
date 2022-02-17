@@ -68,6 +68,8 @@ def writeHTCondorSubmissionFiles_outputs(args):
     elif args.mode == 'counts':
         name = 'jobCounts_{}.{}'
         check_name = 'Cluster$(Cluster)_Process$(Process)_Counts.o'
+    else:
+        raise ValueError('Mode {} is not supported.'.format(args.mode))
 
     _all_processes = args.data + args.mc_processes
     for thisProc in _all_processes:
