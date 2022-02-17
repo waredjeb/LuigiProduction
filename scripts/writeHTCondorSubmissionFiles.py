@@ -94,9 +94,6 @@ def writeHTCondorSubmissionFiles(args):
         script = os.path.join(script, 'runTriggerCounts.py')
     prog = 'python3 {}'.format(script)
 
-    # -- Job steering files
-    jobsDir = os.path.join(args.localdir, 'jobs')
-
     outs_job, outs_submit, outs_check, _all_processes = writeHTCondorSubmissionFiles_outputs(args)
     for i,thisProc in enumerate(_all_processes):
         filelist, inputdir = utils.getROOTInputFiles(thisProc, args)

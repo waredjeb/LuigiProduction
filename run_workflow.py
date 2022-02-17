@@ -17,13 +17,19 @@ from luigi_conf import (
     )
 lcfg = cfg() #luigi configuration
 
-# includes of individual tasks
-from scripts.defineBinning import defineBinning, defineBinning_outputs
+from scripts.defineBinning import (
+    defineBinning,
+    defineBinning_outputs,
+)
 from scripts.writeHTCondorSubmissionFiles import (
     writeHTCondorSubmissionFiles,
     writeHTCondorSubmissionFiles_outputs,
 )
-from scripts.haddTriggerEff import haddTriggerEff, haddTriggerEff_outputs
+from scripts.haddTriggerEff import (
+    runHadd_outputs,
+    writeHTCondorHaddFiles,
+    writeHTCondorHaddFiles_outputs,
+)
 from scripts.addTriggerCounts import addTriggerCounts, addTriggerCounts_outputs
 from scripts.drawTriggerSF import drawTriggerSF, drawTriggerSF_outputs
 from scripts.draw2DTriggerSF import draw2DTriggerSF, draw2DTriggerSF_outputs
@@ -35,9 +41,11 @@ re_txt = re.compile('\.txt')
 ########################################################################
 ### HELPER FUNCTIONS ###################################################
 ########################################################################
-def convertToLuigiLocalTargets(tlist):
+def convertToLuigiLocalTargets(targets):
     """Converts a list of files into a list of luigi targets."""
-    return [ luigi.LocalTarget(t) for t in tlist ]
+    if not isinstance(targets, (tuple,list,set)):
+        targets = [ targets ]
+    return [ luigi.LocalTarget(t) for t in targets ]
 
 def getTargetPath(taskname):
     target_path = os.path.join(lcfg.targets_folder,
@@ -131,7 +139,6 @@ class WriteHTCondorProcessingFiles(ForceableEnsureRecentTarget):
 ########################################################################
 class WriteHTCondorHaddFiles(ForceableEnsureRecentTarget):
     samples = luigi.ListParameter()
-    tsuffix = luigi.Parameter()
     dataset_name = luigi.Parameter()
     args = utils.dotDict(lcfg.hadd_params)
     args.update( { 'tprefix': lcfg.modes['histos'],
@@ -142,10 +149,9 @@ class WriteHTCondorHaddFiles(ForceableEnsureRecentTarget):
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def output(self):
         self.args['samples'] = luigi_to_raw( self.samples )
-        self.args['tsuffix'] = self.tsuffix
         self.args['dataset_name'] = self.dataset_name
-        o1, o2, _, _ = writeHTCondorHaddFiles_outputs( self.args )
-
+        o1, o2, _ = writeHTCondorHaddFiles_outputs( self.args )
+        
         #write the target files for debugging
         utils.remove( self.target_path )
         with open( self.target_path, 'w' ) as f:
@@ -159,14 +165,13 @@ class WriteHTCondorHaddFiles(ForceableEnsureRecentTarget):
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def run(self):
         self.args['samples'] = luigi_to_raw( self.samples )
-        self.args['tsuffix'] = self.tsuffix
         self.args['dataset_name'] = self.dataset_name
         writeHTCondorHaddFiles( self.args )
 
 ########################################################################
-### DRAW 1D TRIGGER SCALE FACTORS #######################################
+### WRITE HTCONDOR FILES FOR EFFICIENCIES AND SCALE FACTORS ############
 ########################################################################
-class Draw1DTriggerScaleFactors(ForceableEnsureRecentTarget):
+class WriteHTCondorEfficiencyAndScaleFactorsFiles(ForceableEnsureRecentTarget):
     args = utils.dotDict(lcfg.drawsf_params)
     trigger_combination = luigi.TupleParameter()
     args.update( { 'tag': lcfg.tag, } )
@@ -200,10 +205,8 @@ class Draw1DTriggerScaleFactors(ForceableEnsureRecentTarget):
     def requires(self):
         force_flag = set_force_boolean(self.args.hierarchy)
         return [ HaddTriggerEff(force=force_flag, samples=self.args.data,
-                                tsuffix=self.args.tsuffix,
                                 dataset_name=self.args.data_name),
                  HaddTriggerEff(force=force_flag, samples=self.args.mc_processes,
-                                tsuffix=self.args.tsuffix,
                                 dataset_name=self.args.mc_name) ]
 
 ########################################################################
@@ -243,10 +246,8 @@ class Draw2DTriggerScaleFactors(ForceableEnsureRecentTarget):
     def requires(self):
         force_flag = set_force_boolean( self.args.hierarchy )
         return [ HaddTriggerEff(force=force_flag, samples=self.args.data,
-                                tsuffix=self.args.tsuffix,
                                 dataset_name=self.args.data_name),
                  HaddTriggerEff(force=force_flag, samples=self.args.mc_processes,
-                                tsuffix=self.args.tsuffix,
                                 dataset_name=self.args.mc_name) ]
 
 ########################################################################
@@ -284,10 +285,8 @@ class DrawDistributions(ForceableEnsureRecentTarget):
     def requires(self):
         force_flag = set_force_boolean(self.args.hierarchy)
         return [ HaddTriggerEff(force=force_flag, samples=self.args.data,
-                                tsuffix=self.args.tsuffix,
                                 dataset_name=self.args.data_name),
                  HaddTriggerEff(force=force_flag, samples=self.args.mc_processes,
-                                tsuffix=self.args.tsuffix,
                                 dataset_name=self.args.mc_name) ]
 
 ########################################################################
@@ -338,7 +337,10 @@ class WriteAll(luigi.WrapperTask):
     def requires(self):
         yield WriteHTCondorProcessingFiles( mode='histos' )
         yield WriteHTCondorProcessingFiles( mode='counts' )
-        yield WriteHTCondorHaddFiles()
+        yield WriteHTCondorHaddFiles( dataset_name=FLAGS.data,
+                                      samples=lcfg._selected_data )
+        yield WriteHTCondorHaddFiles( dataset_name=FLAGS.mc_process,
+                                      samples=lcfg._selected_mc_processes )
         # yield WriteHTCondorEfficiencyFiles()
         
 ########################################################################

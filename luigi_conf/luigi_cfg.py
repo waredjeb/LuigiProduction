@@ -219,6 +219,7 @@ class cfg(luigi.Config):
         default={ 'taskname': _rawname,
                   'hierarchy': _tasks_after_condor[_rawname],
                   'indir': tag_folder,
+                  'localdir': local_folder,
                   'subtag': subtag} )
 
     ####
@@ -248,7 +249,6 @@ class cfg(luigi.Config):
                   'subtag': subtag,
                   'intersection_str': intersection_str,
                   'nocut_dummy_str': nocut_dummy_str,
-                  'tsuffix': '_Sum',
                   'debug': FLAGS.debug_workflow,} )
     
     ####
@@ -273,7 +273,6 @@ class cfg(luigi.Config):
                   'variables': FLAGS.variables_for_distributions,
                   'binedges_filename': binedges_filename,
                   'subtag': subtag,
-                  'tsuffix': '_Sum',
                   'debug': FLAGS.debug_workflow,} )
 
 
