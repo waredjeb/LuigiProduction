@@ -55,7 +55,7 @@ def writeHTCondorDAGFiles(args):
   out = writeHTCondorDAGFiles_outputs(args)
   with open(out, 'w') as s:
     # configuration
-    s.write('DAGMAN_HOLD_CLAIM_TIME=30')
+    s.write('DAGMAN_HOLD_CLAIM_TIME=30\n')
 
     # job names
     defineJobNames(s, args.jobsHistos)
