@@ -17,6 +17,9 @@ from ROOT import TH2D
 from ROOT import TLatex
 from ROOT import TLegend
 
+import sys
+sys.path.append( os.path.join(os.environ['CMSSW_BASE'], 'src', 'METTriggerStudies'))
+
 from utils.utils import (
   createSingleDir,
   getKeyList,
@@ -33,7 +36,7 @@ from luigi_conf import (
 )
 
 def drawEfficienciesAndScaleFactors(proc, channel, variable, trig, save_names, binedges, nbins,
-                                    tprefix, indir, subtag, data_name, debug):
+                                    tprefix, indir, subtag, mc_name, data_name, debug):
   _name = lambda a,b,c,d : a + b + c + d + '.root'
 
   name_data = os.path.join(indir, _name( tprefix, data_name,
@@ -62,7 +65,9 @@ def drawEfficienciesAndScaleFactors(proc, channel, variable, trig, save_names, b
     if k not in keylist_mc:
       m = 'Histogram {} was present in data but not in MC.\n'.format(k)
       m += 'This is possible, but highly unlikely (based on statistics).\n'
-      m += 'Check everything is correct, and edit this check if so.'
+      m += 'Check everything is correct, and .qedit this check if so.\n'
+      m += 'Data file: {}\n'.format(name_data)
+      m += 'MC file: {}'.format(name_mc)
       raise ValueError(m)
 
   keys_to_remove = []
@@ -95,7 +100,7 @@ def drawEfficienciesAndScaleFactors(proc, channel, variable, trig, save_names, b
   # some triggers or their intersection naturally never fire for some channels
   # example: 'IsoMu24' for the etau channel
   if len(histos_mc['trig']) == 0:
-    print('WARNING: {} {}'.format(trig, channel))
+    print('WARNING: Trigger {} never fired for channel {} in MC.'.format(trig, channel))
     return
   
   eff_data, eff_mc = ({} for _ in range(2))
@@ -327,6 +332,44 @@ def drawEfficienciesAndScaleFactors(proc, channel, variable, trig, save_names, b
       _name = replacePlaceholder('cuts', aname, _regex )
       canvas.SaveAs( _name )
 
+def _getCanvasName(proc, chn, var, trig, data_name, subtag):
+    """
+    A 'XXX' placeholder is added for later replacement by all cuts considered
+      for the same channel, variable and trigger combination.
+    Without the placeholder one would have to additionally calculate the number
+      of cuts beforehand, which adds complexity with no major benefit.
+    """
+    add = proc + '_' + chn + '_' + var + '_' + trig
+    n = 'trigSF_' + data_name + '_' + add + subtag
+    n += _placeholder_cuts
+    return n
+
+#@setPureInputNamespace
+def runEfficienciesAndScaleFactors_outputs(outdir,
+                                           mc_processes,
+                                           mc_name, data_name,
+                                           trigger_combination,
+                                           channels, variables,
+                                           subtag,
+                                           draw_independent_MCs):
+  outputs = [[] for _ in range(len(_extensions))]
+  processes = mc_processes if draw_independent_MCs else [mc_name]
+  
+  for proc in processes:
+    for ch in channels:
+      for var in variables:
+        canvas_name = _getCanvasName(proc, ch, var,
+                                     trigger_combination,
+                                     data_name, subtag)
+        thisbase = os.path.join(outdir, ch, var, '')
+        createSingleDir( thisbase )
+
+        for ext,out in zip(_extensions, outputs):
+          out.append( os.path.join( thisbase, canvas_name + '.' + ext ) )
+
+  #join all outputs in the same list
+  return sum(outputs, []), _extensions, processes
+
 def runEfficienciesAndScaleFactors(indir, outdir,
                                    mc_processes, mc_name, data_name,
                                    trigger_combination,
@@ -369,17 +412,17 @@ def runEfficienciesAndScaleFactors(indir, outdir,
                                          binedges[var][chn], nbins[var][chn],
                                          tprefix,
                                          indir, subtag,
-                                         data_name, debug)
+                                         mc_name, data_name,
+                                         debug)
 
 
 parser = argparse.ArgumentParser(description='Draw trigger scale factors')
 
 parser.add_argument('--indir', help='Inputs directory', required=True)
+parser.add_argument('--outdir', help='Output directory', required=True, )
 parser.add_argument('--tprefix', help='prefix to the names of the produced outputs (targets in luigi lingo)', required=True)
-parser.add_argument('--tag', help='string to diferentiate between different workflow runs', required=True)
 parser.add_argument('--subtag',           dest='subtag',           required=True, help='subtag')
-parser.add_argument('--data', help='dataset to be analyzed/plotted', required=True)
-parser.add_argument('--mc_processes', help='MC processes to be analyzed', required=True)
+parser.add_argument('--mc_processes', help='MC processes to be analyzed', required=True, nargs='+', type=str)
 parser.add_argument('--binedges_filename', dest='binedges_filename', required=True, help='in directory')
 parser.add_argument('--data_name', dest='data_name', required=True, help='Data sample name')
 parser.add_argument('--mc_name', dest='mc_name', required=True, help='MC sample name')
@@ -392,14 +435,12 @@ parser.add_argument('--variables',        dest='variables',        required=True
 parser.add_argument('--draw_independent_MCs', action='store_true', help='debug verbosity')
 parser.add_argument('--intersection_str', dest='intersection_str', required=False, default='_PLUS_',
                     help='String used to represent set intersection between triggers.')
-parser.add_argument('--nocut_dummy_str', dest='nocut_dummy_str', required=True,
-                    help='Dummy string associated to trigger histograms were no cuts are applied.')
 parser.add_argument('--debug', action='store_true', help='debug verbosity')
 args = parser.parse_args()
 
 runEfficienciesAndScaleFactors(args.indir, args.outdir,
                                args.mc_processes, args.mc_name, args.data_name,
-                               args.trigger_combination,
+                               args.triggercomb,
                                args.channels, args.variables,
                                args.binedges_filename, args.subtag,
                                args.draw_independent_MCs,

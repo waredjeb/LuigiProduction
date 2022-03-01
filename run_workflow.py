@@ -9,24 +9,23 @@ from luigi_conf.luigi_utils import WorkflowDebugger
 from luigi_conf.luigi_utils import (
     ForceableEnsureRecentTarget,
     is_force_mistake,
-    )
+)
 from luigi_conf.luigi_cfg import cfg, FLAGS
 
 from luigi_conf import (
     _placeholder_cuts,
-    )
+)
 lcfg = cfg() #luigi configuration
 
 from scripts.defineBinning import (
     defineBinning,
     defineBinning_outputs,
 )
-from scripts.writeHTCondorSubmissionFiles import (
-    writeHTCondorSubmissionFiles,
-    writeHTCondorSubmissionFiles_outputs,
+from scripts.writeHTCondorHistogramFiles import (
+    writeHTCondorHistogramFiles,
+    writeHTCondorHistogramFiles_outputs,
 )
 from scripts.writeHTCondorHaddFiles import (
-    runHadd_outputs,
     writeHTCondorHaddFiles,
     writeHTCondorHaddFiles_outputs,
 )
@@ -119,7 +118,7 @@ class WriteHTCondorProcessingFiles(ForceableEnsureRecentTarget):
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def output(self):
         self.params['mode'] = self.mode
-        o1, o2, _, _ = writeHTCondorSubmissionFiles_outputs(self.params)
+        o1, o2, _, _ = writeHTCondorHistogramFiles_outputs(self.params)
 
         #write the target files for debugging
         utils.remove( self.target_path )
@@ -134,7 +133,7 @@ class WriteHTCondorProcessingFiles(ForceableEnsureRecentTarget):
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def run(self):
         self.params['mode'] = self.mode
-        writeHTCondorSubmissionFiles(self.params)
+        writeHTCondorHistogramFiles(self.params)
 
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def requires(self):
@@ -318,7 +317,7 @@ class DrawTriggerCounts(ForceableEnsureRecentTarget):
 ########################################################################
 ### TRIGGERING ALL HTCONDOR WRITING CLASSES ############################
 ########################################################################
-class WriteAndSubmitDAG(ForceableEnsureRecentTarget):
+class WriteDAG(ForceableEnsureRecentTarget):
     params  = utils.dotDict(lcfg.write_params)
     pHistos = utils.dotDict(lcfg.histos_params)
     pHadd   = utils.dotDict(lcfg.hadd_params)
@@ -336,7 +335,7 @@ class WriteAndSubmitDAG(ForceableEnsureRecentTarget):
         #write the target files for debugging
         utils.remove( self.target_path )
         with open( self.target_path, 'w' ) as f:
-            f.write( o1 + '\n' )
+            for t in o1: f.write( t + '\n' )
 
         _c1 = convertToLuigiLocalTargets(o1)
         return _c1
@@ -344,9 +343,9 @@ class WriteAndSubmitDAG(ForceableEnsureRecentTarget):
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def run(self):
         self.pHistos['mode'] = 'histos'
-        _, submHistos, _, _ = writeHTCondorSubmissionFiles_outputs(self.pHistos)
+        _, submHistos, _, _ = writeHTCondorHistogramFiles_outputs(self.pHistos)
         self.pHistos['mode'] = 'counts'
-        _, submCounts, _, _ = writeHTCondorSubmissionFiles_outputs(self.pHistos)
+        _, submCounts, _, _ = writeHTCondorHistogramFiles_outputs(self.pHistos)
 
         self.pHadd['dataset_name'] = FLAGS.data
         _, submHaddData, _   = writeHTCondorHaddFiles_outputs(self.pHadd)
@@ -362,24 +361,35 @@ class WriteAndSubmitDAG(ForceableEnsureRecentTarget):
         self.params['jobsEffSF'] = submEffSF
         writeHTCondorDAGFiles( self.params )
         
-        out = self.output()[0].path
-        print('================================')
-        print(out)
+class SubmitDAG(luigi.Task):
+    """
+    Dummy submission class.
+    Makes sures all submission files are written.
+    """
+    @WorkflowDebugger(flag=FLAGS.debug_workflow)
+    def run(self):
+        out = WriteDAG().output()[0].path
         os.system('condor_submit_dag -no_submit {}'.format(out))
+        #os.system('condor_submit {}.condor.sub'.format(out))
         #os.system('sleep 2')
         #os.system('condor_q')
 
+    def complete(self):
+        """This task is never complete, i.e., its requirements all always checked."""
+        return False 
+        
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def requires(self):
-        force_flag = set_force_boolean(self.params.hierarchy)
         return [ WriteHTCondorProcessingFiles( mode='histos' ),
                  WriteHTCondorProcessingFiles( mode='counts' ),
                  WriteHTCondorHaddFiles( dataset_name=FLAGS.data,
                                          samples=lcfg._selected_data ),
                  WriteHTCondorHaddFiles( dataset_name=FLAGS.mc_process,
                                          samples=lcfg._selected_mc_processes ),
-                 WriteHTCondorEfficienciesAndScaleFactorsFiles() ]
-        
+                 WriteHTCondorEfficienciesAndScaleFactorsFiles(),
+                 WriteDAG(),
+                ]
+    
 ########################################################################
 ### MAIN ###############################################################
 ########################################################################
@@ -392,11 +402,11 @@ if __name__ == "__main__":
         print('Workflow interrupted.')
         exit(0)
 
-    utils.createSingleDir( lcfg.tag_folder )
+    utils.createSingleDir( lcfg.data_storage )
     utils.createSingleDir( lcfg.targets_folder )
     
     if FLAGS.submit:
-        last_tasks = [ WriteAndSubmitDAG() ]
+        last_tasks = [ SubmitDAG() ]
         
     else:
         count_tasks = [ DrawTriggerCounts(force=FLAGS.force>0,

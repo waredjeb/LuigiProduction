@@ -14,6 +14,7 @@ class ForceableEnsureRecentTarget(luigi.Task):
     def __init__(self, *args, **kwargs):
         """Force the task to run by deleting its targets if force=True"""
         super().__init__(*args, **kwargs)
+
         if self.force:
             outputs = luigi.task.flatten(self.output())
             for out in outputs:
@@ -32,7 +33,7 @@ class ForceableEnsureRecentTarget(luigi.Task):
         outputs = to_list(self.output())
         if len(outputs)!=0 and not isinstance(outputs[0], luigi.local_target.LocalTarget):
             raise TypeError("The targets must be luigi.LocalTarget's!")
-        
+
         for out in outputs:
             if not os.path.exists(out.path):
                 print("[luigi_utils] FORCEABLE_ENSURE_RECENT_TARGET: Marked as incomplete because file '" + out.path + "' was not found.")

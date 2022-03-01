@@ -57,7 +57,7 @@ def writeHTCondorHaddFiles(args):
     outs_job, outs_submit, outs_check = writeHTCondorHaddFiles_outputs(args)
         
     #### Write shell executable (python scripts must be wrapped in shell files to run on HTCondor)
-    command = 'hadd -f ${1} ${2}\n'
+    command = 'hadd -f ${1} ${@:2}\n' #bash: ${@:POS} captures all arguments starting from POS
     for out in outs_job:
         with open(out, 'w') as s:
             s.write('#!/bin/bash\n')
@@ -81,7 +81,7 @@ def writeHTCondorHaddFiles(args):
         with open(out2, 'w') as s:
             s.write('Universe = vanilla\n')
             s.write('Executable = {}\n'.format(out1))
-            s.write('Arguments = $(out) $(in) \n')
+            s.write('Arguments = $(myoutput) $(myinputs) \n')
             s.write('input = /dev/null\n')
             s.write('output = {}\n'.format(out3))
             s.write('error  = {}\n'.format(out3.replace('.o', '.e')))
@@ -90,7 +90,7 @@ def writeHTCondorHaddFiles(args):
             s.write('WNTag=el7\n')
             s.write('+SingularityCmd = ""\n')
             s.write('include : /opt/exp_soft/cms/t3/t3queue |\n\n')
-            s.write('queue out, in from (\n')
+            s.write('queue myoutput, myinputs from (\n')
 
             if out1 == outs_job[0]:
                 for t,smpl in zip(targets[1:], args.samples):

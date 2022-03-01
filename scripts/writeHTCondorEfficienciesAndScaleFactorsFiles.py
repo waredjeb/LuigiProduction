@@ -11,44 +11,6 @@ from utils.utils import (
   setPureInputNamespace,
 )
 
-def _getCanvasName(proc, chn, var, trig, data_name, subtag):
-    """
-    A 'XXX' placeholder is added for later replacement by all cuts considered
-      for the same channel, variable and trigger combination.
-    Without the placeholder one would have to additionally calculate the number
-      of cuts beforehand, which adds complexity with no major benefit.
-    """
-    add = proc + '_' + chn + '_' + var + '_' + trig
-    n = 'trigSF_' + data_name + '_' + add + subtag
-    n += _placeholder_cuts
-    return n
-
-@setPureInputNamespace
-def runEfficienciesAndScaleFactors_outputs(outdir,
-                                           mc_processes,
-                                           mc_name, data_name,
-                                           trigger_combination,
-                                           channels, variables,
-                                           subtag,
-                                           draw_independent_MCs):
-  outputs = [[] for _ in range(len(_extensions))]
-  processes = mc_processes if draw_independent_MCs else [mc_name]
-  
-  for proc in processes:
-    for ch in channels:
-      for var in variables:
-        canvas_name = _getCanvasName(proc, ch, var,
-                                     trigger_combination,
-                                     data_name, subtag)
-        thisbase = os.path.join(outdir, ch, var, '')
-        createSingleDir( thisbase )
-
-        for ext,out in zip(_extensions, outputs):
-          out.append( os.path.join( thisbase, canvas_name + '.' + ext ) )
-
-  #join all outputs in the same list
-  return sum(outputs, []), _extensions, processes
-
 @setPureInputNamespace
 def writeHTCondorEfficienciesAndScaleFactorsFiles_outputs(args):
   """
@@ -82,10 +44,9 @@ def writeHTCondorEfficienciesAndScaleFactorsFiles(args):
   command =  ( ( '{prog} --indir {indir} --outdir {outdir} '
                  '--mc_processes {mc_processes} '
                  '--mc_name {mc_name} --data_name {data_name} '
-                 '--trigger_combination ${{1}} '
+                 '--triggercomb ${{1}} '
                  '--channels {channels} --variables {variables} '
                  '--binedges_filename {binedges_filename} --subtag {subtag} '
-                 '--draw_independent_MCs {draw_independent_MCs} '
                  '--tprefix {tprefix} '
                 ).format( prog=prog, indir=args.indir, outdir=args.outdir,
                           mc_processes=' '.join(args.mc_processes,),
@@ -98,6 +59,8 @@ def writeHTCondorEfficienciesAndScaleFactorsFiles(args):
                          )
               )
 
+  if args.draw_independent_MCs:
+      command += '--draw_independent_MCs '
   if args.debug:
       command += '--debug '
   command += '\n'
@@ -134,3 +97,7 @@ def writeHTCondorEfficienciesAndScaleFactorsFiles(args):
     for tcomb in triggercomb:
       s.write('  {}\n'.format(joinNTC(tcomb)))
     s.write(')\n')
+
+
+# parser = argparse.ArgumentParser(description='Write submission files for efficiencies and scale factors.')
+# parser.add_argument('--tag', help='string to diferentiate between different workflow runs', required=True)

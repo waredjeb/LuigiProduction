@@ -147,9 +147,11 @@ class cfg(luigi.Config):
     base_name = 'TriggerScaleFactors'
     data_base = os.path.join( '/data_CMS/', 'cms' )
     user = os.environ['USER']
-    data_storage = os.path.join(data_base, user, base_name)
-    web_storage = os.path.join('/eos/', 'home-b',
-                               FLAGS.outuser, 'www', base_name)
+    tag = FLAGS.tag
+    
+    _storage = os.path.join(data_base, user, base_name, tag)
+    data_storage = os.path.join(_storage, 'Data')
+    out_storage = os.path.join(_storage, 'Outputs')
 
     local_home = os.environ['HOME']
     local_cmssw = os.path.join(os.environ['CMSSW_VERSION'], 'src')
@@ -158,18 +160,16 @@ class cfg(luigi.Config):
     # general
     modes = {'histos': 'hist_',
              'counts': 'counts_'}
-    tag = FLAGS.tag
+
     subtag = ( FLAGS.subtag if FLAGS.subtag==''
                else ( '_' + FLAGS.subtag if FLAGS.subtag[0] != '_' else FLAGS.subtag ) )
-    tag_folder = os.path.join(data_storage, tag)
-    web_folder = os.path.join(web_storage, tag)
     local_folder = os.path.join(local_home, local_cmssw, local_analysis_folder)
-    targets_folder = os.path.join(data_storage, tag, 'targets')
+    targets_folder = os.path.join(data_storage, 'targets')
     targets_default_name = 'DefaultTarget.txt'
     intersection_str = '_PLUS_'
     nocut_dummy_str = 'NoCut'
     
-    binedges_filename = os.path.join(tag_folder, 'binedges.hdf5')
+    binedges_filename = os.path.join(data_storage, 'binedges.hdf5')
 
     variables_join = list(set(FLAGS.variables_for_efficiencies + FLAGS.variables_for_distributions))
 
@@ -183,7 +183,7 @@ class cfg(luigi.Config):
                   'nbins': FLAGS.nbins,
                   'binedges_filename': binedges_filename,
                   'indir': _inputs,
-                  'outdir': tag_folder,
+                  'outdir': data_storage,
                   'data': _data[FLAGS.data],
                   'variables': variables_join,
                   'channels': FLAGS.channels,
@@ -209,7 +209,7 @@ class cfg(luigi.Config):
                       'hierarchy': _tasks_before_condor[_rawname],
                       'binedges_filename': binedges_filename,
                       'indir': _inputs,
-                      'outdir': tag_folder,
+                      'outdir': data_storage,
                       'localdir': local_folder,
                       'data': _data[FLAGS.data],
                       'mc_processes': _mc_processes[FLAGS.mc_process],
@@ -230,7 +230,7 @@ class cfg(luigi.Config):
     hadd_params = luigi.DictParameter(
         default={ 'taskname': _rawname,
                   'hierarchy': _tasks_before_condor[_rawname],
-                  'indir': tag_folder,
+                  'indir': data_storage,
                   'localdir': local_folder,
                   'tag': tag,
                   'subtag': subtag} )
@@ -253,8 +253,8 @@ class cfg(luigi.Config):
                   'data': _selected_data,
                   'mc_processes': _selected_mc_processes,
                   'draw_independent_MCs': False,
-                  'indir': tag_folder,
-                  'outdir': web_folder,
+                  'indir': data_storage,
+                  'outdir': out_storage,
                   'localdir': local_folder,
                   'triggers': FLAGS.triggers,
                   'channels': FLAGS.channels,
@@ -281,8 +281,8 @@ class cfg(luigi.Config):
                   'data': _selected_data,
                   'mc_processes': _selected_mc_processes,
                   'draw_independent_MCs': False,
-                  'indir': tag_folder,
-                  'outdir': web_folder,
+                  'indir': data_storage,
+                  'outdir': out_storage,
                   'triggers': FLAGS.triggers,
                   'channels': FLAGS.channels,
                   'variables': FLAGS.variables_for_distributions,
@@ -306,8 +306,8 @@ class cfg(luigi.Config):
                   'mc_name': FLAGS.mc_process,
                   'data': _selected_data,
                   'mc_processes': _selected_mc_processes,
-                  'indir': tag_folder,
-                  'outdir': web_folder,
+                  'indir': data_storage,
+                  'outdir': out_storage,
                   'triggers': FLAGS.triggers,
                   'channels': FLAGS.channels,
                   'variables': FLAGS.variables_for_distributions,

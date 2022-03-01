@@ -9,8 +9,8 @@ from utils.utils import (
   setPureInputNamespace,
 )
 
-from scripts.writeHTCondorSubmissionFiles import (
-    writeHTCondorSubmissionFiles_outputs,
+from scripts.writeHTCondorHistogramFiles import (
+    writeHTCondorHistogramFiles_outputs,
 )
 from scripts.writeHTCondorHaddFiles import (
     writeHTCondorHaddFiles_outputs,
@@ -33,9 +33,10 @@ def writeHTCondorDAGFiles_outputs(args):
   # os.system('mkdir -p {}'.format(checkDir))
 
   name = 'workflow.dag'
-  submFile  = os.path.join(submDir, name)
+  submFiles  = [ os.path.join(submDir, name),
+                 os.path.join(submDir, name + '.condor.sub') ]
 
-  return submFile
+  return submFiles
 
 @setPureInputNamespace
 def writeHTCondorDAGFiles(args):
@@ -52,11 +53,12 @@ def writeHTCondorDAGFiles(args):
       afile.write('JOB  {} {}\n'.format(remExt(job), job))
     afile.write('\n')
 
-  out = writeHTCondorDAGFiles_outputs(args)
+  out = writeHTCondorDAGFiles_outputs(args)[0]
   with open(out, 'w') as s:
     # configuration
-    s.write('DAGMAN_HOLD_CLAIM_TIME=30\n')
-
+    #s.write('DAGMAN_HOLD_CLAIM_TIME=30\n')
+    #s.write('\n')
+    
     # job names
     defineJobNames(s, args.jobsHistos)
     defineJobNames(s, args.jobsCounts)
@@ -92,6 +94,6 @@ def writeHTCondorDAGFiles(args):
     s.write('CHILD {}\n'.format( remExt(args.jobsEffSF) ))
 
 # condor_submit_dag -no_submit diamond.dag
-# condor_submit diamond.dag.condor.sub
+# condoSTr_submit diamond.dag.condor.sub
 # https://htcondor.readthedocs.io/en/latest/users-manual/dagman-workflows.html#optimization-of-submission-time
 
