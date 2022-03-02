@@ -339,10 +339,11 @@ def drawEfficienciesAndScaleFactors(proc, channel, variable, trig, save_names, b
       canvas.SaveAs( _name )
 
     _name = replacePlaceholder('cuts', save_names[-1], _regex )
-    effFile = ROOT.TFile.Open(_name, "RECREATE")
+    effFile = ROOT.TFile.Open(_name, 'RECREATE')
     effFile.cd()
     eff_data[akey].Write('Data')
     eff_mc[akey].Write('MC')
+    sf[akey].Write('ScaleFactors')
 
 def _getCanvasName(proc, chn, var, trig, data_name, subtag):
     """

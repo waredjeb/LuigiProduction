@@ -201,6 +201,57 @@ class WriteHTCondorEfficienciesAndScaleFactorsFiles(ForceableEnsureRecentTarget)
         writeHTCondorEfficienciesAndScaleFactorsFiles(self.params)
 
 ########################################################################
+### WRITE HTCONDOR FILES FOR THE VARIABLE DISCRIMINATOR ################
+########################################################################
+class WriteHTCondorDiscriminatorFiles(ForceableEnsureRecentTarget):
+    params = utils.dotDict(lcfg.discriminator_params)
+    target_path = getTargetPath( params.taskname )
+    
+    @WorkflowDebugger(flag=FLAGS.debug_workflow)
+    def output(self):
+        o1, o2, _ = writeHTCondorDiscriminatorFiles_outputs(self.params)
+
+        #write the target files for debugging
+        utils.remove( self.target_path )
+        with open( self.target_path, 'w' ) as f:
+            f.write( o1 + '\n' )
+            f.write( o2 + '\n' )
+
+        _c1 = convertToLuigiLocalTargets(o1)
+        _c2 = convertToLuigiLocalTargets(o2)
+        return _c1 + _c2
+
+    @WorkflowDebugger(flag=FLAGS.debug_workflow)
+    def run(self):
+        writeHTCondorDiscriminatorFiles(self.params)
+
+########################################################################
+### WRITE HTCONDOR FILES FOR SCALE FACTOR CALCULATOR ###################
+########################################################################
+class WriteHTCondorScaleFactorCalculatorFiles(ForceableEnsureRecentTarget):
+    params = utils.dotDict(lcfg.calculator_params)
+    target_path = getTargetPath( params.taskname )
+    
+    @WorkflowDebugger(flag=FLAGS.debug_workflow)
+    def output(self):
+        o1, o2, _ = writeHTCondorScaleFactorCalculatorFiles_outputs(self.params)
+
+        #write the target files for debugging
+        utils.remove( self.target_path )
+        with open( self.target_path, 'w' ) as f:
+            f.write( o1 + '\n' )
+            f.write( o2 + '\n' )
+
+        _c1 = convertToLuigiLocalTargets(o1)
+        _c2 = convertToLuigiLocalTargets(o2)
+        return _c1 + _c2
+
+    @WorkflowDebugger(flag=FLAGS.debug_workflow)
+    def run(self):
+        writeHTCondorScaleFactorCalculatorFiles(self.params)
+
+        
+########################################################################
 ### DRAW 2D TRIGGER SCALE FACTORS #######################################
 ########################################################################
 class Draw2DTriggerScaleFactors(ForceableEnsureRecentTarget):
@@ -322,6 +373,8 @@ class WriteDAG(ForceableEnsureRecentTarget):
     pHistos = utils.dotDict(lcfg.histos_params)
     pHadd   = utils.dotDict(lcfg.hadd_params)
     pEffSF  = utils.dotDict(lcfg.drawsf_params)
+    pDisc   = utils.dotDict(lcfg.discriminator_params)
+    pSFCalc = utils.dotDict(lcfg.calculator_params)
     
     pHadd['tprefix']  = lcfg.modes['histos']
     pEffSF['tprefix'] =  lcfg.modes['histos']
@@ -354,11 +407,17 @@ class WriteDAG(ForceableEnsureRecentTarget):
         
         _, submEffSF, _  = writeHTCondorEfficienciesAndScaleFactorsFiles_outputs(self.pEffSF)
 
-        self.params['jobsHistos'] = submHistos
-        self.params['jobsCounts'] = submCounts
+        _, submEffDisc, _  = writeHTCondorDiscriminatorFiles_outputs(self.pDisc)
+
+        _, submSFCalc, _  = writeHTCondorScaleFactorsCalcatorFiles_outputs(self.pSFCalc)
+
+        self.params['jobsHistos']   = submHistos
+        self.params['jobsCounts']   = submCounts
         self.params['jobsHaddData'] = submHaddData
-        self.params['jobsHaddMC'] = submHaddMC
-        self.params['jobsEffSF'] = submEffSF
+        self.params['jobsHaddMC']   = submHaddMC
+        self.params['jobsEffSF']    = submEffSF
+        self.params['jobsEffDiscr'] = submEffDisc
+        self.params['jobsSFCalc']   = submEffCalc
         writeHTCondorDAGFiles( self.params )
         
 class SubmitDAG(luigi.Task):
@@ -387,6 +446,8 @@ class SubmitDAG(luigi.Task):
                  WriteHTCondorHaddFiles( dataset_name=FLAGS.mc_process,
                                          samples=lcfg._selected_mc_processes ),
                  WriteHTCondorEfficienciesAndScaleFactorsFiles(),
+                 WriteHTCondorDiscriminatorFiles(),
+                 WriteHTCondorScaleFactorsCalculatorFiles(),
                  WriteDAG(),
                 ]
     

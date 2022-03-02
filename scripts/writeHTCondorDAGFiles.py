@@ -65,6 +65,8 @@ def writeHTCondorDAGFiles(args):
     defineJobNames(s, args.jobsHaddData)
     defineJobNames(s, args.jobsHaddMC)
     defineJobNames(s, args.jobsEffSF)
+    defineJobNames(s, args.jobsEffDiscr)
+    defineJobNames(s, args.jobsEffSFCalc)
 
     # histos to hadd for data
     s.write('PARENT ')
@@ -88,10 +90,18 @@ def writeHTCondorDAGFiles(args):
     s.write('PARENT {} '.format( remExt(args.jobsHaddMC[0]) ))
     s.write('CHILD {}\n'.format( remExt(args.jobsHaddMC[1]) ))
 
-    # hadd to efficiencies/scale factors
+    # efficiencies/scale factors draw and saving
     s.write('PARENT {} {} '.format( remExt(args.jobsHaddData[1]),
                                     remExt(args.jobsHaddMC[1]) ))
     s.write('CHILD {}\n'.format( remExt(args.jobsEffSF) ))
+
+    # variable discriminator
+    s.write('PARENT {} '.format( remExt(args.jobsEffSF) ))
+    s.write('CHILD {}\n'.format( remExt(args.jobsEffDiscr) ))
+
+    # SF calculator
+    s.write('PARENT {} '.format( remExt(args.jobsEffDiscr) ))
+    s.write('CHILD {}\n'.format( remExt(args.jobsSFCalc) ))
 
 # condor_submit_dag -no_submit diamond.dag
 # condoSTr_submit diamond.dag.condor.sub

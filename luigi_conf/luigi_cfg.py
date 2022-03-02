@@ -13,7 +13,7 @@ from . import _trigger_shift, _triggers_map
 ########################################################################
 # hierarchies are used in conjunction with the '--force' flag
 _tasks_before_condor = { 'bins': 2, 'submit': 1 }
-_tasks_after_condor = {  }
+_tasks_after_condor = { 'discriminator': 2, 'calculator': 1 }
 max_task_number = max(list(_tasks_after_condor.values())+list(_tasks_before_condor.values()))
 
 parser = argparse.ArgumentParser(formatter_class=RawTextHelpFormatter)
@@ -316,6 +316,55 @@ class cfg(luigi.Config):
                   'subtag': subtag,
                   'debug': FLAGS.debug_workflow,} )
 
+    ####
+    #### variableImportanceDiscriminator
+    ####
+    _rawname = set_task_name('discriminator')
+    # clever way to flatten a nested list
+    #_selected_mc_processes = sum([ _mc_processes[proc] for proc in FLAGS.mc_process ], [])
+    #_selected_data = sum([ _data[x] for x in FLAGS.data ], [])
+    
+    discriminator_params = luigi.DictParameter(
+        default={ 'taskname': _rawname,
+                  'hierarchy': _tasks_before_condor[_rawname],
+                  'data_name': FLAGS.data,
+                  'mc_name': FLAGS.mc_process,
+                  'indir': data_storage,
+                  'outdir': out_storage,
+                  'localdir': local_folder,
+                  'triggers': FLAGS.triggers,
+                  'channels': FLAGS.channels,
+                  'variables': FLAGS.variables_for_efficiencies,
+                  'tag': tag,
+                  'subtag': subtag,
+                  'intersection_str': intersection_str,
+                  'debug': FLAGS.debug_workflow,} )
+
+    ####
+    #### scale factor calculator
+    ####
+    _rawname = set_task_name('calculator')
+    # clever way to flatten a nested list
+    #_selected_mc_processes = sum([ _mc_processes[proc] for proc in FLAGS.mc_process ], [])
+    #_selected_data = sum([ _data[x] for x in FLAGS.data ], [])
+    
+    calculator_params = luigi.DictParameter(
+        default={ 'taskname': _rawname,
+                  'hierarchy': _tasks_before_condor[_rawname],
+                  'data_name': FLAGS.data,
+                  'mc_name': FLAGS.mc_process,
+                  'indir': data_storage,
+                  'outdir': out_storage,
+                  'localdir': local_folder,
+                  'triggers': FLAGS.triggers,
+                  'channels': FLAGS.channels,
+                  'variables': FLAGS.variables_for_efficiencies,
+                  'tag': tag,
+                  'subtag': subtag,
+                  'intersection_str': intersection_str,
+                  'debug': FLAGS.debug_workflow,} )
+
+        
 """
 'pass_triggerbit' leaf
 
