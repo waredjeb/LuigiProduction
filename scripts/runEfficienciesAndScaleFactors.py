@@ -36,7 +36,8 @@ from luigi_conf import (
 )
 
 def drawEfficienciesAndScaleFactors(proc, channel, variable, trig, save_names, binedges, nbins,
-                                    tprefix, indir, subtag, mc_name, data_name, debug):
+                                    tprefix, indir, subtag, mc_name, data_name,
+                                    intersection_str, debug):
   _name = lambda a,b,c,d : a + b + c + d + '.root'
 
   name_data = os.path.join(indir, _name( tprefix, data_name,
@@ -227,14 +228,14 @@ def drawEfficienciesAndScaleFactors(proc, channel, variable, trig, save_names, b
     axor.GetXaxis().SetLabelSize(0.07)
     axor.GetYaxis().SetLabelSize(0.07)
     axor.Draw()
-
+    
     eff_data[akey].SetLineColor(1)
     eff_data[akey].SetLineWidth(2)
     eff_data[akey].SetMarkerColor(1)
     eff_data[akey].SetMarkerSize(1.3)
     eff_data[akey].SetMarkerStyle(20)
     eff_data[akey].Draw('same p0 e')
-
+    
     eff_mc[akey].SetLineColor(ROOT.kRed)
     eff_mc[akey].SetLineWidth(2)
     eff_mc[akey].SetMarkerColor(ROOT.kRed)
@@ -271,17 +272,22 @@ def drawEfficienciesAndScaleFactors(proc, channel, variable, trig, save_names, b
 
     splitcounter = 0
     ucode = '+'
-    trig_names_str = '#splitline{'
-    for i,elem in enumerate(trig):
-      splitcounter += 1
-      if elem == trig[-1]:
-        trig_names_str += elem + '}{}' + '}'*(splitcounter-1)
-      else:
-        trig_names_str += elem + ' ' + ucode
-        trig_names_str += '}{#splitline{'
-    print('========================= ', trig_names_str)
+    trig_str = trig.split(intersection_str)
+    trig_names_str = ''
+    if not isinstance(trig_str, (tuple,list)):
+      trig_names_str = trig
+    else:
+      for i,elem in enumerate(trig_str):
+        if elem == trig_str[-1]:
+          trig_names_str += elem + '}' + '}'*(splitcounter-1)
+        else:
+          splitcounter += 1
+          trig_names_str += '#splitline{'
+          trig_names_str += elem + ' ' + ucode + '}{'
+    # print('========================= ', trig_names_str)
+    # print('========================= ', trig_str)
 
-    trig_start_str = 'Trigger' + ('' if len(trig)==1 else 's') + ': '
+    trig_start_str = 'Trigger' + ('' if len(trig_str)==1 else 's') + ': '
     l.DrawLatex( lX, lY,        'Channel: '+latexChannel)
     l.DrawLatex( lX, lY-lYstep, trig_start_str+trig_names_str)
 
@@ -324,13 +330,19 @@ def drawEfficienciesAndScaleFactors(proc, channel, variable, trig, save_names, b
 
     redrawBorder()
 
-    for aname in save_names:
-      _regex = re.findall(r'^.*(CUTS_.+)$', akey)
-      assert(len(_regex)==1)
-      _regex = _regex[0]
-      _regex = _regex.replace('>', 'L').replace('<', 'S').replace('.', 'p')
+    _regex = re.findall(r'^.*(CUTS_.+)$', akey)
+    assert(len(_regex)==1)
+    _regex = _regex[0]
+    _regex = _regex.replace('>', 'L').replace('<', 'S').replace('.', 'p')
+    for aname in save_names[:-1]:
       _name = replacePlaceholder('cuts', aname, _regex )
       canvas.SaveAs( _name )
+
+    _name = replacePlaceholder('cuts', save_names[-1], _regex )
+    effFile = ROOT.TFile.Open(_name, "RECREATE")
+    effFile.cd()
+    eff_data[akey].Write('Data')
+    eff_mc[akey].Write('MC')
 
 def _getCanvasName(proc, chn, var, trig, data_name, subtag):
     """
@@ -377,6 +389,7 @@ def runEfficienciesAndScaleFactors(indir, outdir,
                                    binedges_filename, subtag,
                                    draw_independent_MCs,
                                    tprefix,
+                                   intersection_str,
                                    debug):
   outputs, extensions, processes = runEfficienciesAndScaleFactors_outputs(outdir,
                                                                           mc_processes, mc_name, data_name,
@@ -413,6 +426,7 @@ def runEfficienciesAndScaleFactors(indir, outdir,
                                          tprefix,
                                          indir, subtag,
                                          mc_name, data_name,
+                                         intersection_str,
                                          debug)
 
 
@@ -445,4 +459,5 @@ runEfficienciesAndScaleFactors(args.indir, args.outdir,
                                args.binedges_filename, args.subtag,
                                args.draw_independent_MCs,
                                args.tprefix,
+                               args.intersection_str,
                                args.debug)
