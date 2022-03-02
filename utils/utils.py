@@ -163,6 +163,28 @@ class LeafManager():
                 self.absent_leaves.add(leaf)
             return 0.
           
+def loadBinning(afile, key, variables, channels):
+  """
+  Load the Binning stored in a previous task.
+  """
+  binedges, nbins = ({} for _ in range(2))
+  with h5py.File(afile, 'r') as f:
+    try:
+      group = f[key]
+    except KeyError:
+      print('{} does not have key {}.'.format(afile, key))
+      print('Available keys: {}'.format(f.keys()))
+      raise
+          
+    for var in variables:
+      subgroup = group[var]
+      binedges[var], nbins[var] = ({} for _ in range(2))
+      for chn in channels:
+        binedges[var][chn] = np.array(subgroup[chn][:])
+        nbins[var][chn] = len(binedges[var][chn]) - 1
+
+  return binedges, nbins
+
 def redrawBorder():
   """
   this little macro redraws the axis tick marks and the pad border lines.

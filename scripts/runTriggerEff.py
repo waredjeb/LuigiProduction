@@ -136,22 +136,8 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
 
     lf = LeafManager( fname, t_in )
 
-    # Recover binning
-    binedges, nbins = ({} for _ in range(2))
-    with h5py.File(binedges_fname, 'r') as f:
-        try:
-            group = f[subtag]
-        except KeyError:
-            print('{} does not have key {}.'.format(binedges_filename, subtag))
-            print('Available keys: {}'.format(f.keys()))
-            raise
-            
-        for var in variables:
-            subgroup = group[var]
-            binedges[var], nbins[var] = ({} for _ in range(2))
-            for chn in args.channels:
-                binedges[var][chn] = np.array(subgroup[chn][:])
-                nbins[var][chn] = len(binedges[var][chn]) - 1
+    binedges, nbins = loadBinning(afile=binedges_filename, key=subtag,
+                                  variables=variables, channels=channels)
 
     triggercomb = generateTriggerCombinations(triggers)
     

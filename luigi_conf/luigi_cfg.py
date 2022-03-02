@@ -401,6 +401,37 @@ MC:
 10 - HLT_MediumChargedIsoPFTau50_Trk30_eta2p1_1pr_MET100_v
 11 - HLT_MediumChargedIsoPFTau180HighPtRelaxedIso_Trk50_eta2p1_v
 
+Leg splitting:
+
+4: one tau, one tau
+5: one muon, one tau
+6: one electron, one tau
+7/8: remove (dedicated space region)
+9: MET, MHT
+10: remove
+11: one tau
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 'triggerbit' leaf
 
 data and MC:

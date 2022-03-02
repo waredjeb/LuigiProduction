@@ -6,14 +6,6 @@ import argparse
 
 import sys
 sys.path.append( os.environ['PWD'] ) 
-import ROOT
-ROOT.gROOT.SetBatch(True)
-from ROOT import TFile
-
-from utils.utils import (
-    generateTriggerCombinations,
-    joinNameTriggerIntersection as joinNTC,
-)
 
 def discriminator(args, chn):
     """
