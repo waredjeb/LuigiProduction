@@ -45,7 +45,7 @@ parser.add_argument('--channel',   dest='channel', required=True,
                     help='Select the channel over which the discrimination will be run.' )
 parser.add_argument('--variables',   dest='variables', required=True, nargs='+', type=str,
                     help='Select the variables over which the workflow will be run.' )
-parser.add_argument('-t', '--tag', help='string to diferentiate between different workflow runs', required=True)
+parser.add_argument('-t', '--tag', help='string to differentiate between different workflow runs', required=True)
 parser.add_argument('--subtag', dest='subtag', required=True, help='subtag')
 parser.add_argument('--debug', action='store_true', help='debug verbosity')
 args = parser.parse_args()

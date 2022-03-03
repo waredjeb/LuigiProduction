@@ -25,7 +25,7 @@ def writeHTCondorEfficienciesAndScaleFactorsFiles_outputs(args):
   os.system('mkdir -p {}'.format(checkDir))
 
   name = 'jobEfficienciesAndSF.{}'
-  check_name = 'Cluster$(Cluster)_Process$(Process)_EfficienciesAndSF.o'
+  check_name = 'EfficienciesAndSF_C$(Cluster)P$(Process).o'
 
   jobFiles   = os.path.join(jobDir, name.format('sh'))
   submFiles  = os.path.join(jobDir, name.format('condor'))

@@ -64,10 +64,10 @@ def writeHTCondorHistogramFiles_outputs(args):
 
     if args.mode == 'histos':
         name = 'jobHistos_{}.{}'
-        check_name = 'Cluster$(Cluster)_Process$(Process)_Eff.o'
+        check_name = 'Eff_C$(Cluster)P$(Process).o'
     elif args.mode == 'counts':
         name = 'jobCounts_{}.{}'
-        check_name = 'Cluster$(Cluster)_Process$(Process)_Counts.o'
+        check_name = 'Counts_C$(Cluster)P$(Process).o'
     else:
         raise ValueError('Mode {} is not supported.'.format(args.mode))
 

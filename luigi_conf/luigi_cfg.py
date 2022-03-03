@@ -12,8 +12,8 @@ from . import _trigger_shift, _triggers_map
 ### ARGUMENT PARSING ###################################################
 ########################################################################
 # hierarchies are used in conjunction with the '--force' flag
-_tasks_before_condor = { 'bins': 2, 'submit': 1 }
-_tasks_after_condor = { 'discriminator': 2, 'calculator': 1 }
+_tasks_before_condor = { 'bins': 4, 'submit': 3, 'discriminator': 2, 'calculator': 1 }
+_tasks_after_condor = { }
 max_task_number = max(list(_tasks_after_condor.values())+list(_tasks_before_condor.values()))
 
 parser = argparse.ArgumentParser(formatter_class=RawTextHelpFormatter)

@@ -1,10 +1,11 @@
 import os
 import time
-import luigi
 import utils
 import inspect
-from utils import utils
 
+os.environ['LUIGI_CONFIG_PATH'] = os.environ['PWD']+'/luigi_conf/luigi.cfg'
+assert os.path.exists(os.environ['LUIGI_CONFIG_PATH'])
+import luigi
 from luigi_conf.luigi_utils import WorkflowDebugger
 from luigi_conf.luigi_utils import (
     ForceableEnsureRecentTarget,
@@ -33,6 +34,14 @@ from scripts.writeHTCondorEfficienciesAndScaleFactorsFiles import (
     writeHTCondorEfficienciesAndScaleFactorsFiles,
     writeHTCondorEfficienciesAndScaleFactorsFiles_outputs,
 )
+from scripts.writeHTCondorDiscriminatorFiles import (
+    writeHTCondorDiscriminatorFiles,
+    writeHTCondorDiscriminatorFiles_outputs,
+)
+from scripts.writeHTCondorUnionWeightsCalculatorFiles import (
+    writeHTCondorUnionWeightsCalculatorFiles,
+    writeHTCondorUnionWeightsCalculatorFiles_outputs,
+)
 from scripts.writeHTCondorDAGFiles import (
     writeHTCondorDAGFiles,
     writeHTCondorDAGFiles_outputs,
@@ -43,6 +52,8 @@ from scripts.addTriggerCounts import (
     )
 from scripts.draw2DTriggerSF import draw2DTriggerSF, draw2DTriggerSF_outputs
 from scripts.drawDistributions import drawDistributions, drawDistributions_outputs
+
+from utils import utils
 
 import re
 re_txt = re.compile('\.txt')
@@ -214,8 +225,8 @@ class WriteHTCondorDiscriminatorFiles(ForceableEnsureRecentTarget):
         #write the target files for debugging
         utils.remove( self.target_path )
         with open( self.target_path, 'w' ) as f:
-            f.write( o1 + '\n' )
-            f.write( o2 + '\n' )
+            for t in o1: f.write( t + '\n' )
+            for t in o2: f.write( t + '\n' )
 
         _c1 = convertToLuigiLocalTargets(o1)
         _c2 = convertToLuigiLocalTargets(o2)
@@ -228,19 +239,19 @@ class WriteHTCondorDiscriminatorFiles(ForceableEnsureRecentTarget):
 ########################################################################
 ### WRITE HTCONDOR FILES FOR SCALE FACTOR CALCULATOR ###################
 ########################################################################
-class WriteHTCondorScaleFactorCalculatorFiles(ForceableEnsureRecentTarget):
+class WriteHTCondorUnionWeightsCalculatorFiles(ForceableEnsureRecentTarget):
     params = utils.dotDict(lcfg.calculator_params)
     target_path = getTargetPath( params.taskname )
     
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def output(self):
-        o1, o2, _ = writeHTCondorScaleFactorCalculatorFiles_outputs(self.params)
+        o1, o2, _ = writeHTCondorUnionWeightsCalculatorFiles_outputs(self.params)
 
         #write the target files for debugging
         utils.remove( self.target_path )
         with open( self.target_path, 'w' ) as f:
-            f.write( o1 + '\n' )
-            f.write( o2 + '\n' )
+            for t in o1: f.write( t + '\n' )
+            for t in o2: f.write( t + '\n' )
 
         _c1 = convertToLuigiLocalTargets(o1)
         _c2 = convertToLuigiLocalTargets(o2)
@@ -248,7 +259,7 @@ class WriteHTCondorScaleFactorCalculatorFiles(ForceableEnsureRecentTarget):
 
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def run(self):
-        writeHTCondorScaleFactorCalculatorFiles(self.params)
+        writeHTCondorUnionWeightsCalculatorFiles(self.params)
 
         
 ########################################################################
@@ -409,7 +420,7 @@ class WriteDAG(ForceableEnsureRecentTarget):
 
         _, submEffDisc, _  = writeHTCondorDiscriminatorFiles_outputs(self.pDisc)
 
-        _, submSFCalc, _  = writeHTCondorScaleFactorsCalcatorFiles_outputs(self.pSFCalc)
+        _, submSFCalc, _  = writeHTCondorUnionWeightsCalcatorFiles_outputs(self.pSFCalc)
 
         self.params['jobsHistos']   = submHistos
         self.params['jobsCounts']   = submCounts
@@ -447,7 +458,7 @@ class SubmitDAG(luigi.Task):
                                          samples=lcfg._selected_mc_processes ),
                  WriteHTCondorEfficienciesAndScaleFactorsFiles(),
                  WriteHTCondorDiscriminatorFiles(),
-                 WriteHTCondorScaleFactorsCalculatorFiles(),
+                 WriteHTCondorUnionWeightsCalculatorFiles(),
                  WriteDAG(),
                 ]
     

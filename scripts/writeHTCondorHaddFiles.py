@@ -39,7 +39,7 @@ def writeHTCondorHaddFiles_outputs(args):
     os.system('mkdir -p {}'.format(checkDir))
 
     name = 'jobHadd{}_{}.{}'
-    check_name = 'Cluster$(Cluster)_Process$(Process)_{}_{}Hadd.o'
+    check_name = '{}_{}Hadd_C$(Cluster)P$(Process).o'
 
     jobFiles   = [ os.path.join(jobDir, name.format('',    args.dataset_name, 'sh')),
                    os.path.join(jobDir, name.format('Agg', args.dataset_name, 'sh')) ]

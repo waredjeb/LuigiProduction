@@ -31,6 +31,8 @@ _variables_eff = ['HT20', 'met_et', 'mht_et', 'metnomu_et', 'mhtnomu_et',
 _variables_dist = ['dau1_pt', 'HH_mass']
 # joining the two lists above
 _variables_join = set(_variables_eff + _variables_dist)
+_variables_unionweights = ('met_et', 'mht_et')
+assert len(_variables_unionweights) == 2
 
 #######################################################################################################
 ########### TRIGGERS ##################################################################################
