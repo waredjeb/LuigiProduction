@@ -26,7 +26,8 @@ def discriminator(args, chn):
     return result
 
 def discriminatorExecutor_outputs(args, chn):
-    return os.path.join(args.outdir, '{}_{}.json'.format( os.path.basename(__file__).split('.')[0], chn))
+    out = os.path.join(args.outdir, '{}_{}.json'.format( os.path.basename(__file__).split('.')[0], chn))
+    return out
 
 def discriminatorExecutor(args, chn):
     match = re.compile('')

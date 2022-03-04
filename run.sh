@@ -12,10 +12,10 @@
 
 # condor_submit jobs/TEST/submission/jobEfficienciesAndSF.condor
 
-for sub in jobs/TEST/submission/jobDiscriminator_*.condor;do
-	condor_submit "${sub}"
-done
-
-# for sub in jobs/TEST/submission/jobUnionWeightsCalculator_*.condor;do
+# for sub in jobs/TEST/submission/jobDiscriminator_*.condor; do
 # 	condor_submit "${sub}"
 # done
+
+for sub in jobs/TEST/submission/jobUnionWeightsCalculator_*.condor;do
+	condor_submit "${sub}"
+done
