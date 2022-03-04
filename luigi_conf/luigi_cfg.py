@@ -330,7 +330,7 @@ class cfg(luigi.Config):
                   'data_name': FLAGS.data,
                   'mc_name': FLAGS.mc_process,
                   'indir': data_storage,
-                  'outdir': out_storage,
+                  'outdir': data_storage,
                   'localdir': local_folder,
                   'triggers': FLAGS.triggers,
                   'channels': FLAGS.channels,
@@ -344,17 +344,15 @@ class cfg(luigi.Config):
     #### scale factor calculator
     ####
     _rawname = set_task_name('calculator')
-    # clever way to flatten a nested list
-    #_selected_mc_processes = sum([ _mc_processes[proc] for proc in FLAGS.mc_process ], [])
-    #_selected_data = sum([ _data[x] for x in FLAGS.data ], [])
-    
     calculator_params = luigi.DictParameter(
         default={ 'taskname': _rawname,
                   'hierarchy': _tasks_before_condor[_rawname],
+                  'binedges_filename': binedges_filename,
                   'data_name': FLAGS.data,
                   'mc_name': FLAGS.mc_process,
                   'indir': data_storage,
-                  'outdir': out_storage,
+                  'outdir_plots': out_storage,
+                  'outdir_root': data_storage,
                   'localdir': local_folder,
                   'triggers': FLAGS.triggers,
                   'channels': FLAGS.channels,
@@ -364,7 +362,7 @@ class cfg(luigi.Config):
                   'intersection_str': intersection_str,
                   'debug': FLAGS.debug_workflow,} )
 
-        
+
 """
 'pass_triggerbit' leaf
 

@@ -13,10 +13,6 @@ import ROOT
 from utils import utils
 
 @utils.setPureInputNamespace
-def discriminatorExecutor_outputs(args, chn):
-    return [ os.path.join(args.outdir, '{}_{}.json'.format( os.path.basename(__file__).split('.')[0], chn)) ]
-
-@utils.setPureInputNamespace
 def writeHTCondorDiscriminatorFiles_outputs(args):
     """
     One output per channel. Allows channel parallellization with DAGMAN.
@@ -48,24 +44,28 @@ def writeHTCondorDiscriminatorFiles(args):
     outs_job, outs_submit, outs_check = writeHTCondorDiscriminatorFiles_outputs(args)
 
     #### Write shell executable (python scripts must be wrapped in shell files to run on HTCondor)
-    command =  ( ( '{prog} --indir {indir} --outdir {outdir} --channel ${{1}} --triggers {triggers} --variables {variables} --tag {tag} --subtag {subtag} --data_name {dataname} --mc_name {mcname}' )
-                 .format( prog=prog,
-                          indir=args.indir, outdir=args.outdir,
-                          tag=args.tag,
-                          subtag=args.subtag,
-                          triggers=' '.join(args.triggers,),
-                          variables=' '.join(args.variables,),
-                          dataname=args.data_name,
-                          mcname=args.mc_name )
-                )
+    for i,chn in enumerate(args.channels):
+        command =  ( ( '{prog} --indir {indir} --outdir {outdir} '
+                       '--channel {channel} --triggers {triggers} '
+                       '--variables {variables} --tag {tag} --subtag {subtag} '
+                       '--data_name {dataname} --mc_name {mcname}' )
+                     .format( prog=prog,
+                              indir=args.indir, outdir=args.outdir,
+                              channel=chn,
+                              tag=args.tag,
+                              subtag=args.subtag,
+                              triggers=' '.join(args.triggers,),
+                              variables=' '.join(args.variables,),
+                              dataname=args.data_name,
+                              mcname=args.mc_name )
+                    )
 
-    if args.debug:
-        command += '--debug '
-    command += '\n'
+        if args.debug:
+            command += '--debug '
+        command += '\n'
 
-    # Technically one shell file would have been enough, but this solution is more flexible
-    # for potential future changes, and is more readable when looking at the logs.
-    for i in range(len(args.channels)):
+        # Technically one shell file would have been enough, but this solution is more flexible
+        # for potential future changes, and is more readable when looking at the logs.
         with open(outs_job[i], 'w') as s:
             s.write('#!/bin/bash\n')
             s.write('export X509_USER_PROXY=~/.t3/proxy.cert\n')
@@ -77,13 +77,11 @@ def writeHTCondorDiscriminatorFiles(args):
             s.write('echo "Channel {} done."\n'.format(args.channels[i]))
         os.system('chmod u+rwx '+ outs_job[i])
 
-    #### Write submission file
-    queue = 'short'
-    for i,chn in enumerate(args.channels):
+        #### Write submission file
+        queue = 'short'
         with open(outs_submit[i], 'w') as s:
             s.write('Universe = vanilla\n')
             s.write('Executable = {}\n'.format(outs_job[i]))
-            s.write('Arguments = $(channel) \n')
             s.write('input = /dev/null\n')
             s.write('output = {}\n'.format(outs_check[i]))
             s.write('error  = {}\n'.format(outs_check[i].replace('.o', '.e')))
@@ -92,10 +90,7 @@ def writeHTCondorDiscriminatorFiles(args):
             s.write('WNTag=el7\n')
             s.write('+SingularityCmd = ""\n')
             s.write('include : /opt/exp_soft/cms/t3/t3queue |\n\n')
-            s.write('queue channel from (\n')
-            s.write('  {}\n'.format(chn))
-            s.write(')\n')
-
+            s.write('queue\n')
     # os.system('condor_submit -name llrt3condor {}'.format(submFile))
 
 # -- Parse options

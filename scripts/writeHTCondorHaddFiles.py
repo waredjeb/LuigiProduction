@@ -31,11 +31,13 @@ def writeHTCondorHaddFiles_outputs(args):
     Outputs are guaranteed to have the same length.
     Returns all separate paths to avoid code duplication.
     """
-    outSubmDir = 'submission'
-    jobDir = os.path.join(args.localdir, 'jobs', args.tag, outSubmDir)
+    base_dir = os.path.join(args.localdir, 'jobs', args.tag)
+    
+    jobDir = os.path.join(base_dir, 'submission')
     os.system('mkdir -p {}'.format(jobDir))
-    outCheckDir = 'outputs'
-    checkDir = os.path.join(args.localdir, 'jobs', args.tag, outCheckDir)
+
+    dataset_folder = 'Hadd_' + args.dataset_name
+    checkDir = os.path.join(base_dir, 'outputs', dataset_folder)
     os.system('mkdir -p {}'.format(checkDir))
 
     name = 'jobHadd{}_{}.{}'

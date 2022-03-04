@@ -80,8 +80,9 @@ def writeHTCondorHistogramFiles_outputs(args):
         out_submit.append(submFile)
 
         checkDirProc = os.path.join(checkDir, thisProc)
-        checkFile = os.path.join(checkDirProc, check_name)
         os.system('mkdir -p {}'.format(checkDirProc))
+
+        checkFile = os.path.join(checkDirProc, check_name)
         out_check.append(checkFile)
 
     assert(len(out_jobs)==len(_all_processes))

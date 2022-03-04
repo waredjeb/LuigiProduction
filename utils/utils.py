@@ -1,9 +1,11 @@
 
 import os
+import re
 import operator
 import argparse
 import functools
 import itertools as it
+import numpy as np
 import h5py
 from types import SimpleNamespace
 
@@ -203,13 +205,15 @@ def remove(f):
   if os.path.exists( f ):
     os.remove( f )
 
-def replacePlaceholder(opt, string, add):
-  if opt == 'cuts':
-    res = string.replace(_placeholder_cuts, '_CUTS_' + add )
-  else:
-    import inspect
-    currentFunction = inspect.getframeinfo(frame).function
-    raise ValueError('[{}] option not supported.'.format(currentFunction))
+def rewriteCutString(oldstr, newstr, regex=False):
+  if regex:
+    _regex = re.findall(r'^.*CUTS_(.+)$', newstr)
+    print(_regex)
+    assert(len(_regex)==1)
+    _regex = _regex[0]
+    newstr = _regex.replace('>', 'L').replace('<', 'S').replace('.', 'p')
+    
+  res = oldstr.replace(_placeholder_cuts, '_CUTS_'+newstr)
   return res
 
 def restoreBinning(afile, channels, variables, subtag):

@@ -10,4 +10,12 @@
 # condor_submit jobs/TEST/submission/jobHaddAgg_MET2018.condor
 # condor_submit jobs/TEST/submission/jobHaddAgg_TT.condor
 
-condor_submit jobs/TEST/submission/jobEfficienciesAndSF.condor
+# condor_submit jobs/TEST/submission/jobEfficienciesAndSF.condor
+
+for sub in jobs/TEST/submission/jobDiscriminator_*.condor;do
+	condor_submit "${sub}"
+done
+
+# for sub in jobs/TEST/submission/jobUnionWeightsCalculator_*.condor;do
+# 	condor_submit "${sub}"
+# done

@@ -1,5 +1,4 @@
 import os
-import re
 import argparse
 import ctypes
 import numpy as np
@@ -26,7 +25,7 @@ from utils.utils import (
   getROOTObject,
   getHistoNames,
   redrawBorder,
-  replacePlaceholder,
+  rewriteCutString,
   restoreBinning,
 )
 
@@ -94,7 +93,8 @@ def drawEfficienciesAndScaleFactors(proc, channel, variable, trig, save_names, b
 
   histos_data['trig'], histos_mc['trig'] = ({} for _ in range(2))
   for key in keylist_mc:
-    if key.startswith( replacePlaceholder('cuts', hnames['trig'], '') ):
+    rewritten_str = rewriteCutString(hnames['trig'], '')
+    if key.startswith(rewritten_str):
       histos_mc['trig'][key] = getROOTObject(key, file_mc)
       histos_data['trig'][key] = getROOTObject(key, file_data)
 
@@ -205,7 +205,9 @@ def drawEfficienciesAndScaleFactors(proc, channel, variable, trig, save_names, b
     print('[=debug=] Plotting...')  
 
   for akey in sf:
-    canvas_name = replacePlaceholder('cuts', os.path.basename(save_names[0]).split('.')[0], akey)
+    canvas_name = os.path.basename(save_names[0]).split('.')[0]
+    canvas_name = rewriteCutString(canvas_name, akey, regex=True)
+
     canvas = TCanvas( canvas_name, 'canvas', 600, 600 )
     ROOT.gStyle.SetOptStat(0)
     ROOT.gStyle.SetOptTitle(0)
@@ -284,8 +286,6 @@ def drawEfficienciesAndScaleFactors(proc, channel, variable, trig, save_names, b
           splitcounter += 1
           trig_names_str += '#splitline{'
           trig_names_str += elem + ' ' + ucode + '}{'
-    # print('========================= ', trig_names_str)
-    # print('========================= ', trig_str)
 
     trig_start_str = 'Trigger' + ('' if len(trig_str)==1 else 's') + ': '
     l.DrawLatex( lX, lY,        'Channel: '+latexChannel)
@@ -330,15 +330,11 @@ def drawEfficienciesAndScaleFactors(proc, channel, variable, trig, save_names, b
 
     redrawBorder()
 
-    _regex = re.findall(r'^.*(CUTS_.+)$', akey)
-    assert(len(_regex)==1)
-    _regex = _regex[0]
-    _regex = _regex.replace('>', 'L').replace('<', 'S').replace('.', 'p')
     for aname in save_names[:-1]:
-      _name = replacePlaceholder('cuts', aname, _regex )
+      _name = rewriteCutString(aname, akey, regex=True)
       canvas.SaveAs( _name )
 
-    _name = replacePlaceholder('cuts', save_names[-1], _regex )
+    _name = rewriteCutString(save_names[-1], akey, regex=True)
     effFile = ROOT.TFile.Open(_name, 'RECREATE')
     effFile.cd()
     eff_data[akey].Write('Data')

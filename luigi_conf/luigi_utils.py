@@ -6,6 +6,15 @@ import functools
 import inspect
 from luigi.util import inherits
 
+class ForceRun(luigi.Task):
+    def __init__(self, *args, **kwargs):
+        """Force the task to run."""
+        super().__init__(*args, **kwargs)
+        outputs = luigi.task.flatten(self.output())
+        for out in outputs:
+            if out.exists():
+                os.remove(out.path)
+
 class ForceParameter(luigi.Task):
     force = luigi.BoolParameter(significant=False, default=False)
 

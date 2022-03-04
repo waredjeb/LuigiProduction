@@ -22,7 +22,7 @@ from collections import defaultdict
 import itertools as it
 
 import sys
-sys.path.append( os.path.join(os.environ['CMSSW_BASE'], 'src', 'METTriggerStudies'))
+sys.path.append( os.environ['PWD'] ) 
 
 from utils.utils import (
     checkBit,
@@ -32,7 +32,8 @@ from utils.utils import (
     isChannelConsistent,
     joinNameTriggerIntersection as joinNTC,
     LeafManager,
-    replacePlaceholder,
+    loadBinning,
+    rewriteCutString,
     setCustomTriggerBit,
 )
 
@@ -136,7 +137,7 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
 
     lf = LeafManager( fname, t_in )
 
-    binedges, nbins = loadBinning(afile=binedges_filename, key=subtag,
+    binedges, nbins = loadBinning(afile=binedges_fname, key=subtag,
                                   variables=variables, channels=channels)
 
     triggercomb = generateTriggerCombinations(triggers)
@@ -188,7 +189,7 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
             continue
         if pairtype==0 and (dau1_muiso>=0.15 or dau2_tauiso<5):
             continue
-        if pairtype==2 and (dau1_tauiso<5 or dau2_tauiso<5):
+        if pairtype==2 and (dau1_tauiso<5 or dau2_tauiso<5): # Loose / Medium / Tight
             continue
 
         #((tauH_SVFIT_mass-116.)*(tauH_SVFIT_mass-116.))/(35.*35.) + ((bH_mass_raw-111.)*(bH_mass_raw-111.))/(45.*45.) <  1.0
@@ -229,8 +230,11 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
         trigBit = lf.getLeaf('pass_triggerbit')
 
         run = lf.getLeaf('RunNumber')
-        #passMET = lf.getLeaf('isMETtrigger')
+
+        # 
         passLEP = lf.getLeaf('isLeptrigger')
+        
+        #passMET = lf.getLeaf('isMETtrigger')
         #passTAU = lf.getLeaf('isSingleTautrigger')
         #passTAUMET = lf.getLeaf('isTauMETtrigger')
 
@@ -247,7 +251,7 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
                 passCuts[trig][var] = passesCuts(trig, [var], lf, args.debug)
 
         for i in channels:
-            if isChannelConsistent(i, pairtype):
+            if isChannelConsistent(i, pairtype) and passLEP:
 
                 # fill histograms for 1D efficiencies
                 for j in variables:
@@ -293,7 +297,9 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
                         if passTriggerBitsIntersection:
 
                             for pckey,pcval in passCutsIntersection.items():
-                                htrig_name = replacePlaceholder('cuts', getHistoNames('Trig1D')(i,j,joinNTC(tcomb)), pckey)
+                                base_str = getHistoNames('Trig1D')(i,j,joinNTC(tcomb))
+                                htrig_name = rewriteCutString(base_str, pckey)
+
                                 if pckey not in hTrig[i][j][joinNTC(tcomb)]:
                                     hTrig[i][j][joinNTC(tcomb)][pckey] = ROOT.TH1D(htrig_name, '', *binning)
                                 #hTrig[i][j][joinNTC(tcomb)].setdefault(pckey, ROOT.TH1D(htrig_name, '', *binning))
@@ -331,16 +337,20 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
     file_id = ''.join( c for c in fileName[-10:] if c.isdigit() ) 
     outName = os.path.join(outdir, tprefix + sample + '_' + file_id + subtag + '.root')
     print('Saving file {} at {} '.format(file_id, outName) )
+
     f_out = ROOT.TFile(outName, 'RECREATE')
     f_out.cd()
-
-    # Writing histograms to the current file
     for i in channels:
         for j in variables:
             hRef[i][j].Write( getHistoNames('Ref1D')(i,j) )
             for tcomb in triggercomb:
                 for khist,vhist in hTrig[i][j][joinNTC(tcomb)].items():
-                    writeName = replacePlaceholder('cuts', getHistoNames('Trig1D')(i,j,joinNTC(tcomb)), khist)
+                    base_str = getHistoNames('Trig1D')(i,j,joinNTC(tcomb))
+                    print(base_str, khist)
+
+                    writeName = rewriteCutString(base_str, khist)
+                    print(writeName)
+
                     vhist.Write( writeName )
 
     # Writing 2D efficiencies to the current file

@@ -7,6 +7,11 @@ import argparse
 import sys
 sys.path.append( os.environ['PWD'] ) 
 
+from utils.utils import (
+    generateTriggerCombinations,
+    joinNameTriggerIntersection as joinNTC,
+)
+
 def discriminator(args, chn):
     """
     Associates each trigger combination to a set of variables, ordered by importance.
@@ -16,21 +21,23 @@ def discriminator(args, chn):
 
     triggercomb = generateTriggerCombinations(args.triggers)
     for tcomb in triggercomb:
-        result[joinNTC(tcomb)] = [ 'dau1_pt' ] #CHANGE!!!!!!!!!!!!!!!!!!!
+        result[joinNTC(tcomb)] = ['dau1_pt', 'data1_eta'] #CHANGE!!!!!!!!!!!!!!!!!!!
 
     return result
-        
+
+def discriminatorExecutor_outputs(args, chn):
+    return os.path.join(args.outdir, '{}_{}.json'.format( os.path.basename(__file__).split('.')[0], chn))
+
 def discriminatorExecutor(args, chn):
     match = re.compile('')
     
     if args.debug:
         print('[=debug=] Open file: {}'.format(name_data))
 
-    outputs = discriminatorExecutor_outputs(args, chn)
-    
-    orderedVars = discriminator(args, chn)
+    out = discriminatorExecutor_outputs(args, chn)
+    ordered_vars = discriminator(args, chn)
     with open(out, 'w') as f:
-        json.dump(orderedVars, f)
+        json.dump(ordered_vars, f)
 
 
 parser = argparse.ArgumentParser(description='Choose the most significant variables to draw the efficiencies.')
@@ -45,7 +52,7 @@ parser.add_argument('--channel',   dest='channel', required=True,
                     help='Select the channel over which the discrimination will be run.' )
 parser.add_argument('--variables',   dest='variables', required=True, nargs='+', type=str,
                     help='Select the variables over which the workflow will be run.' )
-parser.add_argument('-t', '--tag', help='string to differentiate between different workflow runs', required=True)
+parser.add_argument('--tag', help='string to differentiate between different workflow runs', required=True)
 parser.add_argument('--subtag', dest='subtag', required=True, help='subtag')
 parser.add_argument('--debug', action='store_true', help='debug verbosity')
 args = parser.parse_args()

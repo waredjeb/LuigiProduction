@@ -31,12 +31,14 @@ def effExtractor(args, chn, dvars, nbins):
     
     triggercomb = generateTriggerCombinations(args.triggers)
     for tcomb in triggercomb:
-        variables = dvars[ joinNTC(tcomb) ]
-        assert(len(variables)==1)
-        var = variables[0]
+        comb_vars = dvars[ joinNTC(tcomb) ]
+        print(comb_vars, len(comb_vars), type(comb_vars))
+        assert len(comb_vars)==2
+        var = comb_vars[0]
         
         inBaseName = ( 'trigSF_' + args.data_name + '_' + args.mc_name + '_' +
                        chn + '_' + var + '_' + joinNTC(tcomb) + args.subtag + '_CUTS*.root' )
+        
         inName = os.path.join(args.indir, chn, var, inBaseName)
         inName = min( glob.glob(inName), key=len) #select the shortest string (NoCut)
 
@@ -99,16 +101,22 @@ def effCalculator(args, efficiencies, eventvars, channel, dvars, binedges):
     return effData, effMC
 
 def runUnionWeightsCalculator_outputs(args, chn):
-    return os.path.join(args.outdir, '{}_{}.root'.format(os.path.basename(__file__), chn))
+    #CHANGE!!!!!!
+    #USE PREDEFINED EXTENSIONS 
+    return [ os.path.join(args.outdir_plots, '{}_{}.png'.format(os.path.basename(__file__), chn)),
+             os.path.join(args.outdir_root, '{}_{}.root'.format(os.path.basename(__file__), chn)) ]
 
 def runUnionWeightsCalculator(args, chn):
-    output = runUnionWeightsCalculator_outputs(args, chn)
+    outputs = runUnionWeightsCalculator_outputs(args, chn)
 
-    binedges, nbins = loadBinning(afile=args.binedges_filename, key=args.subtag,
+    binedges, nbins = loadBinning(afile=args.binedges_fname, key=args.subtag,
                                   variables=args.variables, channels=[chn])
 
-    json_fname = os.path.join( args.indir, 'variableImportanceDiscriminator_{}.json'.format(chn) )
-    dvar = json.load(json_fname)
+    json_fname = os.path.join( args.indir, 'runVariableImportanceDiscriminator_{}.json'.format(chn) )
+    print(args.indir)
+    print(json_fname)
+    with open(json_fname, 'r') as f:
+        dvar = json.load(f)
 
     efficiencies = effExtractor(args, chn, dvar, nbins)
 
@@ -137,14 +145,19 @@ def runUnionWeightsCalculator(args, chn):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Choose the most significant variables to draw the efficiencies.')
 
+    parser.add_argument('--binedges_fname', dest='binedges_fname', required=True, help='where the bin edges are stored')
     parser.add_argument('--indir',  help='Inputs directory',  required=True)
-    parser.add_argument('--outdir', help='Outputs directory', required=True)
+    parser.add_argument('--outdir_plots', help='Output plots directory', required=True)
+    parser.add_argument('--outdir_root', help='Output directory for ROOT files', required=True)
     parser.add_argument('--data_name', dest='data_name', required=True, help='Data sample name')
     parser.add_argument('--mc_name', dest='mc_name', required=True, help='MC sample name')
     parser.add_argument('--triggers', dest='triggers', nargs='+', type=str,
                         required=True, help='Triggers included in the workfow.')
     parser.add_argument('--channel', dest='channel', required=True,
                         help='Select the channels over which the workflow will be run.' )
+    parser.add_argument('--variables',        dest='variables',        required=True,
+                        nargs='+', type=str,
+                        help='Workflow variables considered.')
     parser.add_argument('-t', '--tag', help='string to differentiate between different workflow runs', required=True)
     parser.add_argument('--subtag', dest='subtag', required=True, help='subtag')
     parser.add_argument('--debug', action='store_true', help='debug verbosity')
