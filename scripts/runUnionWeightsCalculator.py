@@ -108,9 +108,19 @@ def effCalculator(args, efficiencies, eventvars, channel, dvars, binedges):
 
 def runUnionWeightsCalculator_outputs(args, chn):
     #CHANGE!!!!!!
-    #USE PREDEFINED EXTENSIONS 
-    return [ os.path.join(args.outdir_plots, '{}_{}.png'.format(os.path.basename(__file__), chn)),
-             os.path.join(args.outdir_root, '{}_{}.root'.format(os.path.basename(__file__), chn)) ]
+    #USE PREDEFINED EXTENSIONS
+    ptlep1-ptlep2 / etalep1-etalep2
+    ptlep1-etalep1 / ptlep2-etalep2
+    
+    rets = []
+    for ext in _extensions:
+        suffix = '{}_{}.{}'.format(os.path.basename(__file__), chn, ext)
+        if ext == 'root':
+            rets.append( os.path.join(args.outdir_root, suffix) )
+        else:
+            rets.append( os.path.join(args.outdir_plots, suffix) )
+            
+    return rets
 
 def runUnionWeightsCalculator(args, chn):
     outputs = runUnionWeightsCalculator_outputs(args, chn)
