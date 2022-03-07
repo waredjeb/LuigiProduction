@@ -167,21 +167,20 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Command line parser')
 
     parser.add_argument('--binedges_dataset', dest='binedges_dataset', required=True, help='in directory')
-    parser.add_argument('--localdir',         dest='localdir',         default=os.getcwd(),
-                        help='out directory')
-    parser.add_argument('-a', '--indir',      dest='indir',            required=True, help='in directory')
-    parser.add_argument('-o', '--outdir',     dest='outdir',           required=True, help='out directory')
-    parser.add_argument('-t', '--tag',        dest='tag',              required=True, help='tag')
-    parser.add_argument('--subtag',           dest='subtag',           required=True, help='subtag')
-    parser.add_argument('--mc_processes',     dest='mc_processes',     required=True, nargs='+', type=str,
+    parser.add_argument('--localdir', dest='localdir', default=os.getcwd(), help='out directory')
+    parser.add_argument('-a', '--indir', dest='indir', required=True, help='in directory')
+    parser.add_argument('-o', '--outdir', dest='outdir', required=True, help='out directory')
+    parser.add_argument('-t', '--tag', dest='tag', required=True, help='tag')
+    parser.add_argument('--subtag', dest='subtag', required=True, help='subtag')
+    parser.add_argument('--mc_processes', dest='mc_processes', required=True, nargs='+', type=str,
                         help='list of MC process names')                
-    parser.add_argument('--data',             dest='data',             required=True, nargs='+', type=str,
+    parser.add_argument('--data', dest='data', required=True, nargs='+', type=str,
                         help='list of dataset s')                       
-    parser.add_argument('--channels',   dest='channels',         required=True, nargs='+', type=str,
+    parser.add_argument('--channels',   dest='channels', required=True, nargs='+', type=str,
                         help='Select the channels over which the workflow will be run.' )
-    parser.add_argument('--triggers',         dest='triggers',         required=True, nargs='+', type=str,
+    parser.add_argument('--triggers', dest='triggers', required=True, nargs='+', type=str,
                         help='Select the triggers over which the workflow will be run.' )
-    parser.add_argument('--variables',        dest='variables',        required=True, nargs='+', type=str,
+    parser.add_argument('--variables', dest='variables', required=True, nargs='+', type=str,
                         help='Select the variables over which the workflow will be run.' )
     parser.add_argument('--intersection_str', dest='intersection_str', required=False, default='_PLUS_',
                         help='String used to represent set intersection between triggers.')

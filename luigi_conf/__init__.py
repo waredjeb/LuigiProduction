@@ -31,8 +31,13 @@ _variables_eff = ['HT20', 'met_et', 'mht_et', 'metnomu_et', 'mhtnomu_et',
 _variables_dist = ['dau1_pt', 'HH_mass']
 # joining the two lists above
 _variables_join = set(_variables_eff + _variables_dist)
-_variables_unionweights = ('met_et', 'mht_et')
-assert len(_variables_unionweights) == 2
+_variables_unionweights = (('dau1_pt',  'dau2_pt'),
+                           ('dau1_eta', 'dau2_eta'),
+                           ('dau1_pt',  'dau1_eta'),
+                           ('dau2_pt',  'dau2_eta'),
+                           )
+for x in _variables_unionweights:
+    assert len(x) == 2
 
 #######################################################################################################
 ########### TRIGGERS ##################################################################################
@@ -65,7 +70,8 @@ assert(_triggers_custom.issubset(set(_triggers_map.keys())))
 ########### CUTS ######################################################################################
 #######################################################################################################
 _cuts = {'METNoMu120': {'metnomu_et': ('>', [120,180]), 'mhtnomu_et': ('>', [100,160])},
-         'IsoTau50':   {'dau1_pt': ('>', [80]), 'dau1_eta': ('<', [2.0]), 'met_et': ('>', [150])},
+         'I
+soTau50':   {'dau1_pt': ('>', [80]), 'dau1_eta': ('<', [2.0]), 'met_et': ('>', [150])},
          }
 assert( set(_cuts.keys()).issubset(set(_triggers_map.keys())) )
 for x in _cuts.values():

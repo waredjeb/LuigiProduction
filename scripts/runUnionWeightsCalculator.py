@@ -21,6 +21,10 @@ from luigi_conf import (
     _variables_unionweights,
 )
 
+def meanbins(m1,m2,nelem):
+    arr = np.linspace(m1, m2, nelem)
+    return (arr[:-1]+arr[1:])/2
+
 def effExtractor(args, chn, dvars, nbins):
     """
     Extracts the efficiencies for data and MC to be used as scale factors: e_data / e_MC.
@@ -92,11 +96,6 @@ def effCalculator(args, efficiencies, eventvars, channel, dvars, binedges):
             term_data = efficiencies[0][0][joinNTC(tcomb)][binid]
             term_mc   = efficiencies[1][0][joinNTC(tcomb)][binid]
 
-            ###CHANGE!!!!!!!!!!!!!!!!!! this is a simplification
-            if len(tcomb) > 3:
-                continue
-
-
             if len(tcomb)%2==0:
                 eff_data -= term_data
                 ef_mc    -= term_mc
@@ -107,53 +106,87 @@ def effCalculator(args, efficiencies, eventvars, channel, dvars, binedges):
     return eff_data, eff_mc
 
 def runUnionWeightsCalculator_outputs(args, chn):
-    #CHANGE!!!!!!
-    #USE PREDEFINED EXTENSIONS
-    ptlep1-ptlep2 / etalep1-etalep2
-    ptlep1-etalep1 / ptlep2-etalep2
-    
-    rets = []
-    for ext in _extensions:
-        suffix = '{}_{}.{}'.format(os.path.basename(__file__), chn, ext)
-        if ext == 'root':
-            rets.append( os.path.join(args.outdir_root, suffix) )
-        else:
-            rets.append( os.path.join(args.outdir_plots, suffix) )
+    outputs = []
+    for v in _variables_unionweights:
+        for ext in _extensions:
+            name = '{}_{}_{}_VS_{}.{}'.format(os.path.basename(__file__),
+                                              chn, v[0], v[1]. ext)
+            if ext == 'root':
+                outputs.append( os.path.join(args.outdir_root, name) )
+            else:
+                outputs.append( os.path.join(args.outdir_plots, chn, name) )
             
-    return rets
+    return outputs
 
 def runUnionWeightsCalculator(args, chn):
     outputs = runUnionWeightsCalculator_outputs(args, chn)
-
+    unite_vars = lambda x,y: x+y
     binedges, nbins = loadBinning(afile=args.binedges_fname, key=args.subtag,
                                   variables=args.variables, channels=[chn])
+    nbins_union = (20, 20)
+
+    # initialize histograms
+    hUnionWeights = {}
+    for var1,var2 in _variables_unionweights:
+        var1_low, var1_high = binedges[var1][chn][0], binedges[var1][chn][-1]
+        var2_low, var2_high = binedges[var2][chn][0], binedges[var2][chn][-1]
+        hUnionWeights[unite_vars(var1,var2)] = ROOT.TH1D( unite_vars(var1,var2),
+                                                          unite_vars(var1,var2),
+                                                          nbins_union[0], var1_low, var1_low,
+                                                          nbins_union[1], var2_low, var2_low )
+
+    efficiencies = effExtractor(args, chn, dvar, nbins)
 
     json_fname = os.path.join( args.indir, 'runVariableImportanceDiscriminator_{}.json'.format(chn) )
     with open(json_fname, 'r') as f:
         dvar = json.load(f)
+    
+    lf = LeafManager( fname, t_in )
+    for entry in range(0,t_in.GetEntries()):
+        t_in.GetEntry(entry)
 
-    efficiencies = effExtractor(args, chn, dvar, nbins)
+        mhh = lf.getLeaf( 'HHKin_mass' )
+        if mhh<1:
+            continue
 
-    var1, var2 = _variables_unionweights
-    var1_low, var1_high = binedges[var1][chn][0], binedges[var1][chn][-1]
-    var2_low, var2_high = binedges[var2][chn][0], binedges[var2][chn][-1]
-
-    def meanbins(m1,m2,nelem):
-         arr = np.linspace(m1, m2, nelem)
-         return (arr[:-1]+arr[1:])/2
-     
-    nbins_union = 20
-    vars1 = meanbins(var1_low, var1_high, nbins_union+1)
-    vars2 = meanbins(var2_low, var2_high, nbins_union+1)
-
-    for iv1 in vars1:
-        for iv2 in vars2:
-            eventvars = (iv1, iv2)
-            effData, effMC = effCalculator(args, efficiencies, eventvars,
-                                           chn, dvar, binedges)
-
-    print('Weights calculated for channel {}.'.format(chn))
+        pairtype = lf.getLeaf( 'pairType' )
+        dau1_eleiso = lf.getLeaf( 'dau1_eleMVAiso'    )
+        dau1_muiso  = lf.getLeaf( 'dau1_iso'          )
+        dau1_tauiso = lf.getLeaf( 'dau1_deepTauVsJet' )
+        dau2_tauiso = lf.getLeaf( 'dau2_deepTauVsJet' )
         
+        if pairtype==1 and (dau1_eleiso!=1 or dau2_tauiso<5):
+            continue
+        if pairtype==0 and (dau1_muiso>=0.15 or dau2_tauiso<5):
+            continue
+        if pairtype==2 and (dau1_tauiso<5 or dau2_tauiso<5): # Loose / Medium / Tight
+            continue
+
+        #((tauH_SVFIT_mass-116.)*(tauH_SVFIT_mass-116.))/(35.*35.) + ((bH_mass_raw-111.)*(bH_mass_raw-111.))/(45.*45.) <  1.0
+        svfit_mass = lf.getLeaf('tauH_SVFIT_mass')
+        bH_mass    = lf.getLeaf('bH_mass_raw')
+
+        mcut = ((svfit_mass-129.)*(svfit_mass-129.))/(53.*53.) + ((bH_mass-169.)*(bH_mass-169.))/(145.*145.) <  1.0
+        if mcut: # inverted elliptical mass cut (-> ttCR)
+            continue
+
+        passLEP = lf.getLeaf('isLeptrigger')
+        if isChannelConsistent(i, pairtype) and passLEP:
+
+            for var1,var2 in _variables_unionweights:
+                hUnionWeights[unite_vars(var1,var2)].Fill( ... )
+
+            vars1 = meanbins(var1_low, var1_high, nbins_union+1)
+            vars2 = meanbins(var2_low, var2_high, nbins_union+1)
+            for iv1 in vars1:
+                for iv2 in vars2:
+                    eventvars = (iv1, iv2)
+                    effData, effMC = effCalculator(args, efficiencies, eventvars,
+                                                   chn, dvar, binedges)
+
+
+
+    print('Weights calculated for channel {}.'.format(chn))    
     # with open(outputs[i], 'w') as f:
     #     json.dump(orderedVars, f)
 

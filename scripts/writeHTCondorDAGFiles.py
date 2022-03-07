@@ -103,7 +103,8 @@ def writeHTCondorDAGFiles(args):
     for parent, child in zip(args.jobsDiscr,args.jobsUnion):
       s.write('PARENT {} CHILD {}\n'.format(remExt(parent), remExt(child)))
     s.write('\n')
+
 # condor_submit_dag -no_submit diamond.dag
-# condoSTr_submit diamond.dag.condor.sub
+# condor_submit diamond.dag.condor.sub
 # https://htcondor.readthedocs.io/en/latest/users-manual/dagman-workflows.html#optimization-of-submission-time
 
