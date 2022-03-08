@@ -24,11 +24,11 @@ sys.path.append(os.path.join(os.environ['CMSSW_BASE'], 'src', 'METTriggerStudies
 
 from utils.utils import (
     checkBit,
-    getTriggerBit,
+    get_trigger_bit,
     isChannelConsistent,
     joinNameTriggerIntersection as joinNTC,
     LeafManager,
-    setCustomTriggerBit,
+    set_custom_trigger_bit,
 )
 
 from luigi_conf import (
@@ -111,8 +111,8 @@ def getTriggerCounts(indir, outdir, sample, fileName,
 
                     passAllTriggerBits = functools.reduce(
                         lambda x,y: x and y, #logic AND to join all triggers in this option
-                        [ ( checkBit(trigBit, getTriggerBit(x, isData))
-                            if x not in _triggers_custom else setCustomTriggerBit(x, trigBit, run, isData) )
+                        [ ( checkBit(trigBit, get_trigger_bit(x, isData))
+                            if x not in _triggers_custom else set_custom_trigger_bit(x, trigBit, run, isData) )
                           for x in tcomb ]
                     )
 

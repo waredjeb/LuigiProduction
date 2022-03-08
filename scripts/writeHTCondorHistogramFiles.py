@@ -54,12 +54,12 @@ def writeHTCondorHistogramFiles_outputs(args):
     Returns all separate paths to avoid code duplication.
     """
     out_jobs, out_submit, out_check = ([] for _ in range(3))
-
-    outSubmDir = 'submission'
-    jobDir = os.path.join(args.localdir, 'jobs', args.tag, outSubmDir)
+    base_dir = os.path.join(args.localdir, 'jobs', args.tag)
+    
+    jobDir = os.path.join(base_dir, 'submission')
     os.system('mkdir -p {}'.format(jobDir))
-    outCheckDir = 'outputs'
-    checkDir = os.path.join(args.localdir, 'jobs', args.tag, outCheckDir)
+
+    checkDir = os.path.join(base_dir, 'outputs')
     os.system('mkdir -p {}'.format(checkDir))
 
     if args.mode == 'histos':
@@ -101,12 +101,19 @@ def writeHTCondorHistogramFiles(args):
 
     outs_job, outs_submit, outs_check, _all_processes = writeHTCondorHistogramFiles_outputs(args)
     for i,thisProc in enumerate(_all_processes):
-        filelist, inputdir = utils.getROOTInputFiles(thisProc, args)
+        filelist, inputdir = utils.get_root_input_files(thisProc, args)
         
         #### Write shell executable (python scripts must be wrapped in shell files to run on HTCondor)
-        command =  ( ( '{prog} --indir {indir} --outdir {outdir} --sample {sample} --isData {isData} '
-                       '--file ${{1}} --subtag {subtag} --channels {channels} '
-                       '--triggers {triggers} --variables {variables} --tprefix {tprefix} ' )
+        command =  ( ( '{prog} --indir {indir} '
+                       '--outdir {outdir} '
+                       '--sample {sample} '
+                       '--isData {isData} '
+                       '--file ${{1}} '
+                       '--subtag {subtag} '
+                       '--channels {channels} '
+                       '--triggers {triggers} '
+                       '--variables {variables} '
+                       '--tprefix {tprefix} ' )
                      .format( prog=prog, indir=inputdir, outdir=args.outdir,
                               sample=thisProc, isData=int(thisProc in args.data),
                               subtag=args.subtag,
@@ -157,7 +164,6 @@ def writeHTCondorHistogramFiles(args):
             s.write('queue filename from (\n')
             for listname in filelist:
                 s.write('  {}\n'.format( os.path.basename(listname).replace('\n','') ))
-
             s.write(')\n')
 
         # os.system('condor_submit -name llrt3condor {}'.format(submFile))
@@ -168,9 +174,9 @@ if __name__ == '__main__':
 
     parser.add_argument('--binedges_dataset', dest='binedges_dataset', required=True, help='in directory')
     parser.add_argument('--localdir', dest='localdir', default=os.getcwd(), help='out directory')
-    parser.add_argument('-a', '--indir', dest='indir', required=True, help='in directory')
-    parser.add_argument('-o', '--outdir', dest='outdir', required=True, help='out directory')
-    parser.add_argument('-t', '--tag', dest='tag', required=True, help='tag')
+    parser.add_argument('--indir', dest='indir', required=True, help='in directory')
+    parser.add_argument('--outdir', dest='outdir', required=True, help='out directory')
+    parser.add_argument('--tag', dest='tag', required=True, help='tag')
     parser.add_argument('--subtag', dest='subtag', required=True, help='subtag')
     parser.add_argument('--mc_processes', dest='mc_processes', required=True, nargs='+', type=str,
                         help='list of MC process names')                

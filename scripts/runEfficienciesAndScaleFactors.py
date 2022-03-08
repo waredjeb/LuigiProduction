@@ -23,7 +23,7 @@ from utils.utils import (
   createSingleDir,
   getKeyList,
   getROOTObject,
-  getHistoNames,
+  get_histo_namess,
   redrawBorder,
   rewriteCutString,
   restoreBinning,
@@ -54,8 +54,8 @@ def drawEfficienciesAndScaleFactors(proc, channel, variable, trig, save_names, b
     print('[=debug=]  - Args: proc={proc}, channel={channel}, variable={variable}, trig={trig}'
           .format(proc=proc, channel=channel, variable=variable, trig=trig))
 
-  hnames = { 'ref':  getHistoNames('Ref1D')(channel, variable),
-             'trig': getHistoNames('Trig1D')(channel, variable, trig)
+  hnames = { 'ref':  get_histo_namess('Ref1D')(channel, variable),
+             'trig': get_histo_namess('Trig1D')(channel, variable, trig)
             }
 
   keylist_data = getKeyList(file_data, inherits=['TH1'])

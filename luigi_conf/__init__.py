@@ -31,13 +31,12 @@ _variables_eff = ['HT20', 'met_et', 'mht_et', 'metnomu_et', 'mhtnomu_et',
 _variables_dist = ['dau1_pt', 'HH_mass']
 # joining the two lists above
 _variables_join = set(_variables_eff + _variables_dist)
-_variables_unionweights = (('dau1_pt',  'dau2_pt'),
-                           ('dau1_eta', 'dau2_eta'),
-                           ('dau1_pt',  'dau1_eta'),
-                           ('dau2_pt',  'dau2_eta'),
-                           )
-for x in _variables_unionweights:
-    assert len(x) == 2
+
+_nbins_unionweights = {'dau1_pt': 20,
+                       'dau2_pt': 20,
+                       'dau1_eta': 20,
+                       'dau1_eta': 20,
+                       }
 
 #######################################################################################################
 ########### TRIGGERS ##################################################################################

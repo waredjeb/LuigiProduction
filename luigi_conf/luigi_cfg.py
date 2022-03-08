@@ -341,7 +341,7 @@ class cfg(luigi.Config):
                   'debug': FLAGS.debug_workflow,} )
 
     ####
-    #### scale factor calculator
+    #### scale factor calculator + closure test
     ####
     _rawname = set_task_name('calculator')
     calculator_params = luigi.DictParameter(
@@ -350,16 +350,19 @@ class cfg(luigi.Config):
                   'binedges_filename': binedges_filename,
                   'data_name': FLAGS.data,
                   'mc_name': FLAGS.mc_process,
-                  'indir': data_storage,
+                  'mc_processes': _mc_processes[FLAGS.mc_process],
+                  'indir_root': _inputs,
+                  'indir_json': data_storage,
+                  'indir_eff': out_storage,
                   'outdir_plots': out_storage,
                   'outdir_root': data_storage,
+                  'outprefix': 'Closure',
                   'localdir': local_folder,
                   'triggers': FLAGS.triggers,
                   'channels': FLAGS.channels,
                   'variables': FLAGS.variables_for_efficiencies,
                   'tag': tag,
                   'subtag': subtag,
-                  'intersection_str': intersection_str,
                   'debug': FLAGS.debug_workflow,} )
 
 

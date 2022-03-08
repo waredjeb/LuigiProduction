@@ -4,7 +4,7 @@ Script which calculates the trigger scale factors.
 On production mode should run in the grid via scripts/submitTriggerEff.py. 
 Local run example:
 
-python3 /home/llr/cms/alves/CMSSW_12_2_0_pre1/src/METTriggerStudies/scripts/getTriggerEffSig.py --indir /data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_2018_UL_data_test11Jan22/ --outdir /data_CMS/cms/alves/UL_v1/ --sample SKIM_MET2018 --file output_0.root --channels all etau mutau tautau mumu --subtag _default --binedges /data_CMS/cms/alves/TriggerScaleFactors/UL_v1/binedges.hdf5 --isData 1 --tprefix hist_eff_ --triggers METNoMu120 IsoTau50 --variables HT20 met_et mht_et metnomu_et mhtnomu_et dau1_pt dau2_pt dau1_eta dau2_eta --nocut_dummy_str NoCut --debug
+python3 /home/llr/cms/alves/CMSSW_12_2_0_pre1/src/METTriggerStudies/scripts/get_trigger_eff_sig.py --indir /data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_2018_UL_data_test11Jan22/ --outdir /data_CMS/cms/alves/UL_v1/ --sample SKIM_MET2018 --file output_0.root --channels all etau mutau tautau mumu --subtag _default --binedges /data_CMS/cms/alves/TriggerScaleFactors/UL_v1/binedges.hdf5 --isdata 1 --tprefix hist_eff_ --triggers METNoMu120 IsoTau50 --variables HT20 met_et mht_et metnomu_et mhtnomu_et dau1_pt dau2_pt dau1_eta dau2_eta --nocut_dummy_str NoCut --debug
 """
 import re
 import os
@@ -25,16 +25,18 @@ import sys
 sys.path.append( os.environ['PWD'] ) 
 
 from utils.utils import (
-    checkBit,
+    check_bit,
     generateTriggerCombinations,
-    getHistoNames,
-    getTriggerBit,
-    isChannelConsistent,
+    get_histo_names,
+    get_trigger_bit,
+    is_channel_consistent,
     joinNameTriggerIntersection as joinNTC,
     LeafManager,
-    loadBinning,
+    load_binning,
+    pass_any_trigger,
+    pass_selection_cuts,
     rewriteCutString,
-    setCustomTriggerBit,
+    set_custom_trigger_bit,
 )
 
 from luigi_conf import (
@@ -118,9 +120,9 @@ def passesCuts(trig, variables, leavesmanager, debug):
         res = {args.nocut_dummy_str: True}
     return res
     
-def getTriggerEffSig(indir, outdir, sample, fileName,
+def get_trigger_eff_sig(indir, outdir, sample, fileName,
                      channels, variables, triggers,
-                     subtag, tprefix, isData, binedges_fname):
+                     subtag, tprefix, isdata, binedges_fname):
     # -- Check if outdir exists, if not create it
     if not os.path.exists(outdir):
         os.makedirs(outdir)
@@ -137,8 +139,8 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
 
     lf = LeafManager( fname, t_in )
 
-    binedges, nbins = loadBinning(afile=binedges_fname, key=subtag,
-                                  variables=variables, channels=channels)
+    binedges, nbins = load_binning(afile=binedges_fname, key=subtag,
+                                   variables=variables, channels=channels)
 
     triggercomb = generateTriggerCombinations(triggers)
     
@@ -152,7 +154,7 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
         for j in variables:
             binning = (nbins[j][i], binedges[j][i])
             hTrig[i][j]={}
-            hRef[i][j] = ROOT.TH1D( getHistoNames('Ref1D')(i, j), '', *binning)
+            hRef[i][j] = ROOT.TH1D( get_histo_names('Ref1D')(i, j), '', *binning)
             for tcomb in triggercomb:
                 hTrig[i][j][joinNTC(tcomb)]={}
 
@@ -175,31 +177,14 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
     for entry in range(0,t_in.GetEntries()):
         t_in.GetEntry(entry)
 
-        mhh = lf.getLeaf( 'HHKin_mass' )
-        if mhh<1:
+        if not pass_selection_cuts(lf):
             continue
 
-        pairtype = lf.getLeaf( 'pairType' )
-        dau1_eleiso = lf.getLeaf( 'dau1_eleMVAiso'    )
-        dau1_muiso  = lf.getLeaf( 'dau1_iso'          )
-        dau1_tauiso = lf.getLeaf( 'dau1_deepTauVsJet' )
-        dau2_tauiso = lf.getLeaf( 'dau2_deepTauVsJet' )
-        
-        if pairtype==1 and (dau1_eleiso!=1 or dau2_tauiso<5):
-            continue
-        if pairtype==0 and (dau1_muiso>=0.15 or dau2_tauiso<5):
-            continue
-        if pairtype==2 and (dau1_tauiso<5 or dau2_tauiso<5): # Loose / Medium / Tight
+        trig_bit = lf.getLeaf('pass_triggerbit')
+        run = lf.getLeaf('RunNumber')
+        if not pass_any_trigger(args.triggers, trig_bit, run, isdata=isdata):
             continue
 
-        #((tauH_SVFIT_mass-116.)*(tauH_SVFIT_mass-116.))/(35.*35.) + ((bH_mass_raw-111.)*(bH_mass_raw-111.))/(45.*45.) <  1.0
-        svfit_mass = lf.getLeaf('tauH_SVFIT_mass')
-        bH_mass    = lf.getLeaf('bH_mass_raw')
-
-        mcut = ((svfit_mass-129.)*(svfit_mass-129.))/(53.*53.) + ((bH_mass-169.)*(bH_mass-169.))/(145.*145.) <  1.0
-        if mcut: # inverted elliptical mass cut (-> ttCR)
-            continue
-        
         #mcweight   = lf.getLeaf( "MC_weight" )
         pureweight = lf.getLeaf( "PUReweight" )
         trigsf     = lf.getLeaf( "trigSF" )
@@ -213,11 +198,8 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
         if np.isnan(idandiso): idandiso=1
 
         evtW = pureweight*trigsf*lumi*idandiso
-        if np.isnan(evtW) or isData:
+        if np.isnan(evtW) or isdata:
             evtW = 1
-
-        #MET    = lf.getLeaf('met_et')
-        #HTfull = lf.getLeaf('HT20')
 
         fillVar = {}
         for v in variables:
@@ -227,31 +209,20 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
                 if fillVar[v][chn]>binedges[v][chn][-1]:
                     fillVar[v][chn]=binedges[v][chn][-1] # include overflow
 
-        trigBit = lf.getLeaf('pass_triggerbit')
-
-        run = lf.getLeaf('RunNumber')
-
-        # 
-        passLEP = lf.getLeaf('isLeptrigger')
-        
-        #passMET = lf.getLeaf('isMETtrigger')
-        #passTAU = lf.getLeaf('isSingleTautrigger')
-        #passTAUMET = lf.getLeaf('isTauMETtrigger')
-
         passTriggerBits, passCuts = ({} for _ in range(2))
         for trig in triggers:
             
             if trig in _triggers_custom:
-                passTriggerBits[trig] = setCustomTriggerBit(trig, trigBit, run, isData)
+                passTriggerBits[trig] = set_custom_trigger_bit(trig, trig_bit, run, isdata)
             else:
-                passTriggerBits[trig] = checkBit(trigBit, getTriggerBit(trig, isData))
+                passTriggerBits[trig] = checkBit(trig_bit, get_trigger_bit(trig, isdata))
                 
             passCuts[trig] = {}
             for var in variables:
                 passCuts[trig][var] = passesCuts(trig, [var], lf, args.debug)
 
         for i in channels:
-            if isChannelConsistent(i, pairtype) and passLEP:
+            if is_channel_consistent(i, pairtype):
 
                 # fill histograms for 1D efficiencies
                 for j in variables:
@@ -297,7 +268,7 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
                         if passTriggerBitsIntersection:
 
                             for pckey,pcval in passCutsIntersection.items():
-                                base_str = getHistoNames('Trig1D')(i,j,joinNTC(tcomb))
+                                base_str = get_histo_names('Trig1D')(i,j,joinNTC(tcomb))
                                 htrig_name = rewriteCutString(base_str, pckey)
 
                                 if pckey not in hTrig[i][j][joinNTC(tcomb)]:
@@ -342,10 +313,10 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
     f_out.cd()
     for i in channels:
         for j in variables:
-            hRef[i][j].Write( getHistoNames('Ref1D')(i,j) )
+            hRef[i][j].Write( get_histo_names('Ref1D')(i,j) )
             for tcomb in triggercomb:
                 for khist,vhist in hTrig[i][j][joinNTC(tcomb)].items():
-                    base_str = getHistoNames('Trig1D')(i,j,joinNTC(tcomb))
+                    base_str = get_histo_names('Trig1D')(i,j,joinNTC(tcomb))
                     print(base_str, khist)
 
                     writeName = rewriteCutString(base_str, khist)
@@ -364,7 +335,7 @@ def getTriggerEffSig(indir, outdir, sample, fileName,
     f_in.Close()
 
 # Run with:
-# python3 /home/llr/cms/alves/CMSSW_12_2_0_pre1/src/METTriggerStudies/scripts/getTriggerEffSig.py --indir /data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_2018_UL_backgrounds_test11Jan22/ --outdir /data_CMS/cms/alves/TriggerScaleFactors/UL_v1 --sample SKIM_TT_fullyHad --isData 0 --file output_2.root --subtag _default --channels all etau mutau tautau mumu --triggers METNoMu120 IsoTau50 --variables mht_et mhtnomu_et met_et dau2_eta dau2_pt HH_mass metnomu_et dau1_eta dau1_pt HT20 --tprefix hist_ --binedges_fname /data_CMS/cms/alves/TriggerScaleFactors/UL_v1/binedges.hdf5 --nocut_dummy_str NoCut
+# python3 /home/llr/cms/alves/CMSSW_12_2_0_pre1/src/METTriggerStudies/scripts/get_trigger_eff_sig.py --indir /data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_2018_UL_backgrounds_test11Jan22/ --outdir /data_CMS/cms/alves/TriggerScaleFactors/UL_v1 --sample SKIM_TT_fullyHad --isdata 0 --file output_2.root --subtag _default --channels all etau mutau tautau mumu --triggers METNoMu120 IsoTau50 --variables mht_et mhtnomu_et met_et dau2_eta dau2_pt HH_mass metnomu_et dau1_eta dau1_pt HT20 --tprefix hist_ --binedges_fname /data_CMS/cms/alves/TriggerScaleFactors/UL_v1/binedges.hdf5 --nocut_dummy_str NoCut
 
 # Parse input arguments
 parser = argparse.ArgumentParser(description='Command line parser')
@@ -373,7 +344,7 @@ parser.add_argument('--binedges_fname', dest='binedges_fname', required=True, he
 parser.add_argument('--indir',       dest='indir',       required=True, help='SKIM directory')
 parser.add_argument('--outdir',      dest='outdir',      required=True, help='output directory')
 parser.add_argument('--sample',      dest='sample',      required=True, help='Process name as in SKIM directory')
-parser.add_argument('--isData',      dest='isData',      required=True, help='Whether it is data or MC', type=int)
+parser.add_argument('--isdata',      dest='isdata',      required=True, help='Whether it is data or MC', type=int)
 parser.add_argument('--file',        dest='fileName',    required=True, help='ID of input root file')
 parser.add_argument('--subtag',      dest='subtag',      required=True,
                     help='Additional (sub)tag to differ  entiate similar runs within the same tag.')
@@ -392,6 +363,6 @@ parser.add_argument('--debug', action='store_true', help='debug verbosity')
 
 args = parser.parse_args()
 
-getTriggerEffSig(args.indir, args.outdir, args.sample, args.fileName,
+get_trigger_eff_sig(args.indir, args.outdir, args.sample, args.fileName,
                  args.channels, args.variables, args.triggers,
-                 args.subtag, args.tprefix, args.isData, args.binedges_fname)
+                 args.subtag, args.tprefix, args.isdata, args.binedges_fname)

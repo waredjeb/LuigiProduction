@@ -13,53 +13,53 @@ import ROOT
 from ROOT import TLine
 
 from luigi_conf import (
-  _placeholder_cuts,
-  _sel,
-  _triggers_map,
-  _triggers_custom,
+    _placeholder_cuts,
+    _sel,
+    _triggers_map,
+    _triggers_custom,
 )
   
 def addSlash(s):
-  """Adds single slash to path if absent"""
-  s = s if s[-1] == '/' else s + '/'
-  return s
+    """Adds single slash to path if absent"""
+    s = s if s[-1] == '/' else s + '/'
+    return s
 
-def checkBit(number, bitpos):
+def check_bit(number, bitpos):
     bitdigit = 1
     res = bool(number&(bitdigit<<bitpos))
     return res
             
 def createSingleDir(p):
-  """Creates a directory if it does not exist"""
-  try:
-    if not os.path.exists(p): 
-      os.makedirs(p)
-  except PermissionError:
-    m = ( "You tried to create folder {}. Make sure you have the rights!"
-          "Are you sure the path is correct?".format(p) )
-    print(m)
-    raise
+    """Creates a directory if it does not exist"""
+    try:
+        if not os.path.exists(p): 
+            os.makedirs(p)
+    except PermissionError:
+        m = ( "You tried to create folder {}. Make sure you have the rights!"
+              "Are you sure the path is correct?".format(p) )
+        print(m)
+        raise
     
 def createSingleFile(f):
-  """Creates a dummy file if it does not exist"""
-  try:
-    os.remove(f)
-  except OSError as e:
-    if e.errno != errno.ENOENT: # errno.ENOENT = no such file or directory
-      raise
-  with open(f, 'x') as newf:
-    newf.write('[utils] Dummy text.')
+    """Creates a dummy file if it does not exist"""
+    try:
+        os.remove(f)
+    except OSError as e:
+        if e.errno != errno.ENOENT: # errno.ENOENT = no such file or directory
+            raise
+    with open(f, 'x') as newf:
+        newf.write('[utils] Dummy text.')
 
 def debug(message, flag=True):
-  decorator = ' ============ '
-  if flag:
-    print( decorator + message + decorator )
+    decorator = ' ============ '
+    if flag:
+        print( decorator + message + decorator )
 
 class dotDict(dict):
-  """dot.notation access to dictionary attributes"""
-  __getattr__ = dict.get
-  __setattr__ = dict.__setitem__
-  __delattr__ = dict.__delitem__
+    """dot.notation access to dictionary attributes"""
+    __getattr__ = dict.get
+    __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
 
 def generateTriggerCombinations(trigs):
     """Set all possible trigger combinations of intersections with any number of elements"""
@@ -67,31 +67,33 @@ def generateTriggerCombinations(trigs):
                                         for x in range(1,len(trigs)+1)) )
 
 def getKeyList(afile, inherits=['TH1']):
-  tmp = []
-  keylist = ROOT.TIter(afile.GetListOfKeys())
-  for key in keylist:
-    cl = ROOT.gROOT.GetClass(key.GetClassName())
+    tmp = []
+    keylist = ROOT.TIter(afile.GetListOfKeys())
+    for key in keylist:
+        cl = ROOT.gROOT.GetClass(key.GetClassName())
 
-    inherited = functools.reduce( lambda x, y: x or y,
-                                  [ cl.InheritsFrom(x) for x in inherits ] )
-    if not inherited:
-      continue
+        inherited = functools.reduce( lambda x, y: x or y,
+                                      [ cl.InheritsFrom(x) for x in inherits ] )
+        if not inherited:
+            continue
     
-    h = key.ReadObj()
-    tmp.append( h.GetName() )
-  return tmp
+        h = key.ReadObj()
+        tmp.append( h.GetName() )
+    return tmp
 
 def getHistoNames(opt):
-  if opt == 'Ref1D':
-    return lambda a,b : 'Ref_{}_{}'.format(a,b)
-  elif opt == 'Trig1D':
-    return lambda a,b,c : 'Trig_{}_{}_{}{}'.format(a,b,c,_placeholder_cuts)
-  else:
-    import inspect
-    currentFunction = inspect.getframeinfo(frame).function
-    raise ValueError('[{}] option not supported.'.format(currentFunction))
+    if opt == 'Ref1D':
+        return lambda a,b : 'Ref_{}_{}'.format(a,b)
+    elif opt == 'Trig1D':
+        return lambda a,b,c : 'Trig_{}_{}_{}{}'.format(a,b,c,_placeholder_cuts)
+    elif opt == 'Closure':
+        return lambda a,b : 'Closure_{}_{}'.format(a,b)
+    else:
+        import inspect
+        currentFunction = inspect.getframeinfo(frame).function
+        raise ValueError('[{}] option not supported.'.format(currentFunction))
 
-def getROOTInputFiles(proc, args):
+def get_root_input_files(proc, args):
     #### Check input folder
     inputfiles = [ os.path.join(idir, proc + '/goodfiles.txt') for idir in args.indir ]
     fexists = [ os.path.exists( inpf ) for inpf in inputfiles ]
@@ -111,29 +113,29 @@ def getROOTInputFiles(proc, args):
     return filelist, inputdir
 
 def getROOTObject(name, afile):
-  _keys = afile.GetListOfKeys()
-  if name not in _keys:
-    msg =  'Wrong ROOT object name!\n'
-    msg += 'File name: {}\n'.format(afile.GetName())
-    msg += 'Object name: {}\n'.format(name)
-    msg += 'Keys: {}\n'.format([n.GetName() for n in _keys])
-    raise ValueError(msg)
-  return afile.Get(name)
+    _keys = afile.GetListOfKeys()
+    if name not in _keys:
+        msg =  'Wrong ROOT object name!\n'
+        msg += 'File name: {}\n'.format(afile.GetName())
+        msg += 'Object name: {}\n'.format(name)
+        msg += 'Keys: {}\n'.format([n.GetName() for n in _keys])
+        raise ValueError(msg)
+    return afile.Get(name)
 
-def getTriggerBit(trigger_name, isData):
-  """
-  Returns the trigger bit corresponding to '_triggers_map'
-  """
-  s = 'data' if isData else 'mc'
-  return _triggers_map[trigger_name][s]
+def get_trigger_bit(trigger_name, isData):
+    """
+    Returns the trigger bit corresponding to '_triggers_map'
+    """
+    s = 'data' if isData else 'mc'
+    return _triggers_map[trigger_name][s]
 
-def isChannelConsistent(chn, pairtype):
-  opdict = { '<':  operator.lt,
-             '>':  operator.gt,
-             '==': operator.eq }
+def is_channel_consistent(chn, pairtype):
+    opdict = { '<':  operator.lt,
+               '>':  operator.gt,
+               '==': operator.eq }
 
-  op, val = _sel[chn]['pairType']
-  return opdict[op](pairtype, val)
+    op, val = _sel[chn]['pairType']
+    return opdict[op](pairtype, val)
   
 def joinNameTriggerIntersection(tuple_element):
     inters = '_PLUS_'
@@ -165,132 +167,184 @@ class LeafManager():
                 self.absent_leaves.add(leaf)
             return 0.
           
-def loadBinning(afile, key, variables, channels):
-  """
-  Load the Binning stored in a previous task.
-  """
-  binedges, nbins = ({} for _ in range(2))
-  with h5py.File(afile, 'r') as f:
-    try:
-      group = f[key]
-    except KeyError:
-      print('{} does not have key {}.'.format(afile, key))
-      print('Available keys: {}'.format(f.keys()))
-      raise
+def load_binning(afile, key, variables, channels):
+    """
+    Load the Binning stored in a previous task.
+    """
+    binedges, nbins = ({} for _ in range(2))
+    with h5py.File(afile, 'r') as f:
+        try:
+            group = f[key]
+        except KeyError:
+            print('{} does not have key {}.'.format(afile, key))
+            print('Available keys: {}'.format(f.keys()))
+            raise
           
-    for var in variables:
-      subgroup = group[var]
-      binedges[var], nbins[var] = ({} for _ in range(2))
-      for chn in channels:
-        binedges[var][chn] = np.array(subgroup[chn][:])
-        nbins[var][chn] = len(binedges[var][chn]) - 1
+        for var in variables:
+            subgroup = group[var]
+            binedges[var], nbins[var] = ({} for _ in range(2))
+            for chn in channels:
+                binedges[var][chn] = np.array(subgroup[chn][:])
+                nbins[var][chn] = len(binedges[var][chn]) - 1
 
-  return binedges, nbins
+    return binedges, nbins
+
+def pass_selection_cuts(leaf_manager, invert_mass_cut=True):
+    """
+    Applies selection cut per TTree entry.
+    Returns `True` only if all selection is passed.
+    """
+    mhh = leaf_manager.getLeaf( 'HHKin_mass' )
+    if mhh<1:
+        return False
+
+    pairtype = leaf_manager.getLeaf( 'pairType' )
+    dau1_eleiso = leaf_manager.getLeaf( 'dau1_eleMVAiso'    )
+    dau1_muiso  = leaf_manager.getLeaf( 'dau1_iso'          )
+    dau1_tauiso = leaf_manager.getLeaf( 'dau1_deepTauVsJet' )
+    dau2_tauiso = leaf_manager.getLeaf( 'dau2_deepTauVsJet' )
+
+    # Loose / Medium / Tight
+    bool0 = pairtype==0 and (dau1_muiso>=0.15 or dau2_tauiso<5)
+    bool1 = pairtype==1 and (dau1_eleiso!=1 or dau2_tauiso<5)
+    bool2 = pairtype==2 and (dau1_tauiso<5 or dau2_tauiso<5)
+    if bool0 or bool1 or bool2:
+        return False
+
+    #((tauH_SVFIT_mass-116.)*(tauH_SVFIT_mass-116.))/(35.*35.) + ((bH_mass_raw-111.)*(bH_mass_raw-111.))/(45.*45.) <  1.0
+    svfit_mass = leaf_manager.getLeaf('tauH_SVFIT_mass')
+    bh_mass    = leaf_manager.getLeaf('bH_mass_raw')
+
+    mcut = ( (svfit_mass-129.)*(svfit_mass-129.) / (53.*53.) +
+             (bh_mass-169.)*(bh_mass-169.) / (145.*145.) ) <  1.0
+    if mcut and invert_mass_cut: # inverted elliptical mass cut (-> ttCR)
+        return False
+
+    #pass_met = leaf_manager.getLeaf('isMETtrigger')
+    #pass_tau = leaf_manager.getLeaf('isSingleTautrigger')
+    #pass_taumet = leaf_manager.getLeaf('isTauMETtrigger')
+    pass_lep = leaf_manager.getLeaf('isLeptrigger')
+    if not pass_lep:
+        return False
+
+    return True
 
 def redrawBorder():
-  """
-  this little macro redraws the axis tick marks and the pad border lines.
-  """
-  ROOT.gPad.Update();
-  ROOT.gPad.RedrawAxis()
-  l = TLine()
-  l.SetLineWidth(2)
+    """
+    this little macro redraws the axis tick marks and the pad border lines.
+    """
+    ROOT.gPad.Update();
+    ROOT.gPad.RedrawAxis()
+    l = TLine()
+    l.SetLineWidth(2)
 
-  l.DrawLine(ROOT.gPad.GetUxmin(), ROOT.gPad.GetUymax(), ROOT.gPad.GetUxmax(), ROOT.gPad.GetUymax()) #top border
-  l.DrawLine(ROOT.gPad.GetUxmax(), ROOT.gPad.GetUymin(), ROOT.gPad.GetUxmax(), ROOT.gPad.GetUymax()) #right border
-  l.DrawLine(ROOT.gPad.GetUxmin(), ROOT.gPad.GetUymin(), ROOT.gPad.GetUxmin(), ROOT.gPad.GetUymax()) #left border
-  l.DrawLine(ROOT.gPad.GetUxmin(), ROOT.gPad.GetUymin(), ROOT.gPad.GetUxmax(), ROOT.gPad.GetUymin()) #bottom border
+    l.DrawLine(ROOT.gPad.GetUxmin(), ROOT.gPad.GetUymax(), ROOT.gPad.GetUxmax(), ROOT.gPad.GetUymax()) #top border
+    l.DrawLine(ROOT.gPad.GetUxmax(), ROOT.gPad.GetUymin(), ROOT.gPad.GetUxmax(), ROOT.gPad.GetUymax()) #right border
+    l.DrawLine(ROOT.gPad.GetUxmin(), ROOT.gPad.GetUymin(), ROOT.gPad.GetUxmin(), ROOT.gPad.GetUymax()) #left border
+    l.DrawLine(ROOT.gPad.GetUxmin(), ROOT.gPad.GetUymin(), ROOT.gPad.GetUxmax(), ROOT.gPad.GetUymin()) #bottom border
 
 def remove(f):
-  if os.path.exists( f ):
-    os.remove( f )
+    if os.path.exists( f ):
+        os.remove( f )
 
 def rewriteCutString(oldstr, newstr, regex=False):
-  if regex:
-    _regex = re.findall(r'^.*CUTS_(.+)$', newstr)
-    print(_regex)
-    assert(len(_regex)==1)
-    _regex = _regex[0]
-    newstr = _regex.replace('>', 'L').replace('<', 'S').replace('.', 'p')
+    if regex:
+        _regex = re.findall(r'^.*CUTS_(.+)$', newstr)
+        print(_regex)
+        assert(len(_regex)==1)
+        _regex = _regex[0]
+        newstr = _regex.replace('>', 'L').replace('<', 'S').replace('.', 'p')
     
-  res = oldstr.replace(_placeholder_cuts, '_CUTS_'+newstr)
-  return res
+    res = oldstr.replace(_placeholder_cuts, '_CUTS_'+newstr)
+    return res
 
 def restoreBinning(afile, channels, variables, subtag):
-  """Restore the binning saved by the worflow"""
-  binedges, nbins = ({} for _ in range(2))
-  with h5py.File(afile, 'r') as f:
-    group = f[subtag]
-    for var in variables:
-      subgroup = group[var]
-      binedges[var], nbins[var] = ({} for _ in range(2))
-      for chn in channels:
-        binedges[var][chn] = subgroup[chn][:]
-        nbins[var][chn] = len(binedges[var][chn]) - 1
-  return binedges, nbins
+    """Restore the binning saved by the worflow"""
+    binedges, nbins = ({} for _ in range(2))
+    with h5py.File(afile, 'r') as f:
+        group = f[subtag]
+        for var in variables:
+            subgroup = group[var]
+            binedges[var], nbins[var] = ({} for _ in range(2))
+            for chn in channels:
+                binedges[var][chn] = subgroup[chn][:]
+                nbins[var][chn] = len(binedges[var][chn]) - 1
+    return binedges, nbins
 
 def setPureInputNamespace(func):
-  """
-  Decorator which forces the input namespace to be a "bare" one.
-  Used when luigi calls a function with a luigi.DictParameter().
-  'param' can be used to pass additional arguments to the function being decorated.
-  """
-  def wrapper(args, param=None):
-    if not isinstance(args, (argparse.Namespace, SimpleNamespace)):
-      args = SimpleNamespace(**args)
-    if param:
-      return func(args, param)
+    """
+    Decorator which forces the input namespace to be a "bare" one.
+    Used when luigi calls a function with a luigi.DictParameter().
+    'param' can be used to pass additional arguments to the function being decorated.
+    """
+    def wrapper(args, param=None):
+        if not isinstance(args, (argparse.Namespace, SimpleNamespace)):
+            args = SimpleNamespace(**args)
+        if param:
+            return func(args, param)
+        else:
+            return func(args)
+
+    return wrapper
+
+def set_custom_trigger_bit(trigger, trigBit, run, isData):
+    """
+    The VBF trigger was updated during data taking, adding HPS
+    https://twiki.cern.ch/twiki/bin/viewauth/CMS/TauTrigger
+    """
+    if trigger not in _triggers_custom:
+        import inspect
+        currentFunction = inspect.getframeinfo(frame).function
+        raise ValueError('[{}] option not supported.'.format(currentFunction))
+
+    if run < 317509 and isData:
+        if trigger == 'VBFTauCustom':
+            bits = check_bit(trigBit, _triggers_map[trigger]['VBFTau']['data'])
+        elif trigger == 'IsoTauCustom':
+            bits = ( check_bit(trigBit, _triggers_map[trigger]['IsoTau']['data'][0]) or
+                     check_bit(trigBit, _triggers_map[trigger]['IsoTau']['data'][1]) or
+                     check_bit(trigBit, _triggers_map[trigger]['IsoTau']['data'][2]) )
+        elif trigger == 'IsoMuIsoTauCustom':
+            bits = check_bit(trigBit, _triggers_map[trigger]['IsoMuIsoTau']['data'])
+        elif trigger == 'EleIsoTauCustom':
+            bits = check_bit(trigBit, _triggers_map[trigger]['EleIsoTau']['data'])
+
     else:
-      return func(args)
+        s = 'data' if isData else 'mc'
+        if trigger == 'VBFTauCustom':
+            bits = check_bit(trigBit, _triggers_map[trigger]['VBFTauHPS'][s])
+        elif trigger == 'IsoTauCustom':
+            bits = check_bit(trigBit, _triggers_map[trigger]['IsoTauHPS'][s])
+        elif trigger == 'IsoMuIsoTauCustom':
+            bits = check_bit(trigBit, _triggers_map[trigger]['IsoMuIsoTauHPS'][s])
+        elif trigger == 'EleIsoTauCustom':
+            bits = check_bit(trigBit, _triggers_map[trigger]['EleIsoTauHPS'][s])
 
-  return wrapper
+    return bits
 
-def setCustomTriggerBit(trigger, trigBit, run, isData):
-  """
-  The VBF trigger was updated during data taking, adding HPS
-  https://twiki.cern.ch/twiki/bin/viewauth/CMS/TauTrigger
-  """
-  if trigger not in _triggers_custom:
-    import inspect
-    currentFunction = inspect.getframeinfo(frame).function
-    raise ValueError('[{}] option not supported.'.format(currentFunction))
-
-  if run < 317509 and isData:
-    if trigger == 'VBFTauCustom':
-      bits = checkBit(trigBit, _triggers_map[trigger]['VBFTau']['data'])
-    elif trigger == 'IsoTauCustom':
-      bits = ( checkBit(trigBit, _triggers_map[trigger]['IsoTau']['data'][0]) or
-               checkBit(trigBit, _triggers_map[trigger]['IsoTau']['data'][1]) or
-               checkBit(trigBit, _triggers_map[trigger]['IsoTau']['data'][2]) )
-    elif trigger == 'IsoMuIsoTauCustom':
-      bits = checkBit(trigBit, _triggers_map[trigger]['IsoMuIsoTau']['data'])
-    elif trigger == 'EleIsoTauCustom':
-      bits = checkBit(trigBit, _triggers_map[trigger]['EleIsoTau']['data'])
-
-  else:
-    s = 'data' if isData else 'mc'
-    if trigger == 'VBFTauCustom':
-      bits = checkBit(trigBit, _triggers_map[trigger]['VBFTauHPS'][s])
-    elif trigger == 'IsoTauCustom':
-      bits = checkBit(trigBit, _triggers_map[trigger]['IsoTauHPS'][s])
-    elif trigger == 'IsoMuIsoTauCustom':
-      bits = checkBit(trigBit, _triggers_map[trigger]['IsoMuIsoTauHPS'][s])
-    elif trigger == 'EleIsoTauCustom':
-      bits = checkBit(trigBit, _triggers_map[trigger]['EleIsoTauHPS'][s])
-
-  return bits
+def pass_any_trigger(trigs, bit, run, isdata):
+    # checks that at least one trigger was fired
+    flag = False
+    for trig in trigs:
+        if trig in _triggers_custom:
+            flag = set_custom_trigger_bit(trig, bit, run, isdata)
+        else:
+            flag = check_bit(bit, get_trigger_bit(trig, isdata))
+        if flag:
+            return True
+    return False
 
 def slashToUnderscoreAndKeep(s, n=4):
-  """Replaces slashes by underscores, keeping only the last 'n' slash-separated strings"""
-  return '_'.join( s.split('/')[-n:] )
+    """Replaces slashes by underscores, keeping only the last 'n' slash-separated strings"""
+    return '_'.join( s.split('/')[-n:] )
 
 def upify(s):
-  """capitalizes the first letter of the passed string"""
-  return s[0].upper() + s[1:]
+    """capitalizes the first letter of the passed string"""
+    return s[0].upper() + s[1:]
 
 def writeDummyFile(f):
-  try:
-    with open(fname, 'x') as f:
-      f.write('Dummy text.')
-  except FileExistsError:
-    pass
+    try:
+        with open(fname, 'x') as f:
+            f.write('Dummy text.')
+    except FileExistsError:
+        pass

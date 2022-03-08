@@ -18,7 +18,7 @@ import pandas as pd
 import argparse
 
 from utils.utils import (
-    getTriggerBit,
+    get_trigger_bit,
     LeafManager,
     setPureInputNamespace,
 )
