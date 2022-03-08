@@ -81,7 +81,7 @@ def getKeyList(afile, inherits=['TH1']):
         tmp.append( h.GetName() )
     return tmp
 
-def getHistoNames(opt):
+def get_histo_names(opt):
     if opt == 'Ref1D':
         return lambda a,b : 'Ref_{}_{}'.format(a,b)
     elif opt == 'Trig1D':
@@ -93,13 +93,13 @@ def getHistoNames(opt):
         currentFunction = inspect.getframeinfo(frame).function
         raise ValueError('[{}] option not supported.'.format(currentFunction))
 
-def get_root_input_files(proc, args):
+def get_root_input_files(proc, indir):
     #### Check input folder
-    inputfiles = [ os.path.join(idir, proc + '/goodfiles.txt') for idir in args.indir ]
+    inputfiles = [ os.path.join(idir, proc + '/goodfiles.txt') for idir in indir ]
     fexists = [ os.path.exists( inpf ) for inpf in inputfiles ]
     if sum(fexists) != 1: #check one and only one is True
         raise ValueError('The process {} could be found.'.format(proc))
-    inputdir = args.indir[ fexists.index(True) ] #this is the only correct input directory
+    inputdir = indir[ fexists.index(True) ] #this is the only correct input directory
 
     inputfiles = os.path.join(inputdir, proc + '/goodfiles.txt')
 

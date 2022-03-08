@@ -36,13 +36,13 @@ def runTrigger_outputs(args, param='root'):
     t = []
     exp = re.compile('.+output(_[0-9]{1,5}).root')
     _all_processes = args.data + args.mc_processes
-    for thisProc in _all_processes:
-        inputs, _ = utils.getROOTInputFiles(thisProc, args)
+    for proc in _all_processes:
+        inputs, _ = utils.get_root_input_files(proc, args.indir)
 
-        folder = os.path.join( args.outdir, thisProc )
+        folder = os.path.join( args.outdir, proc )
         for inp in inputs:
             number = exp.search(inp)
-            basename = args.mode + '_' + thisProc + number.group(1) + args.subtag + extension
+            basename = args.mode + '_' + proc + number.group(1) + args.subtag + extension
             t.append( os.path.join(folder, basename) )
 
     return t
@@ -101,7 +101,7 @@ def writeHTCondorHistogramFiles(args):
 
     outs_job, outs_submit, outs_check, _all_processes = writeHTCondorHistogramFiles_outputs(args)
     for i,thisProc in enumerate(_all_processes):
-        filelist, inputdir = utils.get_root_input_files(thisProc, args)
+        filelist, inputdir = utils.get_root_input_files(thisProc, args.indir)
         
         #### Write shell executable (python scripts must be wrapped in shell files to run on HTCondor)
         command =  ( ( '{prog} --indir {indir} '

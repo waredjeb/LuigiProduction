@@ -21,7 +21,7 @@ def discriminator(args, chn):
 
     triggercomb = generateTriggerCombinations(args.triggers)
     for tcomb in triggercomb:
-        result[joinNTC(tcomb)] = ['dau1_pt', 'data1_eta'] #CHANGE!!!!!!!!!!!!!!!!!!!
+        result[joinNTC(tcomb)] = ['dau1_pt', 'dau1_eta'] #CHANGE!!!!!!!!!!!!!!!!!!!
 
     return result
 

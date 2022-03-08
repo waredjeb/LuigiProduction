@@ -347,12 +347,12 @@ parser.add_argument('--sample',      dest='sample',      required=True, help='Pr
 parser.add_argument('--isdata',      dest='isdata',      required=True, help='Whether it is data or MC', type=int)
 parser.add_argument('--file',        dest='fileName',    required=True, help='ID of input root file')
 parser.add_argument('--subtag',      dest='subtag',      required=True,
-                    help='Additional (sub)tag to differ  entiate similar runs within the same tag.')
+                    help='Additional (sub)tag to differentiate similar runs within the same tag.')
 parser.add_argument('--tprefix',     dest='tprefix',     required=True, help='Targets name prefix.')
 parser.add_argument('--channels',    dest='channels',    required=True, nargs='+', type=str,  
-                    help='Select t   he channels over w  hich the workflow will be run.' )
+                    help='Select the channels over which the workflow will be run.' )
 parser.add_argument('--triggers',    dest='triggers',    required=True, nargs='+', type=str,
-                    help='Select t   he triggers over w  hich the workflow will be run.' )
+                    help='Select the triggers over which the workflow will be run.' )
 parser.add_argument('--variables',   dest='variables',   required=True, nargs='+', type=str,
                     help='Select the variables over which the workflow will be run.' )
 parser.add_argument('--intersection_str', dest='intersection_str', required=False, default='_PLUS_',

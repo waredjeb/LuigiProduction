@@ -33,11 +33,10 @@ def writeHTCondorUnionWeightsCalculatorFiles_outputs(args):
     for proc in args.mc_processes:
         out_jobs.append( os.path.join(jobDir, name.format(proc, 'sh')) )
         out_submit.append( os.path.join(jobDir, name.format(proc, 'condor')) )
-        out_check.append( os.path.join(checkDir, check_name) )
 
-        checkDirProc = os.path.join(checkDir, proc)
-        os.system('mkdir -p {}'.format(checkDirProc))
-        out_check.append( os.path.join(checkDirProc, check_name) )
+        check_dir_proc = os.path.join(checkDir, proc)
+        os.system('mkdir -p {}'.format(check_dir_proc))
+        out_check.append( os.path.join(check_dir_proc, check_name) )
 
     assert(len(out_jobs)==len(args.mc_processes))
     assert(len(out_submit)==len(args.mc_processes))
@@ -53,25 +52,24 @@ def writeHTCondorUnionWeightsCalculatorFiles(args):
     jobs, subs, checks = writeHTCondorUnionWeightsCalculatorFiles_outputs(args)
 
     for i,proc in enumerate(args.mc_processes):
-        filelist, inputdir = utils.get_root_input_files(proc, args)
+        filelist, inputdir = utils.get_root_input_files(proc, args.indir_root)
 
         #### Write shell executable (python scripts must be wrapped in shell files to run on HTCondor)
-        command =  ( '{prog} --indir_root {indir_root} '.format(prog=prog, indir=inputdir)
-                     '--indir_json {indir_json} '.format(indir_json=args.indir_json)
-                     '--indir_eff {indir_eff} '.format(indir_eff=args.indir_eff)
-                     '--outdir_plots {outp} '.format(outp=args.outdir_plots)
-                     '--outdir_root {outr} '.format(outr=args.outdir_root)
-                     '--outprefix {outprefix} '.format(outprefix=args.outprefix)
-                     '--sample {sample} '.format(sample=proc)
-                     '--channels {channels} '.format(channels=' '.join(args.channels,))
-                     '--triggers {triggers} '.format(triggers=' '.join(args.triggers,))
-                     '--file ${{1}} '
-                     '--variables {variables} '.format(variables=' '.join(args.variables,))
-                     '--tag {tag} '.format(tag=args.tag)
-                     '--subtag {subtag} '.format(subtag=args.subtag)
-                     '--data_name {dataname} '.format(dataname=args.data_name)
-                     '--mc_name {mcname} '.format(mcname=args.mc_name)
-                     '--binedges_fname {be} '.format(be=args.binedges_filename)
+        command =  ( '{prog} --indir_root {indir_root} '.format(prog=prog, indir_root=inputdir)
+                     + '--indir_json {indir_json} '.format(indir_json=args.indir_json)
+                     + '--indir_eff {indir_eff} '.format(indir_eff=args.indir_eff)
+                     + '--outdir {outr} '.format(outr=args.outdir)
+                     + '--outprefix {outprefix} '.format(outprefix=args.outprefix)
+                     + '--sample {sample} '.format(sample=proc)
+                     + '--channels {channels} '.format(channels=' '.join(args.channels,))
+                     + '--triggers {triggers} '.format(triggers=' '.join(args.triggers,))
+                     + '--file_name ${1} '
+                     + '--variables {variables} '.format(variables=' '.join(args.variables,))
+                     + '--tag {tag} '.format(tag=args.tag)
+                     + '--subtag {subtag} '.format(subtag=args.subtag)
+                     + '--data_name {dataname} '.format(dataname=args.data_name)
+                     + '--mc_name {mcname} '.format(mcname=args.mc_name)
+                     + '--binedges_fname {be} '.format(be=args.binedges_filename)
                     )
 
         if args.debug:
@@ -118,7 +116,7 @@ def writeHTCondorUnionWeightsCalculatorFiles(args):
 #     parser.add_argument('--binedges_filename', dest='binedges_filename', required=True, help='where the bin edges are stored')
 #     parser.add_argument('--localdir',         dest='localdir',         default=os.getcwd(),
 #                         help='out directory')
-#     parser.add_argument('--indir', dest='indir', required=True, help='in directory')
+#     parser.add_argument('--indir_root', dest='indir', required=True, help='in directory')
 #     parser.add_argument('--indir_json', help='Input directory where discriminator JSON files are stored',
 #                         required=True)
 #     parser.add_argument('--indir_eff', help='Input directory where intersection efficiencies are stored',
