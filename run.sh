@@ -4,11 +4,11 @@
 # condor_submit jobs/TEST/submission/jobHistos_SKIM_TT_semiLep.condor
 # condor_submit jobs/TEST/submission/jobHistos_SKIM_TT_fullyHad.condor
 
-# condor_submit jobs/TEST/submission/jobHadd_MET2018.condor
-# condor_submit jobs/TEST/submission/jobHadd_TT.condor
+# condor_submit jobs/TEST/submission/jobHaddHisto_MET2018.condor
+# condor_submit jobs/TEST/submission/jobHaddHisto_TT.condor
 
-# condor_submit jobs/TEST/submission/jobHaddAgg_MET2018.condor
-# condor_submit jobs/TEST/submission/jobHaddAgg_TT.condor
+# condor_submit jobs/TEST/submission/jobHaddHistoAgg_MET2018.condor
+# condor_submit jobs/TEST/submission/jobHaddHistoAgg_TT.condor
 
 # condor_submit jobs/TEST/submission/jobEfficienciesAndSF.condor
 
@@ -19,3 +19,7 @@
 for sub in jobs/TEST/submission/jobUnionWeightsCalculator_*.condor;do
 	condor_submit "${sub}"
 done
+
+# condor_submit jobs/TEST/submission/jobHaddEff.condor
+
+# condor_submit jobs/TEST/submission/jobHaddEffAgg.condor

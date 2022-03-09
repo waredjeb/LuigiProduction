@@ -9,15 +9,10 @@ from utils.utils import (
   setPureInputNamespace,
 )
 
-from scripts.writeHTCondorHistogramFiles import (
-    writeHTCondorHistogramFiles_outputs,
-)
-from scripts.writeHTCondorHaddFiles import (
-    writeHTCondorHaddFiles_outputs,
-)
-from scripts.writeHTCondorEfficienciesAndScaleFactorsFiles import (
-    writeHTCondorEfficienciesAndScaleFactorsFiles_outputs,
-)
+from scripts.writeHTCondorHistogramFiles import writeHTCondorHistogramFiles_outputs
+from scripts.writeHTCondorHaddHistoFiles import writeHTCondorHaddHistoFiles_outputs
+from scripts.writeHTCondorHaddEffFiles import writeHTCondorHaddEffFiles_outputs
+from scripts.writeHTCondorEfficienciesAndScaleFactorsFiles import writeHTCondorEfficienciesAndScaleFactorsFiles_outputs
 
 @setPureInputNamespace
 def writeHTCondorDAGFiles_outputs(args):
@@ -59,43 +54,45 @@ def writeHTCondorDAGFiles(args):
     # job names
     defineJobNames(s, args.jobsHistos)
     defineJobNames(s, args.jobsCounts)
-    defineJobNames(s, args.jobsHaddData)
-    defineJobNames(s, args.jobsHaddMC)
+    defineJobNames(s, args.jobsHaddHistoData)
+    defineJobNames(s, args.jobsHaddHistoMC)
     defineJobNames(s, args.jobsEffSF)
     defineJobNames(s, args.jobsDiscr)
     defineJobNames(s, args.jobsUnion)
+    defineJobNames(s, args.jobsHaddEff)
 
     # histos to hadd for data
     s.write('PARENT ')
     for parent in args.jobsHistos:
       if args.data_name in parent:
         s.write('{} '.format( remExt(parent) ))
-    s.write('CHILD {}\n'.format( remExt(args.jobsHaddData[0]) ))
+    s.write('CHILD {}\n'.format( remExt(args.jobsHaddHistoData[0]) ))
 
     # histos to hadd for MC
     s.write('PARENT ')
     for parent in args.jobsHistos:
       if args.data_name not in parent:
         s.write('{} '.format( remExt(parent) ))
-    s.write('CHILD {}\n\n'.format( remExt(args.jobsHaddMC[0]) ))
+    s.write('CHILD {}\n\n'.format( remExt(args.jobsHaddHistoMC[0]) ))
 
     # hadd aggregation for Data
-    s.write('PARENT {} '.format( remExt(args.jobsHaddData[0]) ))
-    s.write('CHILD {}\n'.format( remExt(args.jobsHaddData[1]) ))
+    s.write('PARENT {} '.format( remExt(args.jobsHaddHistoData[0]) ))
+    s.write('CHILD {}\n'.format( remExt(args.jobsHaddHistoData[1]) ))
 
     # hadd aggregation for MC
-    s.write('PARENT {} '.format( remExt(args.jobsHaddMC[0]) ))
-    s.write('CHILD {}\n\n'.format( remExt(args.jobsHaddMC[1]) ))
+    s.write('PARENT {} '.format( remExt(args.jobsHaddHistoMC[0]) ))
+    s.write('CHILD {}\n\n'.format( remExt(args.jobsHaddHistoMC[1]) ))
 
     # efficiencies/scale factors draw and saving
-    s.write('PARENT {} {} '.format( remExt(args.jobsHaddData[1]),
-                                    remExt(args.jobsHaddMC[1]) ))
+    s.write('PARENT {} {} '.format( remExt(args.jobsHaddHistoData[1]),
+                                    remExt(args.jobsHaddHistoMC[1]) ))
     s.write('CHILD {}\n\n'.format( remExt(args.jobsEffSF) ))
 
     # variable discriminator
     s.write('PARENT {} '.format( remExt(args.jobsEffSF) ))
     s.write('CHILD ')
     for child in args.jobsDiscr:
+
       s.write('{} '.format(remExt(child)))
     s.write('\n\n')
 
@@ -103,6 +100,16 @@ def writeHTCondorDAGFiles(args):
     for parent, child in zip(args.jobsDiscr,args.jobsUnion):
       s.write('PARENT {} CHILD {}\n'.format(remExt(parent), remExt(child)))
     s.write('\n')
+
+    # hadd union efficiencies (only MC)
+    s.write('PARENT ')
+    for parent in args.jobsUnion:
+      s.write('{} '.format( remExt(parent) ))
+    s.write('CHILD {}\n\n'.format( remExt(args.jobsHaddEff[0]) ))
+
+    # hadd aggregation union efficiencies
+    s.write('PARENT {} '.format( remExt(args.jobsHaddEff[0]) ))
+    s.write('CHILD {}\n\n'.format( remExt(args.jobsHaddEff[1]) ))
 
 # condor_submit_dag -no_submit diamond.dag
 # condor_submit diamond.dag.condor.sub

@@ -23,7 +23,7 @@ from utils.utils import (
   createSingleDir,
   getKeyList,
   getROOTObject,
-  get_histo_namess,
+  get_histo_names,
   redrawBorder,
   rewriteCutString,
   restoreBinning,
@@ -54,8 +54,8 @@ def drawEfficienciesAndScaleFactors(proc, channel, variable, trig, save_names, b
     print('[=debug=]  - Args: proc={proc}, channel={channel}, variable={variable}, trig={trig}'
           .format(proc=proc, channel=channel, variable=variable, trig=trig))
 
-  hnames = { 'ref':  get_histo_namess('Ref1D')(channel, variable),
-             'trig': get_histo_namess('Trig1D')(channel, variable, trig)
+  hnames = { 'ref':  get_histo_names('Ref1D')(channel, variable),
+             'trig': get_histo_names('Trig1D')(channel, variable, trig)
             }
 
   keylist_data = getKeyList(file_data, inherits=['TH1'])
@@ -230,14 +230,16 @@ def drawEfficienciesAndScaleFactors(proc, channel, variable, trig, save_names, b
     axor.GetXaxis().SetLabelSize(0.07)
     axor.GetYaxis().SetLabelSize(0.07)
     axor.Draw()
-    
+
+    eff_data[akey].SetName('Data')
     eff_data[akey].SetLineColor(1)
     eff_data[akey].SetLineWidth(2)
     eff_data[akey].SetMarkerColor(1)
     eff_data[akey].SetMarkerSize(1.3)
     eff_data[akey].SetMarkerStyle(20)
     eff_data[akey].Draw('same p0 e')
-    
+
+    eff_mc[akey].SetName('MC')
     eff_mc[akey].SetLineColor(ROOT.kRed)
     eff_mc[akey].SetLineWidth(2)
     eff_mc[akey].SetMarkerColor(ROOT.kRed)
@@ -312,6 +314,7 @@ def drawEfficienciesAndScaleFactors(proc, channel, variable, trig, save_names, b
     axor2.GetXaxis().SetTitle(variable)
     axor2.Draw()
 
+    sf[akey].SetName('ScaleFactors')
     sf[akey].SetLineColor(ROOT.kRed)
     sf[akey].SetLineWidth(2)
     sf[akey].SetMarkerColor(ROOT.kRed)
@@ -414,7 +417,6 @@ def runEfficienciesAndScaleFactors(indir, outdir,
             m = "process={}, channel={}".format(proc, chn)
             m += ", variable={}, trigger={}".format(var, trig)
             m += ", trigger_combination={}\n".format(trigger_combination)
-          print(m)
 
         drawEfficienciesAndScaleFactors( proc, chn, var,
                                          trigger_combination,

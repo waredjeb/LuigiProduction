@@ -33,10 +33,6 @@ from luigi_conf import (
     _variables_unionweights,
 )
 
-def meanbins(m1,m2,nelem):
-    arr = np.linspace(m1, m2, nelem)
-    return (arr[:-1]+arr[1:])/2
-
 def effExtractor(args, chn, effvars, nbins):
     """
     Extracts the efficiencies for data and MC to be used as scale factors: e_data / e_MC.
@@ -47,48 +43,59 @@ def effExtractor(args, chn, effvars, nbins):
     
     triggercomb = generateTriggerCombinations(args.triggers)
     for tcomb in triggercomb:
-        comb_vars = effvars[ joinNTC(tcomb) ]
+        tcstr = joinNTC(tcomb)
+        comb_vars = effvars[tcstr]
         assert len(comb_vars)==2
         var = comb_vars[0]
         
         inBaseName = ( 'trigSF_' + args.data_name + '_' + args.mc_name + '_' +
-                       chn + '_' + var + '_' + joinNTC(tcomb) + args.subtag + '_CUTS*.root' )
+                       chn + '_' + var + '_' + tcstr + args.subtag + '_CUTS*.root' )
         inName = os.path.join(args.indir_eff, chn, var, inBaseName)
         globName = glob.glob(inName)
 
         if len(globName) != 0: #some triggers do not fire for some channels: Ele32 for mutau (for example)
-            efficiencies_data[joinNTC(tcomb)] = []
-            efficiencies_data_elow[joinNTC(tcomb)] = []
-            efficiencies_data_ehigh[joinNTC(tcomb)] = []
-            efficiencies_mc[joinNTC(tcomb)] = []
-            efficiencies_mc_elow[joinNTC(tcomb)] = []
-            efficiencies_mc_ehigh[joinNTC(tcomb)] = []
+            efficiencies_data[tcstr] = []
+            efficiencies_data_elow[tcstr] = []
+            efficiencies_data_ehigh[tcstr] = []
+            efficiencies_mc[tcstr] = []
+            efficiencies_mc_elow[tcstr] = []
+            efficiencies_mc_ehigh[tcstr] = []
 
             in_file_name = min(globName, key=len) #select the shortest string (NoCut)
             in_file = TFile.Open(in_file_name, 'READ')
             key_list = TIter(in_file.GetListOfKeys())
             for key in key_list:
-                print(key.ReadObj().GetName(), key.ReadObj().GetTitle())
-            quit()
-
-            for key in key_list:               
-                cl = gROOT.GetClass(key.GetClassName())
-                if not cl.InheritsFrom("TGraph"):
-                    continue
-                h = key.ReadObj()
-
-                assert(nbins[var][chn] == h.GetN())
-                for datapoint in range(h.GetN()):
-                    efficiencies_data[joinNTC(tcomb)].append( h.GetPointY(datapoint) )
-                    efficiencies_data_elow[joinNTC(tcomb)].append( h.GetErrorYlow(datapoint) )
-                    efficiencies_data_ehigh[joinNTC(tcomb)].append( h.GetErrorYhigh(datapoint) )
+                obj = key.ReadObj()
+                assert(nbins[var][chn] == obj.GetN())
+                if obj.GetName() == 'Data':
+                    for datapoint in range(obj.GetN()):
+                        efficiencies_data[tcstr].append( obj.GetPointY(datapoint) )
+                        efficiencies_data_elow[tcstr].append( obj.GetErrorYlow(datapoint) )
+                        efficiencies_data_ehigh[tcstr].append( obj.GetErrorYhigh(datapoint) )                
+                elif obj.GetName() == 'MC':
+                    for datapoint in range(obj.GetN()):
+                        efficiencies_mc[tcstr].append( obj.GetPointY(datapoint) )
+                        efficiencies_mc_elow[tcstr].append( obj.GetErrorYlow(datapoint) )
+                        efficiencies_mc_ehigh[tcstr].append( obj.GetErrorYhigh(datapoint) )
+            assert len(efficiencies_data[tcstr]) != 0
+            assert len(efficiencies_mc[tcstr]) != 0
 
     return ( (efficiencies_data, efficiencies_data_ehigh, efficiencies_data_elow),
              (efficiencies_mc,   efficiencies_mc_ehigh,   efficiencies_mc_elow) )
 
 def find_bin(edges, value):
     """Find the bin id corresponding to one value, given the bin edges."""
-    return np.digitize(value, edges)
+    binid = np.digitize(value, edges)
+    if binid == len(edges):
+        binid -= 1 # include overflow
+
+    # check for out-of-bounds
+    if binid==0 or binid>len(edges):
+        print(binid, values[0])
+        print(binedges[variables[0]][channel], len(binedges[variables[0]][channel]))
+        raise ValueError('Wrong bin')
+
+    return binid
 
 def eff_calculator(efficiencies, effvars, leaf_manager, channel, triggers, binedges):
     eff_data, eff_mc = (0 for _ in range(2))
@@ -108,18 +115,13 @@ def eff_calculator(efficiencies, effvars, leaf_manager, channel, triggers, bined
 
             # The following is 1D only CHANGE!!!!
             binid = find_bin(binedges[variables[0]][channel], values[0])
-            # check for out-of-bounds
-            print(binid, len(efficiencies[0][0][joinNTC(tcomb)]) )
-            print(efficiencies[0][0][joinNTC(tcomb)])
-            print(efficiencies[1][0][joinNTC(tcomb)])
-            assert binid!=0 and binid!=len(binedges[variables[0]][channel])
 
-            term_data = efficiencies[0][0][joinNTC(tcomb)][binid]
-            term_mc   = efficiencies[1][0][joinNTC(tcomb)][binid]
+            term_data = efficiencies[0][0][joinNTC(tcomb)][binid-1]
+            term_mc   = efficiencies[1][0][joinNTC(tcomb)][binid-1]
 
             if len(tcomb)%2==0:
                 eff_data -= term_data
-                ef_mc    -= term_mc
+                eff_mc   -= term_mc
             else:
                 eff_data += term_data
                 eff_mc   += term_mc
@@ -214,7 +216,8 @@ if __name__ == '__main__':
 
     parser.add_argument('--binedges_fname', dest='binedges_fname', required=True, help='where the bin edges are stored')
     parser.add_argument('--indir_root', help='Original ROOT files directory',  required=True)
-    parser.add_argument('--indir_json', help='Input directory where discriminator JSON files are stored',
+    parser.add_argument('--indir_json'
+                        , help='Input directory where discriminator JSON files are stored',
                         required=True)
     parser.add_argument('--indir_eff', help='Input directory where intersection efficiencies are stored',
                         required=True)

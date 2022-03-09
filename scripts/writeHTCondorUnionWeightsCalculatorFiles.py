@@ -94,6 +94,7 @@ def writeHTCondorUnionWeightsCalculatorFiles(args):
         with open(subs[i], 'w') as s:
             s.write('Universe = vanilla\n')
             s.write('Executable = {}\n'.format(jobs[i]))
+            s.write('Arguments = $(filename) \n')
             s.write('input = /dev/null\n')
             s.write('output = {}\n'.format(checks[i]))
             s.write('error  = {}\n'.format(checks[i].replace('.o', '.e')))

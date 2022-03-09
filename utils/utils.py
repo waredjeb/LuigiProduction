@@ -250,7 +250,6 @@ def remove(f):
 def rewriteCutString(oldstr, newstr, regex=False):
     if regex:
         _regex = re.findall(r'^.*CUTS_(.+)$', newstr)
-        print(_regex)
         assert(len(_regex)==1)
         _regex = _regex[0]
         newstr = _regex.replace('>', 'L').replace('<', 'S').replace('.', 'p')
