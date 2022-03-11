@@ -10,7 +10,7 @@ import numpy as np
 from ROOT import (
     gROOT,
     TFile,
-    TH1D,
+    TEfficiency,
     TIter
 )
 gROOT.SetBatch(True)
@@ -25,7 +25,7 @@ from utils.utils import (
     load_binning,
     pass_any_trigger,
     pass_selection_cuts,
-    set_custom_trigger_bit,
+    pass_trigger_bits
 )
 
 from luigi_conf import (
@@ -35,7 +35,7 @@ from luigi_conf import (
 
 def effExtractor(args, chn, effvars, nbins):
     """
-    Extracts the efficiencies for data and MC to be used as scale factors: e_data / e_MC.
+    Extracts the efficiencies for data and MC to be used as scale factors
     Returns a dictionary with al efficiencies.
     """
     efficiencies_data, efficiencies_data_ehigh, efficiencies_data_elow = ({} for _ in range(3))
@@ -48,12 +48,12 @@ def effExtractor(args, chn, effvars, nbins):
         assert len(comb_vars)==2
         var = comb_vars[0]
         
-        inBaseName = ( 'trigSF_' + args.data_name + '_' + args.mc_name + '_' +
+        in_base_name = ( 'trigSF_' + args.data_name + '_' + args.mc_name + '_' +
                        chn + '_' + var + '_' + tcstr + args.subtag + '_CUTS*.root' )
-        inName = os.path.join(args.indir_eff, chn, var, inBaseName)
-        globName = glob.glob(inName)
+        in_name = os.path.join(args.indir_eff, chn, var, in_base_name)
+        glob_name = glob.glob(in_name)
 
-        if len(globName) != 0: #some triggers do not fire for some channels: Ele32 for mutau (for example)
+        if len(glob_name) != 0: #some triggers do not fire for some channels: Ele32 for mutau (for example)
             efficiencies_data[tcstr] = []
             efficiencies_data_elow[tcstr] = []
             efficiencies_data_ehigh[tcstr] = []
@@ -61,7 +61,9 @@ def effExtractor(args, chn, effvars, nbins):
             efficiencies_mc_elow[tcstr] = []
             efficiencies_mc_ehigh[tcstr] = []
 
-            in_file_name = min(globName, key=len) #select the shortest string (NoCut)
+            # CHANGE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            in_file_name = min(glob_name, key=len) #select the shortest string (NoCut)
+
             in_file = TFile.Open(in_file_name, 'READ')
             key_list = TIter(in_file.GetListOfKeys())
             for key in key_list:
@@ -71,7 +73,7 @@ def effExtractor(args, chn, effvars, nbins):
                     for datapoint in range(obj.GetN()):
                         efficiencies_data[tcstr].append( obj.GetPointY(datapoint) )
                         efficiencies_data_elow[tcstr].append( obj.GetErrorYlow(datapoint) )
-                        efficiencies_data_ehigh[tcstr].append( obj.GetErrorYhigh(datapoint) )                
+                        efficiencies_data_ehigh[tcstr].append( obj.GetErrorYhigh(datapoint) )               
                 elif obj.GetName() == 'MC':
                     for datapoint in range(obj.GetN()):
                         efficiencies_mc[tcstr].append( obj.GetPointY(datapoint) )
@@ -97,8 +99,17 @@ def find_bin(edges, value):
 
     return binid
 
-def eff_calculator(efficiencies, effvars, leaf_manager, channel, triggers, binedges):
-    eff_data, eff_mc = (0 for _ in range(2))
+def prob_calculator(efficiencies, effvars, leaf_manager, channel, triggers, binedges):
+    """
+    Calculates the probabilities of this event to fire at least one of the triggers under study.
+
+    Section 4.3.4 of the following paper:
+    Lendermann V et al. Combining Triggers in HEP data analysis.
+    Nucl Instruments Methods Phys Res Sect A Accel Spectrometers, 
+    Detect Assoc Equip. 2009;604(3):707-718.
+    doi:10.1016/j.nima.2009.03.173
+    """
+    prob_data, prob_mc = (0 for _ in range(2))
 
     triggercomb = generateTriggerCombinations(triggers)
     for tcomb in triggercomb:
@@ -106,30 +117,34 @@ def eff_calculator(efficiencies, effvars, leaf_manager, channel, triggers, bined
 
         if joincomb in efficiencies[1][0] and joincomb not in efficiencies[0][0]:
             raise ValueError('This should never happen. Cannot be in MC but not in data.')
-        
+
         #some triggers do not fire for some channels: Ele32 for mutau (for example)
         if joincomb in efficiencies[0][0]:
             variables = effvars[joincomb]
             values = [ leaf_manager.getLeaf(x) for x in variables ]
-            assert len(variables) == 2 #Change according to the discriminator
+            assert len(variables) == 2 #Change according to the variable discriminator
 
-            # The following is 1D only CHANGE!!!!
+            # The following is 1D only CHANGE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             binid = find_bin(binedges[variables[0]][channel], values[0])
 
             term_data = efficiencies[0][0][joinNTC(tcomb)][binid-1]
             term_mc   = efficiencies[1][0][joinNTC(tcomb)][binid-1]
 
             if len(tcomb)%2==0:
-                eff_data -= term_data
-                eff_mc   -= term_mc
+                prob_data -= term_data
+                prob_mc   -= term_mc
             else:
-                eff_data += term_data
-                eff_mc   += term_mc
+                prob_data += term_data
+                prob_mc   += term_mc
 
-    return eff_data, eff_mc
+    return prob_data, prob_mc
 
 def runUnionWeightsCalculator_outputs(args, proc):
     outputs = []
+
+    ##########Closure_SKIM_TT_fullyLep_101_default.root#############
+    args.outprefix +
+    
     exp = re.compile('output(_[0-9]{1,5}).root')
     inputs, _ = get_root_input_files(proc, [args.indir_root])
     folder = os.path.join( args.outdir, proc )
@@ -141,7 +156,8 @@ def runUnionWeightsCalculator_outputs(args, proc):
 
 def runUnionWeightsCalculator(args):
     output = runUnionWeightsCalculator_outputs(args, args.sample)
-    number = re.search('output(_[0-9]{1,5}).root', args.file_name)
+    number = re.search('(_[0-9]{1,5}).root', args.file_name)
+    print(args.file_name)
     output = [ x for x in output if number.group(1) in x ]
     assert len(output)==1
     output = output[0]
@@ -150,11 +166,11 @@ def runUnionWeightsCalculator(args):
                                    variables=args.variables, channels=args.channels)
 
     effvars = {}
-    h_union_weights = {}
+    h_single_eff = {}
     efficiencies = {}
     
     for chn in args.channels:
-        h_union_weights[chn] = {}
+        h_single_eff[chn] = {}
 
         # load efficiency variables obtained previously
         json_name = os.path.join(args.indir_json,
@@ -165,11 +181,17 @@ def runUnionWeightsCalculator(args):
         # load efficiencies
         efficiencies[chn] = effExtractor(args, chn, effvars[chn], nbins)
 
+        nbins_eff, eff_low, eff_high = 20, 0., 1.
+        
         # initialize histograms
         for var in _variables_unionweights:
+            h_single_eff[chn][var] = {}
             var_low, var_high = binedges[var][chn][0], binedges[var][chn][-1]
-            h_union_weights[chn][var] = TH1D(var + '_' + chn, var + '_' + chn,
-                                             nbins[var][chn], var_low, var_high)
+            for trig in args.triggers:
+                name = var + '_' + chn + '_' + trig
+                h_single_eff[chn][var][trig] = TEfficiency(name, name,
+                                                           nbins[var][chn], var_low, var_high,
+                                                           nbins_eff, eff_low, eff_high)
 
     # open input ROOT file
     fname = os.path.join(args.indir_root, args.sample, args.file_name)
@@ -189,28 +211,31 @@ def runUnionWeightsCalculator(args):
         run = lfm.getLeaf('RunNumber')
         if not pass_any_trigger(args.triggers, trig_bit, run, isdata=False):
             continue
-
         for chn in args.channels:
             if not is_channel_consistent(chn, lfm.getLeaf('pairType')):
                 continue
-
-            eff_data, eff_mc = eff_calculator(efficiencies[chn],
-                                              effvars[chn],
-                                              lfm,
-                                              chn,
-                                              args.triggers,
-                                              binedges)
+            prob_data, prob_mc = prob_calculator(efficiencies[chn],
+                                                 effvars[chn],
+                                                 lfm,
+                                                 chn,
+                                                 args.triggers,
+                                                 binedges)
 
             for var in _variables_unionweights:
                 val = lfm.getLeaf(var)
-                h_union_weights[chn][var].Fill(val, eff_data / eff_mc )
+                for trig in args.triggers:
+                    ptb = pass_trigger_bits(trig, trig_bit, run, isdata=False)
+                    h_single_eff[chn][var][trig].Fill(ptb, val, prob_data / prob_mc )
+                    #print(ptb, chn, var, trig, val, prob_data / prob_mc)
 
     f_out = TFile(output, 'RECREATE')
     f_out.cd()
     for chn in args.channels:
         for var in _variables_unionweights:
-            h_union_weights[chn][var].Write( get_histo_names('Closure')(chn,var) )
-
+            for trig in args.triggers:
+                h_single_eff[chn][var][trig].Write(
+                    get_histo_names('Closure')('Eff',chn,var,trig) )
+                
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Choose the most significant variables to draw the efficiencies.')
 

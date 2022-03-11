@@ -29,7 +29,7 @@ def check_bit(number, bitpos):
     res = bool(number&(bitdigit<<bitpos))
     return res
             
-def createSingleDir(p):
+def create_single_dir(p):
     """Creates a directory if it does not exist"""
     try:
         if not os.path.exists(p): 
@@ -87,7 +87,7 @@ def get_histo_names(opt):
     elif opt == 'Trig1D':
         return lambda a,b,c : 'Trig_{}_{}_{}{}'.format(a,b,c,_placeholder_cuts)
     elif opt == 'Closure':
-        return lambda a,b : 'Closure_{}_{}'.format(a,b)
+        return lambda a,b,c,d : 'Closure{}_{}_{}_{}'.format(a,b,c,d)
     else:
         import inspect
         currentFunction = inspect.getframeinfo(frame).function
@@ -112,7 +112,7 @@ def get_root_input_files(proc, indir):
 
     return filelist, inputdir
 
-def getROOTObject(name, afile):
+def get_root_object(name, afile):
     _keys = afile.GetListOfKeys()
     if name not in _keys:
         msg =  'Wrong ROOT object name!\n'
@@ -332,6 +332,12 @@ def pass_any_trigger(trigs, bit, run, isdata):
         if flag:
             return True
     return False
+
+def pass_trigger_bits(trig, trig_bit, run, isdata):
+    if trig in _triggers_custom:
+        return set_custom_trigger_bit(trig, trig_bit, run, isdata)
+    else:
+        return check_bit(trig_bit, get_trigger_bit(trig, isdata))
 
 def slashToUnderscoreAndKeep(s, n=4):
     """Replaces slashes by underscores, keeping only the last 'n' slash-separated strings"""

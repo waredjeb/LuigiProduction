@@ -29,10 +29,6 @@ from scripts.writeHTCondorHaddHistoFiles import (
     writeHTCondorHaddHistoFiles,
     writeHTCondorHaddHistoFiles_outputs,
 )
-from scripts.writeHTCondorHaddEffFiles import (
-    writeHTCondorHaddEffFiles,
-    writeHTCondorHaddEffFiles_outputs,
-)
 from scripts.writeHTCondorEfficienciesAndScaleFactorsFiles import (
     writeHTCondorEfficienciesAndScaleFactorsFiles,
     writeHTCondorEfficienciesAndScaleFactorsFiles_outputs,
@@ -45,16 +41,24 @@ from scripts.writeHTCondorUnionWeightsCalculatorFiles import (
     writeHTCondorUnionWeightsCalculatorFiles,
     writeHTCondorUnionWeightsCalculatorFiles_outputs,
 )
+from scripts.writeHTCondorHaddEffFiles import (
+    writeHTCondorHaddEffFiles,
+    writeHTCondorHaddEffFiles_outputs,
+)
+from scripts.writeHTCondorClosureFiles import (
+    writeHTCondorClosureFiles,
+    writeHTCondorClosureFiles_outputs,
+)
 from scripts.writeHTCondorDAGFiles import (
     writeHTCondorDAGFiles,
     writeHTCondorDAGFiles_outputs,
 )
-from scripts.addTriggerCounts import (
-    addTriggerCounts,
-    addTriggerCounts_outputs
-    )
-from scripts.draw2DTriggerSF import draw2DTriggerSF, draw2DTriggerSF_outputs
-from scripts.drawDistributions import drawDistributions, drawDistributions_outputs
+# from scripts.addTriggerCounts import (
+#     addTriggerCounts,
+#     addTriggerCounts_outputs
+#     )
+# from scripts.draw2DTriggerSF import draw2DTriggerSF, draw2DTriggerSF_outputs
+# from scripts.drawDistributions import drawDistributions, drawDistributions_outputs
 
 from utils import utils
 
@@ -280,14 +284,14 @@ class WriteHTCondorHaddEffFiles(ForceRun):
         writeHTCondorHaddEffFiles( self.args )
 
 ########################################################################
-### WRITE HTCONDOR FILES FOR DISPLAYING FINAL "OR" EFFICIENCIES ########
+### WRITE HTCONDOR FILES FOR DISPLAYING CLOSURE PLOTS ##################
 ########################################################################
-class WriteHTCondorEfficienciesAndScaleFactorsFiles(ForceRun):
-    params = utils.dotDict(lcfg.drawsf_params)
+class WriteHTCondorClosureFiles(ForceRun):
+    params = utils.dotDict(lcfg.closure_params)
     
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def output(self):
-        o1, o2, _ = writeHTCondorEfficienciesAndScaleFactorsFiles_outputs(self.params)
+        o1, o2, _ = writeHTCondorClosureFiles_outputs(self.params)
 
         #write the target files for debugging
         target_path = get_target_path( self.__class__.__name__ )
@@ -302,7 +306,7 @@ class WriteHTCondorEfficienciesAndScaleFactorsFiles(ForceRun):
 
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def run(self):
-        writeHTCondorEfficienciesAndScaleFactorsFiles(self.params)
+        writeHTCondorClosureFiles(self.params)
 
 ########################################################################
 ### DRAW 2D TRIGGER SCALE FACTORS #######################################
@@ -427,6 +431,7 @@ class WriteDAG(ForceRun):
     pDisc      = utils.dotDict(lcfg.discriminator_params)
     pSFCalc    = utils.dotDict(lcfg.calculator_params)
     pHaddEff   = utils.dotDict(lcfg.haddeff_params)
+    pClosure   = utils.dotDict(lcfg.closure_params)
     
     pHaddHisto['tprefix']  = lcfg.modes['histos']
     pEffSF['tprefix'] =  lcfg.modes['histos']
@@ -464,6 +469,8 @@ class WriteDAG(ForceRun):
 
         _, submHaddEff, _  = writeHTCondorHaddEffFiles_outputs(self.pHaddEff)
 
+        _, submClosure, _  = writeHTCondorClosureFiles_outputs(self.pClosure)
+
         self.params['jobsHistos']        = submHistos
         self.params['jobsCounts']        = submCounts
         self.params['jobsHaddHistoData'] = submHaddHistoData
@@ -472,6 +479,7 @@ class WriteDAG(ForceRun):
         self.params['jobsDiscr']         = submDisc
         self.params['jobsUnion']         = submUnion
         self.params['jobsHaddEff']       = submHaddEff
+        self.params['jobsClosure']       = submClosure
         writeHTCondorDAGFiles( self.params )
         
 class SubmitDAG(ForceRun):
@@ -504,6 +512,7 @@ class SubmitDAG(ForceRun):
                  WriteHTCondorDiscriminatorFiles(),
                  WriteHTCondorUnionWeightsCalculatorFiles(),
                  WriteHTCondorHaddEffFiles( samples=lcfg._selected_mc_processes ),
+                 WriteHTCondorClosureFiles(),
                  WriteDAG(),
                 ]
    
@@ -511,8 +520,8 @@ class SubmitDAG(ForceRun):
 ### MAIN ###############################################################
 ########################################################################
 if __name__ == "__main__":
-    utils.createSingleDir( lcfg.data_storage )
-    utils.createSingleDir( lcfg.targets_folder )
+    utils.create_single_dir( lcfg.data_storage )
+    utils.create_single_dir( lcfg.targets_folder )
     
     if FLAGS.submit:
         last_tasks = [ SubmitDAG() ]

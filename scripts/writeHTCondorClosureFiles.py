@@ -1,4 +1,3 @@
-
 import sys
 sys.path.append("..")
 
@@ -12,56 +11,46 @@ from utils.utils import (
 )
 
 @setPureInputNamespace
-def writeHTCondorEfficienciesAndScaleFactorsFiles_outputs(args):
+def writeHTCondorClosureFiles_outputs(args):
   """
   Outputs are guaranteed to have the same length.
   Returns all separate paths to avoid code duplication.
   """
   base_dir = os.path.join(args.localdir, 'jobs', args.tag)
+  specific_str = 'Closure'
   
   jobDir = os.path.join(base_dir, 'submission')
   os.system('mkdir -p {}'.format(jobDir))
 
-  checkDir = os.path.join(base_dir, 'outputs', 'EffAndScaleFactors')
+  checkDir = os.path.join(base_dir, 'outputs', specific_str)
   os.system('mkdir -p {}'.format(checkDir))
 
-  name = 'jobEfficienciesAndSF.{}'
-  check_name = 'EfficienciesAndSF_C$(Cluster)P$(Process).o'
+  name = 'job{}.{}'
+  check_name = specific_str + '_C$(Cluster)P$(Process).o'
 
-  jobFiles   = os.path.join(jobDir, name.format('sh'))
-  submFiles  = os.path.join(jobDir, name.format('condor'))
+  jobFiles   = os.path.join(jobDir, name.format(specific_str, 'sh'))
+  submFiles  = os.path.join(jobDir, name.format(specific_str, 'condor'))
   checkFiles = os.path.join(checkDir, check_name)
 
   return jobFiles, submFiles, checkFiles
 
 @setPureInputNamespace
-def writeHTCondorEfficienciesAndScaleFactorsFiles(args):
-    script = os.path.join(args.localdir, 'scripts', 'runEfficienciesAndScaleFactors.py')
+def writeHTCondorClosureFiles(args):
+    script = os.path.join(args.localdir, 'scripts', 'runClosure.py')
     prog = 'python3 {}'.format(script)
 
-    outs_job, outs_submit, outs_check = writeHTCondorEfficienciesAndScaleFactorsFiles_outputs(args)
+    outs_job, outs_submit, outs_check = writeHTCondorClosureFiles_outputs(args)
 
     #### Write shell executable (python scripts must be wrapped in shell files to run on HTCondor)
-    command =  ( ( '{prog} --indir {indir} --outdir {outdir} '
-                   '--mc_processes {mc_processes} '
-                   '--mc_name {mc_name} --data_name {data_name} '
-                   '--triggercomb ${{1}} '
-                   '--channels {channels} --variables {variables} '
-                   '--binedges_filename {binedges_filename} --subtag {subtag} '
-                   '--tprefix {tprefix} '
-                  ).format( prog=prog, indir=args.indir, outdir=args.outdir,
-                            mc_processes=' '.join(args.mc_processes,),
-                            mc_name=args.mc_name, data_name=args.data_name,
-                            channels=' '.join(args.channels,), variables=' '.join(args.variables,),
-                            binedges_filename=args.binedges_filename,
-                            subtag=args.subtag,
-                            draw_independent_MCs=1 if args.draw_independent_MCs else 0,
-                            tprefix=args.tprefix,
-                           )
+    command =  ( '{prog} --indir_ref {inref} '.format(prog=prog, inref=args.indir_ref)
+                 + '--indir_union {inunion} '.format(inunion=args.outdir)
+                 + '--outdir {outdir} '.format(outdir=args.outdir)
+                 + '--channel ${1} '
+                 + '--variables {variables} '.format(variables=' '.join(args.variables))
+                 + '--triggers {triggers} '.format(triggers=' '.join(args.triggers))
+                 + '--subtag {subtag} '.format(subtag=args.subtag)
                 )
-
-    if args.draw_independent_MCs:
-        command += '--draw_independent_MCs '
+    
     if args.debug:
         command += '--debug '
     command += '\n'
@@ -74,12 +63,12 @@ def writeHTCondorEfficienciesAndScaleFactorsFiles(args):
         s.write('cd {}/\n'.format(args.localdir))
         s.write('eval `scramv1 runtime -sh`\n')
         s.write(command)
-        s.write('echo "runEfficienciesAndScaleFactors done."\n')
+        s.write('echo "runClosure for channel ${1} done."\n')
     os.system('chmod u+rwx '+ outs_job)
 
     #### Write submission file
     queue = 'short'
-    queuevar = 'triggercomb'
+    queuevar = 'channel'
     triggercomb = generateTriggerCombinations(args.triggers)
     with open(outs_submit, 'w') as s:
         s.write('Universe = vanilla\n')
@@ -94,6 +83,6 @@ def writeHTCondorEfficienciesAndScaleFactorsFiles(args):
         s.write('+SingularityCmd = ""\n')
         s.write('include : /opt/exp_soft/cms/t3/t3queue |\n\n')
         s.write('queue {} from (\n'.format(queuevar))
-        for tcomb in triggercomb:
-            s.write('  {}\n'.format(joinNTC(tcomb)))
+        for chn in args.channels:
+            s.write('  {}\n'.format(chn))
         s.write(')\n')

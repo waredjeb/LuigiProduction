@@ -20,9 +20,9 @@ import sys
 sys.path.append( os.path.join(os.environ['CMSSW_BASE'], 'src', 'METTriggerStudies'))
 
 from utils.utils import (
-  createSingleDir,
+  create_single_dir,
   getKeyList,
-  getROOTObject,
+  get_root_object,
   get_histo_names,
   redrawBorder,
   rewriteCutString,
@@ -73,7 +73,7 @@ def drawEfficienciesAndScaleFactors(proc, channel, variable, trig, save_names, b
   keys_to_remove = []
   for k in keylist_mc:
     if k not in keylist_data:
-      histo = getROOTObject(k, file_mc)
+      histo = get_root_object(k, file_mc)
       stats_cut = 10
       if histo.GetNbinsX() < stats_cut:
         keys_to_remove.append(k)
@@ -88,15 +88,15 @@ def drawEfficienciesAndScaleFactors(proc, channel, variable, trig, save_names, b
   assert(set(keylist_data)==set(keylist_mc))
     
   histos_data, histos_mc = ({} for _ in range(2))
-  histos_data['ref'] = getROOTObject(hnames['ref'], file_data)
-  histos_mc['ref'] = getROOTObject(hnames['ref'], file_mc)
+  histos_data['ref'] = get_root_object(hnames['ref'], file_data)
+  histos_mc['ref'] = get_root_object(hnames['ref'], file_mc)
 
   histos_data['trig'], histos_mc['trig'] = ({} for _ in range(2))
   for key in keylist_mc:
     rewritten_str = rewriteCutString(hnames['trig'], '')
     if key.startswith(rewritten_str):
-      histos_mc['trig'][key] = getROOTObject(key, file_mc)
-      histos_data['trig'][key] = getROOTObject(key, file_data)
+      histos_mc['trig'][key] = get_root_object(key, file_mc)
+      histos_data['trig'][key] = get_root_object(key, file_data)
 
   # some triggers or their intersection naturally never fire for some channels
   # example: 'IsoMu24' for the etau channel
@@ -374,7 +374,7 @@ def runEfficienciesAndScaleFactors_outputs(outdir,
                                      trigger_combination,
                                      data_name, subtag)
         thisbase = os.path.join(outdir, ch, var, '')
-        createSingleDir( thisbase )
+        create_single_dir( thisbase )
 
         for ext,out in zip(_extensions, outputs):
           out.append( os.path.join( thisbase, canvas_name + '.' + ext ) )

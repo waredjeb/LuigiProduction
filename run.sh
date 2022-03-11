@@ -23,3 +23,5 @@ done
 # condor_submit jobs/TEST/submission/jobHaddEff.condor
 
 # condor_submit jobs/TEST/submission/jobHaddEffAgg.condor
+
+# condor_submit jobs/TEST/submission/jobClosure.condor

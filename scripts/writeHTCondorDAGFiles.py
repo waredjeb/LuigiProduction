@@ -1,18 +1,11 @@
-
 import sys
 sys.path.append("..")
 
 import os
-import argparse
 
 from utils.utils import (
   setPureInputNamespace,
 )
-
-from scripts.writeHTCondorHistogramFiles import writeHTCondorHistogramFiles_outputs
-from scripts.writeHTCondorHaddHistoFiles import writeHTCondorHaddHistoFiles_outputs
-from scripts.writeHTCondorHaddEffFiles import writeHTCondorHaddEffFiles_outputs
-from scripts.writeHTCondorEfficienciesAndScaleFactorsFiles import writeHTCondorEfficienciesAndScaleFactorsFiles_outputs
 
 @setPureInputNamespace
 def writeHTCondorDAGFiles_outputs(args):
@@ -60,6 +53,7 @@ def writeHTCondorDAGFiles(args):
     defineJobNames(s, args.jobsDiscr)
     defineJobNames(s, args.jobsUnion)
     defineJobNames(s, args.jobsHaddEff)
+    defineJobNames(s, args.jobsClosure)
 
     # histos to hadd for data
     s.write('PARENT ')
@@ -110,6 +104,12 @@ def writeHTCondorDAGFiles(args):
     # hadd aggregation union efficiencies
     s.write('PARENT {} '.format( remExt(args.jobsHaddEff[0]) ))
     s.write('CHILD {}\n\n'.format( remExt(args.jobsHaddEff[1]) ))
+
+    # hadd aggregation union efficiencies
+    s.write('PARENT {} '.format( remExt(args.jobsHaddEff[1]) ))
+    for child in args.jobsClosure:
+        s.write('CHILD {}\n'.format(remExt(child)))
+
 
 # condor_submit_dag -no_submit diamond.dag
 # condor_submit diamond.dag.condor.sub

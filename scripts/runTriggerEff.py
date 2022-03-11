@@ -25,7 +25,6 @@ import sys
 sys.path.append( os.environ['PWD'] ) 
 
 from utils.utils import (
-    check_bit,
     generateTriggerCombinations,
     get_histo_names,
     get_trigger_bit,
@@ -36,23 +35,22 @@ from utils.utils import (
     pass_any_trigger,
     pass_selection_cuts,
     rewriteCutString,
-    set_custom_trigger_bit,
+    pass_trigger_bits,
 )
 
 from luigi_conf import (
     _2Dpairs,
     _cuts,
     _cuts_ignored,
-    _triggers_custom,
 )
 
-def passesCuts(trig, variables, leavesmanager, debug):
+def passes_cuts(trig, variables, leavesmanager, debug):
     """
     Handles cuts on trigger variables that enter the histograms. 
     Variables being displayed are not cut (i.e., they pass the cut).
     Checks all combinations of cuts specified in '_cuts':
         example: _cuts = {'A': ('>', [10,20]), 'B': ('<', [50,40]))}
-        passesCuts will check 4 combinations and return a dict of length 4
+        `passes_cuts` will check 4 combinations and return a dict of length 4
         (unless some cuts are ignored according to '_cuts_ignored') 
     Works for both 1D and 2D efficiencies.
     """
@@ -121,8 +119,8 @@ def passesCuts(trig, variables, leavesmanager, debug):
     return res
     
 def get_trigger_eff_sig(indir, outdir, sample, fileName,
-                     channels, variables, triggers,
-                     subtag, tprefix, isdata, binedges_fname):
+                        channels, variables, triggers,
+                        subtag, tprefix, isdata, binedges_fname):
     # -- Check if outdir exists, if not create it
     if not os.path.exists(outdir):
         os.makedirs(outdir)
@@ -182,7 +180,7 @@ def get_trigger_eff_sig(indir, outdir, sample, fileName,
 
         trig_bit = lf.getLeaf('pass_triggerbit')
         run = lf.getLeaf('RunNumber')
-        if not pass_any_trigger(args.triggers, trig_bit, run, isdata=isdata):
+        if not pass_any_trigger(triggers, trig_bit, run, isdata=isdata):
             continue
 
         #mcweight   = lf.getLeaf( "MC_weight" )
@@ -209,17 +207,13 @@ def get_trigger_eff_sig(indir, outdir, sample, fileName,
                 if fillVar[v][chn]>binedges[v][chn][-1]:
                     fillVar[v][chn]=binedges[v][chn][-1] # include overflow
 
-        passTriggerBits, passCuts = ({} for _ in range(2))
+        pass_trigger, pass_cuts = ({} for _ in range(2))
         for trig in triggers:
-            
-            if trig in _triggers_custom:
-                passTriggerBits[trig] = set_custom_trigger_bit(trig, trig_bit, run, isdata)
-            else:
-                passTriggerBits[trig] = checkBit(trig_bit, get_trigger_bit(trig, isdata))
+            pass_trigger[trig] = pass_trigger_bits(trig, trig_bit, run, isdata)
                 
-            passCuts[trig] = {}
+            pass_cuts[trig] = {}
             for var in variables:
-                passCuts[trig][var] = passesCuts(trig, [var], lf, args.debug)
+                pass_cuts[trig][var] = passes_cuts(trig, [var], lf, args.debug)
 
         for i in channels:
             if is_channel_consistent(i, pairtype):
@@ -233,9 +227,9 @@ def get_trigger_eff_sig(indir, outdir, sample, fileName,
                     for tcomb in triggercomb:
 
                         #logic AND to intersect all triggers in this combination
-                        passTriggerBitsIntersection = functools.reduce(
+                        pass_trigger_intersection = functools.reduce(
                             lambda x,y: x and y,
-                            [ passTriggerBits[x] for x in tcomb ]
+                            [ pass_trigger[x] for x in tcomb ]
                         )
 
                         # The following is tricky, as we are considering, simultaneously:
@@ -245,29 +239,29 @@ def get_trigger_eff_sig(indir, outdir, sample, fileName,
                         # Logic AND to intersect all cuts for this trigger combination
                         # Each element will contain one possible cut combination
                         # for the trigger combination 'tcomb' being considered
-                        #cutsCombinations = list(it.product( *(passCuts[k][j] for atrig in tcomb for k in atrig) ))
-                        cutsCombinations = list(it.product( *(passCuts[atrig][j].items() for atrig in tcomb) ))
+                        #cuts_combinations = list(it.product( *(pass_cuts[k][j] for atrig in tcomb for k in atrig) ))
+                        cuts_combinations = list(it.product( *(pass_cuts[atrig][j].items() for atrig in tcomb) ))
                         if args.debug:
                             print(tcomb, j)
-                            print(cutsCombinations)
+                            print(cuts_combinations)
 
                         # One dict item per cut combination
                         # - key: all cut strings joined
                         # - value: logical and of all cuts
-                        passCutsIntersection = { (args.intersection_str).join(e[0] for e in elem): 
+                        pass_cuts_intersection = { (args.intersection_str).join(e[0] for e in elem): 
                                                  functools.reduce(                 
                                                      lambda x,y: x and y,
                                                      [ e[1] for e in elem ]
                                                  )
-                                                 for elem in cutsCombinations
+                                                 for elem in cuts_combinations
                                                 }
                         if args.debug:
-                            print(passCutsIntersection)
+                            print(pass_cuts_intersection)
                             print()
 
-                        if passTriggerBitsIntersection:
+                        if pass_trigger_intersection:
 
-                            for pckey,pcval in passCutsIntersection.items():
+                            for pckey,pcval in pass_cuts_intersection.items():
                                 base_str = get_histo_names('Trig1D')(i,j,joinNTC(tcomb))
                                 htrig_name = rewriteCutString(base_str, pckey)
 
@@ -285,7 +279,7 @@ def get_trigger_eff_sig(indir, outdir, sample, fileName,
                 #             vname = addVarNames(j[0],j[1])
 
                 #             if passLEP:
-                #                 pCuts = passesCuts(k, [j[0], j[1]], lf, args.debug)
+                #                 pCuts = passes_cuts(k, [j[0], j[1]], lf, args.debug)
                 #                 for pckey,pcval in pCuts.items():
                 #                     if pckey not in effRefVsTrig[i][vname][k]:
                 #                         effRefVsTrig_name = 'effRefVsTrig_{}_{}_{}'.format(i,k,vname)
@@ -300,7 +294,7 @@ def get_trigger_eff_sig(indir, outdir, sample, fileName,
                 #                         #Clopper-Pearson (default)
                 #                         effRefVsTrig[i][vname][k][pckey].SetStatisticOption(0)
                     
-                #                     trigger_flag = ( passTriggerBits[k] and pcval )
+                #                     trigger_flag = ( pass_trigger_bits[k] and pcval )
                 #                     effRefVsTrig[i][vname][k][pckey].Fill( trigger_flag,
                 #                                                            fillVar[j[0]][i],
                 #                                                            fillVar[j[1]][i] )

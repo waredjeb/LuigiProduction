@@ -289,7 +289,7 @@ class cfg(luigi.Config):
                   'debug': FLAGS.debug_workflow,} )
 
     ####
-    #### scale factor calculator + closure test
+    #### scale factor calculator
     ####
     calculator_params = luigi.DictParameter(
         default={ 'binedges_filename': binedges_filename,
@@ -321,12 +321,10 @@ class cfg(luigi.Config):
                   'subtag': subtag} )
 
     ####
-    #### draw union efficiencies closure
+    #### draw single efficiencies closure
     ####
-    draweffunion_params = luigi.DictParameter(
-        default={ 'data_name': FLAGS.data,
-                  'mc_name': FLAGS.mc_process,
-                  'indir_ref': data_storage,
+    closure_params = luigi.DictParameter(
+        default={ 'indir_ref': data_storage,
                   'indir_union': data_storage,
                   'outdir': out_storage,
                   'out_weighted_prefix': _outprefix,
@@ -337,7 +335,7 @@ class cfg(luigi.Config):
                   'variables': FLAGS.variables_for_efficiencies,
                   'tag': tag,
                   'subtag': subtag,
-                  'debug': FLAGS.debug_workflow,} )
+                  'debug': FLAGS.debug_workflow } )
 
 """
 'pass_triggerbit' leaf
