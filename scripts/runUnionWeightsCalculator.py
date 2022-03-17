@@ -1,4 +1,5 @@
 import os
+import h5py
 import re
 import glob
 import json
@@ -10,12 +11,13 @@ import numpy as np
 from ROOT import (
     gROOT,
     TFile,
-    TEfficiency,
+    TH2D,
     TIter
 )
 gROOT.SetBatch(True)
 
 from utils.utils import (
+    find_bin,
     generateTriggerCombinations,
     get_histo_names,
     get_root_input_files,
@@ -85,19 +87,6 @@ def effExtractor(args, chn, effvars, nbins):
     return ( (efficiencies_data, efficiencies_data_ehigh, efficiencies_data_elow),
              (efficiencies_mc,   efficiencies_mc_ehigh,   efficiencies_mc_elow) )
 
-def find_bin(edges, value):
-    """Find the bin id corresponding to one value, given the bin edges."""
-    binid = np.digitize(value, edges)
-    if binid == len(edges):
-        binid -= 1 # include overflow
-
-    # check for out-of-bounds
-    if binid==0 or binid>len(edges):
-        print(binid, values[0])
-        print(binedges[variables[0]][channel], len(binedges[variables[0]][channel]))
-        raise ValueError('Wrong bin')
-
-    return binid
 
 def prob_calculator(efficiencies, effvars, leaf_manager, channel, triggers, binedges):
     """
@@ -125,7 +114,7 @@ def prob_calculator(efficiencies, effvars, leaf_manager, channel, triggers, bine
             assert len(variables) == 2 #Change according to the variable discriminator
 
             # The following is 1D only CHANGE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            binid = find_bin(binedges[variables[0]][channel], values[0])
+            binid = find_bin(binedges[variables[0]][channel], values[0], variables[0])
 
             term_data = efficiencies[0][0][joinNTC(tcomb)][binid-1]
             term_mc   = efficiencies[1][0][joinNTC(tcomb)][binid-1]
@@ -142,36 +131,44 @@ def prob_calculator(efficiencies, effvars, leaf_manager, channel, triggers, bine
 def runUnionWeightsCalculator_outputs(args, proc):
     outputs = []
 
-    ##########Closure_SKIM_TT_fullyLep_101_default.root#############
-    args.outprefix +
-    
     exp = re.compile('output(_[0-9]{1,5}).root')
     inputs, _ = get_root_input_files(proc, [args.indir_root])
     folder = os.path.join( args.outdir, proc )
+
     for inp in inputs:
         number = exp.search(inp)
-        basename = args.outprefix + '_' + proc + number.group(1) + args.subtag + '.root'
+        basename = args.outprefix + '_' + proc + number.group(1) + args.subtag + '.hdf5'
         outputs.append( os.path.join(folder, basename) )
     return outputs
 
 def runUnionWeightsCalculator(args):
     output = runUnionWeightsCalculator_outputs(args, args.sample)
     number = re.search('(_[0-9]{1,5}).root', args.file_name)
-    print(args.file_name)
-    output = [ x for x in output if number.group(1) in x ]
+    r = re.compile('.*/' + args.outprefix + '_' + args.sample + number.group(1) + args.subtag + '\.hdf5')
+    output = list(filter(r.match, output))
+
     assert len(output)==1
     output = output[0]
-    
+
     binedges, nbins = load_binning(afile=args.binedges_fname, key=args.subtag,
                                    variables=args.variables, channels=args.channels)
+    # open input ROOT file
+    fname = os.path.join(args.indir_root, args.sample, args.file_name)
+    if not os.path.exists(fname):
+        raise ValueError('[' + os.path.basename(__file__) + '] {} does not exist.'.format(fname))
+    f_in = TFile( fname )
+    t_in = f_in.Get('HTauTauTree')
+    lfm = LeafManager(fname, t_in)
 
+    outdata = h5py.File(output, mode='w')
+    prob_ratios = {}
     effvars = {}
-    h_single_eff = {}
     efficiencies = {}
-    
     for chn in args.channels:
-        h_single_eff[chn] = {}
-
+        #h_single_eff[chn] = {}
+        outdata.create_group(chn)
+        prob_ratios[chn] = {}
+        
         # load efficiency variables obtained previously
         json_name = os.path.join(args.indir_json,
                                  'runVariableImportanceDiscriminator_{}.json'.format(chn))
@@ -181,25 +178,40 @@ def runUnionWeightsCalculator(args):
         # load efficiencies
         efficiencies[chn] = effExtractor(args, chn, effvars[chn], nbins)
 
-        nbins_eff, eff_low, eff_high = 20, 0., 1.
+        # nbins_eff, eff_low, eff_high = 20, 0., 1.
         
-        # initialize histograms
+        # # initialize histograms
         for var in _variables_unionweights:
-            h_single_eff[chn][var] = {}
-            var_low, var_high = binedges[var][chn][0], binedges[var][chn][-1]
+            #h_single_eff[chn][var] = {}
+            outdata[chn].create_group(var)
+            prob_ratios[chn][var] = {}
+            #var_low, var_high = binedges[var][chn][0], binedges[var][chn][-1]
             for trig in args.triggers:
-                name = var + '_' + chn + '_' + trig
-                h_single_eff[chn][var][trig] = TEfficiency(name, name,
-                                                           nbins[var][chn], var_low, var_high,
-                                                           nbins_eff, eff_low, eff_high)
+                outdata[chn][var].create_group(trig)
+                prob_ratios[chn][var][trig] = {}
+                for ibin in range(nbins[var][chn]):
+                    outdata[chn][var][trig].create_group(str(ibin))
+                    prob_ratios[chn][var][trig][str(ibin)] = []
+                #name = var + '_' + chn + '_' + trig
+                #h_single_eff[chn][var][trig] = TH2D(name, name,
+                #                                    nbins[var][chn], var_low, var_high,
+                #                                    nbins_eff, eff_low, eff_high)
 
-    # open input ROOT file
-    fname = os.path.join(args.indir_root, args.sample, args.file_name)
-    if not os.path.exists(fname):
-        raise ValueError('[' + os.path.basename(__file__) + '] {} does not exist.'.format(fname))
-    f_in = TFile( fname )
-    t_in = f_in.Get('HTauTauTree')
-    lfm = LeafManager(fname, t_in)
+    # # initialize histograms
+    # h_single_eff = {}
+    # nbins_eff = 20
+    # for chn in args.channels:
+    #     h_single_eff[chn] = {}
+    #     for var in _variables_unionweights:
+    #         h_single_eff[chn][var] = {}
+    #         var_low, var_high = binedges[var][chn][0], binedges[var][chn][-1]
+    #         for trig in args.triggers:
+    #             name = var + '_' + chn + '_' + trig
+    #             eff_low  = unionedges[chn][trig]['low']
+    #             eff_high = unionedges[chn][trig]['high']
+    #             h_single_eff[chn][var][trig] = TH2D(name, name,
+    #                                                 nbins[var][chn], var_low, var_high,
+    #                                                 nbins_eff, eff_low, eff_high)
 
     # event loop; building scale factor 2D maps
     for entry in range(0,t_in.GetEntries()):
@@ -225,16 +237,27 @@ def runUnionWeightsCalculator(args):
                 val = lfm.getLeaf(var)
                 for trig in args.triggers:
                     ptb = pass_trigger_bits(trig, trig_bit, run, isdata=False)
-                    h_single_eff[chn][var][trig].Fill(ptb, val, prob_data / prob_mc )
+                    if ptb:
+                        binid = find_bin(binedges[var][chn], val, var)
+                        prob_ratio = prob_data/prob_mc
+                        prob_ratios[chn][var][trig][str(binid-1)].append(prob_ratio                        )
+                        #h_single_eff[chn][var][trig].Fill(val, prob_data / prob_mc )
                     #print(ptb, chn, var, trig, val, prob_data / prob_mc)
 
-    f_out = TFile(output, 'RECREATE')
-    f_out.cd()
     for chn in args.channels:
         for var in _variables_unionweights:
             for trig in args.triggers:
-                h_single_eff[chn][var][trig].Write(
-                    get_histo_names('Closure')('Eff',chn,var,trig) )
+                for ibin in range(nbins[var][chn]):
+                    outdata[chn][var][trig][str(ibin)]['prob_ratios'] = prob_ratios[chn][var][trig][str(ibin)]
+    outdata.attrs['doc'] = ( 'Probability ratios (data/MC) and counts per bin for all'
+                             ' channels, variables and triggers' )
+    # f_out = TFile(output, 'RECREATE')
+    # f_out.cd()
+    # for chn in args.channels:
+    #     for var in _variables_unionweights:
+    #         for trig in args.triggers:
+    #             h_single_eff[chn][var][trig].Write(
+    #                 get_histo_names('Closure')('Eff',chn,var,trig) )
                 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Choose the most significant variables to draw the efficiencies.')

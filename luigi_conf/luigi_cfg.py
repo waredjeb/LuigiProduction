@@ -138,7 +138,7 @@ class cfg(luigi.Config):
     # general
     modes = {'histos': 'hist_',
              'counts': 'counts_'}
-    _outprefix = 'Closure'
+    _closure_prefix = 'Closure'
 
     subtag = ( FLAGS.subtag if FLAGS.subtag==''
                else ( '_' + FLAGS.subtag if FLAGS.subtag[0] != '_' else FLAGS.subtag ) )
@@ -297,7 +297,7 @@ class cfg(luigi.Config):
                   'indir_json': data_storage,
                   'indir_eff': out_storage,
                   'outdir': data_storage,
-                  'outprefix': _outprefix,
+                  'outprefix': _closure_prefix,
                   'data_name': FLAGS.data,
                   'mc_name': FLAGS.mc_process,
                   'mc_processes': _mc_processes[FLAGS.mc_process],
@@ -313,21 +313,24 @@ class cfg(luigi.Config):
     ####
     #### haddEff
     ####
-    haddeff_params = luigi.DictParameter(
-        default={ 'indir': data_storage,
-                  'localdir': local_folder,
-                  'outprefix': _outprefix,
-                  'tag': tag,
-                  'subtag': subtag} )
+    # haddeff_params = luigi.DictParameter(
+    #     default={ 'indir': data_storage,
+    #               'localdir': local_folder,
+    #               'outprefix': _outprefix,
+    #               'tag': tag,
+    #               'subtag': subtag} )
 
     ####
     #### draw single efficiencies closure
     ####
     closure_params = luigi.DictParameter(
-        default={ 'indir_ref': data_storage,
+        default={ 'binedges_filename': binedges_filename,
+                  'indir_ref': data_storage,
                   'indir_union': data_storage,
-                  'outdir': out_storage,
-                  'out_weighted_prefix': _outprefix,
+                  'outdir': data_storage,
+                  'inprefix': _closure_prefix,
+                  'mc_processes': _mc_processes[FLAGS.mc_process],
+                  'out_weighted_prefix': _closure_prefix,
                   'out_original_prefix': modes['histos'],
                   'localdir': local_folder,
                   'triggers': FLAGS.triggers,

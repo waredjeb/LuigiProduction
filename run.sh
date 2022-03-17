@@ -20,8 +20,7 @@ for sub in jobs/TEST/submission/jobUnionWeightsCalculator_*.condor;do
 	condor_submit "${sub}"
 done
 
-# condor_submit jobs/TEST/submission/jobHaddEff.condor
-
-# condor_submit jobs/TEST/submission/jobHaddEffAgg.condor
+# REMOVED condor_submit jobs/TEST/submission/jobHaddEff.condor
+# REMOVED condor_submit jobs/TEST/submission/jobHaddEffAgg.condor
 
 # condor_submit jobs/TEST/submission/jobClosure.condor

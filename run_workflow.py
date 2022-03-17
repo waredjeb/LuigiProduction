@@ -41,10 +41,10 @@ from scripts.writeHTCondorUnionWeightsCalculatorFiles import (
     writeHTCondorUnionWeightsCalculatorFiles,
     writeHTCondorUnionWeightsCalculatorFiles_outputs,
 )
-from scripts.writeHTCondorHaddEffFiles import (
-    writeHTCondorHaddEffFiles,
-    writeHTCondorHaddEffFiles_outputs,
-)
+# from scripts.writeHTCondorHaddEffFiles import (
+#     writeHTCondorHaddEffFiles,
+#     writeHTCondorHaddEffFiles_outputs,
+# )
 from scripts.writeHTCondorClosureFiles import (
     writeHTCondorClosureFiles,
     writeHTCondorClosureFiles_outputs,
@@ -258,30 +258,30 @@ class WriteHTCondorUnionWeightsCalculatorFiles(ForceRun):
 ########################################################################
 ### WRITE HTCONDOR FILES FOR HADD'ING EFFICIENCIES IN ROOT FILES #######
 ########################################################################
-class WriteHTCondorHaddEffFiles(ForceRun):
-    samples = luigi.ListParameter()
-    args = utils.dotDict(lcfg.haddeff_params)
+# class WriteHTCondorHaddEffFiles(ForceRun):
+#     samples = luigi.ListParameter()
+#     args = utils.dotDict(lcfg.haddeff_params)
     
-    @WorkflowDebugger(flag=FLAGS.debug_workflow)
-    def output(self):
-        self.args['samples'] = luigi_to_raw( self.samples )
-        o1, o2, _ = writeHTCondorHaddEffFiles_outputs( self.args )
+#     @WorkflowDebugger(flag=FLAGS.debug_workflow)
+#     def output(self):
+#         self.args['samples'] = luigi_to_raw( self.samples )
+#         o1, o2, _ = writeHTCondorHaddEffFiles_outputs( self.args )
         
-        #write the target files for debugging
-        target_path = get_target_path( self.__class__.__name__ )
-        utils.remove( target_path )
-        with open( target_path, 'w' ) as f:
-            for t in o1: f.write( t + '\n' )
-            for t in o2: f.write( t + '\n' )
+#         #write the target files for debugging
+#         target_path = get_target_path( self.__class__.__name__ )
+#         utils.remove( target_path )
+#         with open( target_path, 'w' ) as f:
+#             for t in o1: f.write( t + '\n' )
+#             for t in o2: f.write( t + '\n' )
 
-        _c1 = convert_to_luigi_local_targets(o1)
-        _c2 = convert_to_luigi_local_targets(o2)
-        return _c1 + _c2
+#         _c1 = convert_to_luigi_local_targets(o1)
+#         _c2 = convert_to_luigi_local_targets(o2)
+#         return _c1 + _c2
 
-    @WorkflowDebugger(flag=FLAGS.debug_workflow)
-    def run(self):
-        self.args['samples'] = luigi_to_raw( self.samples )
-        writeHTCondorHaddEffFiles( self.args )
+#     @WorkflowDebugger(flag=FLAGS.debug_workflow)
+#     def run(self):
+#         self.args['samples'] = luigi_to_raw( self.samples )
+#         writeHTCondorHaddEffFiles( self.args )
 
 ########################################################################
 ### WRITE HTCONDOR FILES FOR DISPLAYING CLOSURE PLOTS ##################
@@ -430,7 +430,7 @@ class WriteDAG(ForceRun):
     pEffSF     = utils.dotDict(lcfg.drawsf_params)
     pDisc      = utils.dotDict(lcfg.discriminator_params)
     pSFCalc    = utils.dotDict(lcfg.calculator_params)
-    pHaddEff   = utils.dotDict(lcfg.haddeff_params)
+    #pHaddEff   = utils.dotDict(lcfg.haddeff_params)
     pClosure   = utils.dotDict(lcfg.closure_params)
     
     pHaddHisto['tprefix']  = lcfg.modes['histos']
@@ -467,7 +467,7 @@ class WriteDAG(ForceRun):
 
         _, submUnion, _  = writeHTCondorUnionWeightsCalculatorFiles_outputs(self.pSFCalc)
 
-        _, submHaddEff, _  = writeHTCondorHaddEffFiles_outputs(self.pHaddEff)
+        #_, submHaddEff, _  = writeHTCondorHaddEffFiles_outputs(self.pHaddEff)
 
         _, submClosure, _  = writeHTCondorClosureFiles_outputs(self.pClosure)
 
@@ -478,7 +478,7 @@ class WriteDAG(ForceRun):
         self.params['jobsEffSF']         = submEffSF
         self.params['jobsDiscr']         = submDisc
         self.params['jobsUnion']         = submUnion
-        self.params['jobsHaddEff']       = submHaddEff
+        #self.params['jobsHaddEff']       = submHaddEff
         self.params['jobsClosure']       = submClosure
         writeHTCondorDAGFiles( self.params )
         
@@ -511,7 +511,7 @@ class SubmitDAG(ForceRun):
                  WriteHTCondorEfficienciesAndScaleFactorsFiles(),
                  WriteHTCondorDiscriminatorFiles(),
                  WriteHTCondorUnionWeightsCalculatorFiles(),
-                 WriteHTCondorHaddEffFiles( samples=lcfg._selected_mc_processes ),
+                 #WriteHTCondorHaddEffFiles( samples=lcfg._selected_mc_processes ),
                  WriteHTCondorClosureFiles(),
                  WriteDAG(),
                 ]

@@ -5,8 +5,6 @@ import os
 import argparse
 
 from utils.utils import (
-  generateTriggerCombinations,
-  joinNameTriggerIntersection as joinNTC,
   setPureInputNamespace,
 )
 
@@ -44,11 +42,14 @@ def writeHTCondorClosureFiles(args):
     #### Write shell executable (python scripts must be wrapped in shell files to run on HTCondor)
     command =  ( '{prog} --indir_ref {inref} '.format(prog=prog, inref=args.indir_ref)
                  + '--indir_union {inunion} '.format(inunion=args.outdir)
+                 + '--mc_processes {procs} '.format(procs=' '.join(args.mc_processes))
                  + '--outdir {outdir} '.format(outdir=args.outdir)
+                 + '--inprefix {inprefix} '.format(inprefix=args.inprefix)
                  + '--channel ${1} '
                  + '--variables {variables} '.format(variables=' '.join(args.variables))
                  + '--triggers {triggers} '.format(triggers=' '.join(args.triggers))
                  + '--subtag {subtag} '.format(subtag=args.subtag)
+                 + '--binedges_fname {be} '.format(be=args.binedges_filename)
                 )
     
     if args.debug:
@@ -69,7 +70,6 @@ def writeHTCondorClosureFiles(args):
     #### Write submission file
     queue = 'short'
     queuevar = 'channel'
-    triggercomb = generateTriggerCombinations(args.triggers)
     with open(outs_submit, 'w') as s:
         s.write('Universe = vanilla\n')
         s.write('Executable = {}\n'.format(outs_job))

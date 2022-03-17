@@ -61,6 +61,27 @@ class dotDict(dict):
     __setattr__ = dict.__setitem__
     __delattr__ = dict.__delitem__
 
+def find_bin(edges, value, var):
+    """
+    Find the bin id corresponding to one value, given the bin edges.
+    Bin 0 stands for underflow.
+    """
+    binid = np.digitize(value, edges)
+    if binid == len(edges):
+        binid -= 1 # include overflow
+
+    # check for out-of-bounds
+    if binid==0:
+        print(binid, value, var)
+        print(edges, len(edges))
+        print( '[{}] WARNING: This should never happen in production code. '
+               'Are you sure the binning is well defined?'.format(os.path.basename(__file__)) )
+        binid = 1
+    elif binid>len(edges):
+        raise ValueError('[{}] WARNING: This cannot happen in production code.')
+
+    return binid
+
 def generateTriggerCombinations(trigs):
     """Set all possible trigger combinations of intersections with any number of elements"""
     return list( it.chain.from_iterable(it.combinations(trigs, x)
@@ -166,7 +187,7 @@ class LeafManager():
                 print(self.error_prefix + m)
                 self.absent_leaves.add(leaf)
             return 0.
-          
+
 def load_binning(afile, key, variables, channels):
     """
     Load the Binning stored in a previous task.
@@ -256,19 +277,6 @@ def rewriteCutString(oldstr, newstr, regex=False):
     
     res = oldstr.replace(_placeholder_cuts, '_CUTS_'+newstr)
     return res
-
-def restoreBinning(afile, channels, variables, subtag):
-    """Restore the binning saved by the worflow"""
-    binedges, nbins = ({} for _ in range(2))
-    with h5py.File(afile, 'r') as f:
-        group = f[subtag]
-        for var in variables:
-            subgroup = group[var]
-            binedges[var], nbins[var] = ({} for _ in range(2))
-            for chn in channels:
-                binedges[var][chn] = subgroup[chn][:]
-                nbins[var][chn] = len(binedges[var][chn]) - 1
-    return binedges, nbins
 
 def setPureInputNamespace(func):
     """

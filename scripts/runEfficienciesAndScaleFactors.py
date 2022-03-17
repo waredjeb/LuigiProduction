@@ -398,8 +398,7 @@ def runEfficienciesAndScaleFactors(indir, outdir,
                                                                           subtag,
                                                                           draw_independent_MCs)
   
-  binedges, nbins = restoreBinning(binedges_filename, channels,
-                                   variables, subtag)
+  binedges, nbins = load_binning(binedges_filename, subtag, channels, variables)
   
   dv = len(args.variables)
   dc = len(args.channels) * dv

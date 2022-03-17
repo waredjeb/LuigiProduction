@@ -21,20 +21,20 @@ def writeHTCondorUnionWeightsCalculatorFiles_outputs(args):
     out_jobs, out_submit, out_check = ([] for _ in range(3))
     base_dir = os.path.join(args.localdir, 'jobs', args.tag)
     
-    jobDir = os.path.join(base_dir, 'submission')
-    os.system('mkdir -p {}'.format(jobDir))
+    jobdir = os.path.join(base_dir, 'submission')
+    os.system('mkdir -p {}'.format(jobdir))
 
-    checkDir = os.path.join(base_dir, 'outputs', 'UnionWeightsCalculator')
-    os.system('mkdir -p {}'.format(checkDir))
+    checkdir = os.path.join(base_dir, 'outputs', 'UnionWeightsCalculator')
+    os.system('mkdir -p {}'.format(checkdir))
 
     name = 'jobUnionWeightsCalculator_{}.{}'
     check_name = 'UnionWeightsCalculator_C$(Cluster)P$(Process).o'
 
     for proc in args.mc_processes:
-        out_jobs.append( os.path.join(jobDir, name.format(proc, 'sh')) )
-        out_submit.append( os.path.join(jobDir, name.format(proc, 'condor')) )
+        out_jobs.append( os.path.join(jobdir, name.format(proc, 'sh')) )
+        out_submit.append( os.path.join(jobdir, name.format(proc, 'condor')) )
 
-        check_dir_proc = os.path.join(checkDir, proc)
+        check_dir_proc = os.path.join(checkdir, proc)
         os.system('mkdir -p {}'.format(check_dir_proc))
         out_check.append( os.path.join(check_dir_proc, check_name) )
 
@@ -69,7 +69,7 @@ def writeHTCondorUnionWeightsCalculatorFiles(args):
                      + '--subtag {subtag} '.format(subtag=args.subtag)
                      + '--data_name {dataname} '.format(dataname=args.data_name)
                      + '--mc_name {mcname} '.format(mcname=args.mc_name)
-                     + '--binedges_fname {be} '.format(be=args.binedges_filename)
+                     + '--binedges_fname {be}'.format(be=args.binedges_filename)
                     )
 
         if args.debug:
@@ -109,35 +109,3 @@ def writeHTCondorUnionWeightsCalculatorFiles(args):
             s.write(')\n')
 
     # os.system('condor_submit -name llrt3condor {}'.format(submFile))
-
-# # -- Parse options
-# if __name__ == '__main__':
-#     parser = argparse.ArgumentParser(description='Command line parser')
-
-#     parser.add_argument('--binedges_filename', dest='binedges_filename', required=True, help='where the bin edges are stored')
-#     parser.add_argument('--localdir',         dest='localdir',         default=os.getcwd(),
-#                         help='out directory')
-#     parser.add_argument('--indir_root', dest='indir', required=True, help='in directory')
-#     parser.add_argument('--indir_json', help='Input directory where discriminator JSON files are stored',
-#                         required=True)
-#     parser.add_argument('--indir_eff', help='Input directory where intersection efficiencies are stored',
-#                         required=True)
-#     parser.add_argument('--outdir_plots', dest='outdir_plots', required=True, help='out directory')
-#     parser.add_argument('--outdir_root', dest='outdir_root', required=True, help='out directory')
-#     parser.add_argument('--outprefix', dest='outprefix', required=True, help='Out histos prefix.')
-#     parser.add_argument('--tag',        dest='tag',              required=True, help='tag')
-#     parser.add_argument('--subtag',           dest='subtag',           required=True, help='subtag')
-#     parser.add_argument('--mc_processes', dest='mc_processes', required=True, nargs='+', type=str,
-#                         help='list of MC process names')                
-#     parser.add_argument('--data_name', dest='data_name', required=True, help='Data sample name')
-#     parser.add_argument('--mc_name', dest='mc_name', required=True, help='MC sample name')
-#     parser.add_argument('--channels',   dest='channels',         required=True, nargs='+', type=str,
-#                         help='Select the channels over which the workflow will be run.' )
-#     parser.add_argument('--triggers',         dest='triggers',         required=True, nargs='+', type=str,
-#                         help='Select the triggers over which the workflow will be run.' )
-#     parser.add_argument('--variables',        dest='variables',        required=True, nargs='+', type=str,
-#                         help='Select the variables over which the workflow will be run.' )
-#     parser.add_argument('--debug', action='store_true', help='debug verbosity')
-#     args = parser.parse_args()
-
-#     submitTriggerEff( args )
