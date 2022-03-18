@@ -35,17 +35,69 @@ from luigi_conf import (
     _variables_unionweights,
 )
 
-def draw_single_eff(indir_union, indir_ref, channel, var, trig,
-                    nbins, edges,
-                    eff_names, prof_names, subtag, debug):
+def get_ref_2Dhisto( indir_union, indir_eff, channel, var,
+                     nbins, edges, prefix, data_name, mc_name,
+                     subtag, debug ):
+    globfiles = []
+    for proc in args.mc_processes:
+        name_mc = os.path.join(indir_union, proc, prefix + '*' + subtag + '.hdf5')
+        globfiles.extend( glob.glob(name_mc) )
+
+    nbins_eff = nbins
+    values = {}
+    for i in range(nbins):
+        values[str(i)] = []
+
+    for globf in globfiles:
+        indata = h5py.File(globf, mode='r')
+        for i in range(nbins):
+            values[str(i)].extend( indata[channel][var][str(i)]['ref_prob_ratios'][:] )
+
+    # Check f everything is empty
+    flag = True
+    for i in range(nbins):
+        flag = flag and len(values[str(i)])==0
+    if flag:
+        return False
+        
+    if args.debug:
+        print('MC Name: ', hname_mc)
+    
+    # get Y max and min edges
+    ymax, ymin = -1., 2.
+    for i in range(nbins):
+        if len(values[str(i)]) > 0:
+            if max(values[str(i)]) > ymax:
+                ymax = max(values[str(i)])
+            if min(values[str(i)]) < ymin:
+                ymin = min(values[str(i)])
+
+    histo_name = prefix + '_' + channel + '_' + var + '_ref'
+    eff2D_mc = TH2D( histo_name,
+                     histo_name,
+                     nbins, edges[0], edges[-1],
+                     nbins_eff, ymin, ymax)
+    for ix in range(nbins):
+        yvals = values[str(ix)]
+        if len(yvals)>0:
+            fake_xval = (edges[ix]+edges[ix+1])/2 #used only for filling the correct bin
+            for yval in yvals:
+                eff2D_mc.Fill(fake_xval, yval)
+
+    return eff2D_mc
+
+
+def draw_single_eff( ref_histo, indir_union, indir_eff, channel, var, trig,
+                     nbins, edges, prefix, data_name, mc_name,
+                     eff_names, prof_names, subtag, debug ):
     #potentially many MC processes
 
     globfiles = []
     for proc in args.mc_processes:
-        name_mc = os.path.join(indir_union, proc, args.inprefix + '*' + subtag + '.hdf5')
+        name_mc = os.path.join(indir_union, proc, prefix + '*' + subtag + '.hdf5')
         globfiles.extend( glob.glob(name_mc) )
 
-    nbins_eff = 6
+    nbins_eff = nbins
     values = {}
     for i in range(nbins):
         values[str(i)] = []
@@ -62,10 +114,9 @@ def draw_single_eff(indir_union, indir_ref, channel, var, trig,
     if flag:
         return False
         
-    hname_mc = get_histo_names('Ref1D')(channel, var)
     if args.debug:
         print('MC Name: ', hname_mc)
-
+    
     # get Y max and min edges
     ymax, ymin = -1., 2.
     for i in range(nbins):
@@ -75,8 +126,8 @@ def draw_single_eff(indir_union, indir_ref, channel, var, trig,
             if min(values[str(i)]) < ymin:
                 ymin = min(values[str(i)])
 
-    histo_name = args.inprefix + '_' + channel + '_' + var + '_' + trig
-    eff2D_mc = TH2D( histo_name,
+    histo_name = prefix + '_' + channel + '_' + var + '_' + trig
+    weights2D_mc = TH2D( histo_name,
                      histo_name,
                      nbins, edges[0], edges[-1],
                      nbins_eff, ymin, ymax)
@@ -85,7 +136,10 @@ def draw_single_eff(indir_union, indir_ref, channel, var, trig,
         if len(yvals)>0:
             fake_xval = (edges[ix]+edges[ix+1])/2 #used only for filling the correct bin
             for yval in yvals:
-                eff2D_mc.Fill(fake_xval, yval)
+                weights2D_mc.Fill(fake_xval, yval)
+
+    eff2D_mc = weights2D_mc.Clone('eff2D')
+    eff2D_mc.Divide(ref_histo)
 
     if debug:
         print('[=debug=] Plotting...')  
@@ -106,11 +160,12 @@ def draw_single_eff(indir_union, indir_ref, channel, var, trig,
     eff2D_mc.SetMarkerStyle(20)
     eff2D_mc.Draw('colz')
 
-    lX, lY, lYstep = 0.25, 0.84, 0.1
+    lX, lY, lYstep = 0.11, 0.95, 0.03
     l = TLatex()
     l.SetNDC()
     l.SetTextFont(72)
     l.SetTextColor(1)
+    l.SetTextSize(0.03)
     l.DrawLatex( lX, lY,        'Channel: '+channel)
     l.DrawLatex( lX, lY-lYstep, 'Trigger: '+trig)
 
@@ -120,20 +175,96 @@ def draw_single_eff(indir_union, indir_ref, channel, var, trig,
     #################################################################
     ############## DRAW PROFILES ####################################
     #################################################################
+    draw_options = 'ap'
     prof_canvas = TCanvas( prof_canvas_name, prof_canvas_name, 600, 600 )
     prof_canvas.cd()
 
-    prof_canvas = TCanvas( eff_canvas_name, eff_canvas_name, 600, 600 )
+    prof_canvas = TCanvas( eff_canvas_name + '2', eff_canvas_name + '2', 600, 600 )
     prof_canvas.cd()
-    eff_prof = eff2D_mc.ProfileX()
-    eff_prof.SetLineColor(1)
+    eff_prof = eff2D_mc.ProfileX(prof_canvas_name + '_prof', 1, -1, '')
+
+    eff1D_name = prefix + data_name + '_' + mc_name + '_' + channel + '_' + var + '_' + trig + subtag + '*root'    
+    eff1D_name = os.path.join(args.indir_eff, channel, var, eff1D_name)
+    glob_name = glob.glob(eff1D_name)
+    assert len(glob_name) > 0
+    # CHANGE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    eff1D_name = min(glob_name, key=len) #select the shortest string (NoCut)
+    eff1D_file = TFile.Open(eff1D_name)
+
+    eff1D_data = get_root_object('Data', eff1D_file)
+    eff1D_mc = get_root_object('MC', eff1D_file)
+
+    eff_prof.GetYaxis().SetTitle('Efficiency')
+    eff_prof.GetXaxis().SetTitle(var)
+    #eff_prof.GetXaxis().SetLabelOffset(1)
+    eff_prof.GetYaxis().SetTitleSize(0.04)
+    eff_prof.GetYaxis().SetTitleOffset(1.05)
+    eff_prof.GetXaxis().SetLabelSize(0.03)
+    eff_prof.GetYaxis().SetLabelSize(0.03)
+    eff_prof.SetLineColor(ROOT.kGreen+3)
     eff_prof.SetLineWidth(2)
-    eff_prof.SetMarkerColor(1)
+    eff_prof.SetMarkerColor(ROOT.kGreen+3)
     eff_prof.SetMarkerSize(1.3)
     eff_prof.SetMarkerStyle(20)
 
+    def get_graph_max_min(graph, npoints, prof):
+        vmax, vmin = 0, 1e10
+        for point in range(npoints):
+            if prof:
+                val = graph.GetBinContent(point+1)
+            else:
+                val = graph.GetPointY(point)
+            if val > vmax:
+                vmax = val
+            if val < vmin:
+                vmin = val
+        return vmax, vmin
+
+    max1, min1 = get_graph_max_min(eff_prof,   nbins, True)
+    max2, min2 = get_graph_max_min(eff1D_data, nbins, False)
+    max3, min3 = get_graph_max_min(eff1D_mc,    nbins, False)
+    prof_max = max([ max1, max2, max3 ])
+    prof_min = min([ min1, min2, min3 ])
+    eff_prof.SetMaximum(prof_max+0.3*(prof_max-prof_min))
+    eff_prof.SetMinimum(prof_min-0.1*(prof_max-prof_min))
+    eff_prof.Draw()
+
+    eff1D_data.GetYaxis().SetTitleSize(0.04)
+    eff1D_data.GetXaxis().SetLabelSize(0.03)
+    eff1D_data.GetYaxis().SetLabelSize(0.03)
+    eff1D_data.SetLineColor(ROOT.kBlack)
+    eff1D_data.SetLineWidth(2)
+    eff1D_data.SetMarkerColor(ROOT.kBlack)
+    eff1D_data.SetMarkerSize(1.3)
+    eff1D_data.SetMarkerStyle(20)
+    eff1D_data.SetMaximum(1.1)
+    eff1D_data.Draw('p same')
+
+    eff1D_mc.GetYaxis().SetTitleSize(0.04)
+    eff1D_mc.GetXaxis().SetLabelSize(0.03)
+    eff1D_mc.GetYaxis().SetLabelSize(0.03)
+    eff1D_mc.SetLineColor(ROOT.kRed)
+    eff1D_mc.SetLineWidth(2)
+    eff1D_mc.SetMarkerColor(ROOT.kRed)
+    eff1D_mc.SetMarkerSize(1.3)
+    eff1D_mc.SetMarkerStyle(20)
+    eff1D_mc.SetMaximum(1.1)
+    eff1D_mc.Draw('p same')
+
     l.DrawLatex( lX, lY,        'Channel: '+channel)
     l.DrawLatex( lX, lY-lYstep, 'Trigger: '+trig)
+
+    leg = TLegend(0.62, 0.79, 0.96, 0.89)
+    leg.SetFillColor(0)
+    leg.SetShadowColor(0)
+    leg.SetBorderSize(0)
+    leg.SetTextSize(0.035)
+    leg.SetFillStyle(0)
+    leg.SetTextFont(42)
+    leg.AddEntry(eff_prof, 'MC weighted', 'p')
+    leg.AddEntry(eff1D_data, 'Data', 'p')
+    leg.AddEntry(eff1D_mc, 'MC', 'p')
+    leg.Draw('same')
 
     for aname in prof_names:
       prof_canvas.SaveAs( aname )
@@ -152,7 +283,7 @@ def _get_plot_name(chn, var, trig, subtag, isprofile):
     return n
 
 #@setPureInputNamespace
-def runClosure_outputs(outdir, channel, variables, triggers, subtag):
+def run_closure_outputs(outdir, channel, variables, triggers, subtag):
   outputs = [[] for _ in range(len(_extensions[:-1]))]
   outdict = {} #redundant but convenient
   
@@ -178,40 +309,51 @@ def runClosure_outputs(outdir, channel, variables, triggers, subtag):
   #join all outputs in the same list
   return sum(outputs, []), outdict
 
-def runClosure(indir_union, indir_ref,
-               outdir,
-               channel,
-               variables,
-               triggers,
-               subtag,
-               debug):
+def run_closure(indir_union, indir_eff,
+                outdir,
+                channel,
+                variables,
+                triggers,
+                subtag,
+                prefix,
+                data_name,
+                mc_name,
+                debug):
     ROOT.gStyle.SetOptStat(0)
     ROOT.gStyle.SetOptTitle(0)
 
-    _, outs = runClosure_outputs(outdir, channel, variables, triggers, subtag)
+    _, outs = run_closure_outputs(outdir, channel, variables, triggers, subtag)
 
     edges, nbins = load_binning(afile=args.binedges_fname, key=args.subtag,
                                 variables=args.variables, channels=[channel])
 
     for ivar,var in enumerate(_variables_unionweights):
+        refhisto = get_ref_2Dhisto( ref_histo, indir_union, indir_eff, channel, var,
+                                    nbins[var][channel], edges[var][channel], prefix,
+                                    data_name, mc_name,
+                                    subtag, debug )
+
         for itrig,trig in enumerate(triggers):
             eff_names  = [ outs[var][trig][x]['eff']  for x in _extensions[:-1] ]
             prof_names = [ outs[var][trig][x]['prof'] for x in _extensions[:-1] ]
 
-            draw_single_eff( indir_union, indir_ref, channel, var, trig,
-                             nbins[var][channel], edges[var][channel],
+            draw_single_eff( ref_histo, indir_union, indir_eff, channel, var, trig,
+                             nbins[var][channel], edges[var][channel], prefix,
+                             data_name, mc_name,
                              eff_names, prof_names,
                              subtag, debug )
 
 parser = argparse.ArgumentParser(description='Draw trigger scale factors')
 
 parser.add_argument('--binedges_fname', dest='binedges_fname', required=True, help='where the bin edges are stored')
-parser.add_argument('--indir_ref', required=True,
-                    help='Input directory for data reference efficiencies')
+parser.add_argument('--indir_eff', required=True,
+                    help='Input directory for data and unweighted MC efficiencies')
 parser.add_argument('--indir_union', required=True,
                     help='Input directory for MC corrected efficiencies')
 parser.add_argument('--inprefix', dest='inprefix', required=True,
                     help='Closure data prefix.')
+parser.add_argument('--eff_prefix', dest='eff_prefix', required=True,
+                    help='Data and unweighted MC efficiencies prefix.')
 parser.add_argument('--mc_processes', dest='mc_processes', required=True, nargs='+', type=str,
                     help='Different MC processes considered.')
 parser.add_argument('--outdir', help='Output directory', required=True, )
@@ -222,10 +364,15 @@ parser.add_argument('--variables', dest='variables', required=True, nargs='+', t
 parser.add_argument('--triggers', dest='triggers', required=True, nargs='+', type=str,
                     help='Select the triggers over which the workflow will be run.' )
 parser.add_argument('--subtag', dest='subtag', required=True, help='subtag')
+parser.add_argument('--data_name', dest='data_name', required=True, help='Data sample name')
+parser.add_argument('--mc_name', dest='mc_name', required=True, help='MC sample name')
+
 parser.add_argument('--debug', action='store_true', help='debug verbosity')
 args = parser.parse_args()
 
-runClosure(args.indir_union, args.indir_ref,
-           args.outdir,
-           args.channel, args.variables, args.triggers,
-           args.subtag, args.debug)
+run_closure( args.indir_union, args.indir_eff,
+             args.outdir,
+             args.channel, args.variables, args.triggers,
+             args.subtag, args.eff_prefix,
+             args.data_name, args.mc_name,
+             args.debug )

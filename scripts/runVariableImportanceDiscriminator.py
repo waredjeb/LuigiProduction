@@ -20,8 +20,13 @@ def discriminator(args, chn):
     result = {}
 
     triggercomb = generateTriggerCombinations(args.triggers)
+    constant_list = ['dau1_pt', 'dau1_eta', 'dau2_pt', 'dau2_eta']
     for tcomb in triggercomb:
-        result[joinNTC(tcomb)] = ['dau1_pt', 'dau1_eta'] #CHANGE!!!!!!!!!!!!!!!!!!!
+        # CHANGE!!!!!!!!!!!!!!!!!!!
+        result[joinNTC(tcomb)] = [ constant_list, #always the same 1D variables
+                                   [], #1D changing variables
+                                   [], #2D pairs of changing variables
+                                  ]
 
     return result
 
@@ -37,6 +42,7 @@ def discriminatorExecutor(args, chn):
 
     out = discriminatorExecutor_outputs(args, chn)
     ordered_vars = discriminator(args, chn)
+
     with open(out, 'w') as f:
         json.dump(ordered_vars, f)
 

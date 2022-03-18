@@ -35,7 +35,7 @@ from luigi_conf import (
     _variables_unionweights,
 )
 
-def effExtractor(args, chn, effvars, nbins):
+def eff_extractor(args, chn, effvars, nbins):
     """
     Extracts the efficiencies for data and MC to be used as scale factors
     Returns a dictionary with al efficiencies.
@@ -46,43 +46,50 @@ def effExtractor(args, chn, effvars, nbins):
     triggercomb = generateTriggerCombinations(args.triggers)
     for tcomb in triggercomb:
         tcstr = joinNTC(tcomb)
-        comb_vars = effvars[tcstr]
-        assert len(comb_vars)==2
-        var = comb_vars[0]
-        
-        in_base_name = ( 'trigSF_' + args.data_name + '_' + args.mc_name + '_' +
-                       chn + '_' + var + '_' + tcstr + args.subtag + '_CUTS*.root' )
-        in_name = os.path.join(args.indir_eff, chn, var, in_base_name)
-        glob_name = glob.glob(in_name)
+        comb_vars = effvars[tcstr][0]
+        assert len(comb_vars)==4
 
-        if len(glob_name) != 0: #some triggers do not fire for some channels: Ele32 for mutau (for example)
-            efficiencies_data[tcstr] = []
-            efficiencies_data_elow[tcstr] = []
-            efficiencies_data_ehigh[tcstr] = []
-            efficiencies_mc[tcstr] = []
-            efficiencies_mc_elow[tcstr] = []
-            efficiencies_mc_ehigh[tcstr] = []
+        for var in comb_vars:        
+            in_base_name = ( args.inprefix + args.data_name + '_' + args.mc_name + '_' +
+                             chn + '_' + var + '_' + tcstr + args.subtag + '_CUTS*.root' )
+            in_name = os.path.join(args.indir_eff, chn, var, in_base_name)
+            glob_name = glob.glob(in_name)
 
-            # CHANGE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            in_file_name = min(glob_name, key=len) #select the shortest string (NoCut)
+            if len(glob_name) != 0: #some triggers do not fire for some channels: Ele32 for mutau (for example)
+                efficiencies_data.setdefault(tcstr, {})
+                efficiencies_data[tcstr][var] = []
+                efficiencies_data_elow.setdefault(tcstr, {})
+                efficiencies_data_elow[tcstr][var] = []
+                efficiencies_data_ehigh.setdefault(tcstr, {})
+                efficiencies_data_ehigh[tcstr][var] = []
 
-            in_file = TFile.Open(in_file_name, 'READ')
-            key_list = TIter(in_file.GetListOfKeys())
-            for key in key_list:
-                obj = key.ReadObj()
-                assert(nbins[var][chn] == obj.GetN())
-                if obj.GetName() == 'Data':
-                    for datapoint in range(obj.GetN()):
-                        efficiencies_data[tcstr].append( obj.GetPointY(datapoint) )
-                        efficiencies_data_elow[tcstr].append( obj.GetErrorYlow(datapoint) )
-                        efficiencies_data_ehigh[tcstr].append( obj.GetErrorYhigh(datapoint) )               
-                elif obj.GetName() == 'MC':
-                    for datapoint in range(obj.GetN()):
-                        efficiencies_mc[tcstr].append( obj.GetPointY(datapoint) )
-                        efficiencies_mc_elow[tcstr].append( obj.GetErrorYlow(datapoint) )
-                        efficiencies_mc_ehigh[tcstr].append( obj.GetErrorYhigh(datapoint) )
-            assert len(efficiencies_data[tcstr]) != 0
-            assert len(efficiencies_mc[tcstr]) != 0
+                efficiencies_mc.setdefault(tcstr, {})
+                efficiencies_mc[tcstr][var] = []
+                efficiencies_mc_elow.setdefault(tcstr, {})
+                efficiencies_mc_elow[tcstr][var] = []
+                efficiencies_mc_ehigh.setdefault(tcstr, {})
+                efficiencies_mc_ehigh[tcstr][var] = []
+                
+                # CHANGE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                in_file_name = min(glob_name, key=len) #select the shortest string (NoCut)
+
+                in_file = TFile.Open(in_file_name, 'READ')
+                key_list = TIter(in_file.GetListOfKeys())
+                for key in key_list:
+                    obj = key.ReadObj()
+                    assert(nbins[var][chn] == obj.GetN())
+                    if obj.GetName() == 'Data':
+                        for datapoint in range(obj.GetN()):
+                            efficiencies_data[tcstr][var].append( obj.GetPointY(datapoint) )
+                            efficiencies_data_elow[tcstr][var].append( obj.GetErrorYlow(datapoint) )
+                            efficiencies_data_ehigh[tcstr][var].append( obj.GetErrorYhigh(datapoint) )               
+                    elif obj.GetName() == 'MC':
+                        for datapoint in range(obj.GetN()):
+                            efficiencies_mc[tcstr][var].append( obj.GetPointY(datapoint) )
+                            efficiencies_mc_elow[tcstr][var].append( obj.GetErrorYlow(datapoint) )
+                            efficiencies_mc_ehigh[tcstr][var].append( obj.GetErrorYhigh(datapoint) )
+                assert len(efficiencies_data[tcstr][var]) != 0
+                assert len(efficiencies_mc[tcstr][var]) != 0
 
     return ( (efficiencies_data, efficiencies_data_ehigh, efficiencies_data_elow),
              (efficiencies_mc,   efficiencies_mc_ehigh,   efficiencies_mc_elow) )
@@ -98,7 +105,8 @@ def prob_calculator(efficiencies, effvars, leaf_manager, channel, triggers, bine
     Detect Assoc Equip. 2009;604(3):707-718.
     doi:10.1016/j.nima.2009.03.173
     """
-    prob_data, prob_mc = (0 for _ in range(2))
+    nweight_vars = 4 #dau1_pt, dau1_eta, dau2_pt, dau2_eta
+    prob_data, prob_mc = ([0 for _ in range(nweight_vars)] for _ in range(2))
 
     triggercomb = generateTriggerCombinations(triggers)
     for tcomb in triggercomb:
@@ -109,22 +117,24 @@ def prob_calculator(efficiencies, effvars, leaf_manager, channel, triggers, bine
 
         #some triggers do not fire for some channels: Ele32 for mutau (for example)
         if joincomb in efficiencies[0][0]:
-            variables = effvars[joincomb]
+            variables = effvars[joincomb][0] #constant 1D variables, check [1] and [2] for changing ones
             values = [ leaf_manager.getLeaf(x) for x in variables ]
-            assert len(variables) == 2 #Change according to the variable discriminator
+            assert len(variables) == 4 #Change according to the variable discriminator
+            assert len(variables) == nweight_vars
 
-            # The following is 1D only CHANGE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            binid = find_bin(binedges[variables[0]][channel], values[0], variables[0])
+            for iw,weightvar in enumerate(variables):
+                # The following is 1D only CHANGE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                binid = find_bin(binedges[weightvar][channel], values[iw], weightvar)
 
-            term_data = efficiencies[0][0][joinNTC(tcomb)][binid-1]
-            term_mc   = efficiencies[1][0][joinNTC(tcomb)][binid-1]
+                term_data = efficiencies[0][0][joinNTC(tcomb)][weightvar][binid-1]
+                term_mc   = efficiencies[1][0][joinNTC(tcomb)][weightvar][binid-1]
 
-            if len(tcomb)%2==0:
-                prob_data -= term_data
-                prob_mc   -= term_mc
-            else:
-                prob_data += term_data
-                prob_mc   += term_mc
+                if len(tcomb)%2==0:
+                    prob_data[iw] -= term_data
+                    prob_mc[iw]   -= term_mc
+                else:
+                    prob_data[iw] += term_data
+                    prob_mc[iw]   += term_mc
 
     return prob_data, prob_mc
 
@@ -161,13 +171,12 @@ def runUnionWeightsCalculator(args):
     lfm = LeafManager(fname, t_in)
 
     outdata = h5py.File(output, mode='w')
-    prob_ratios = {}
+    prob_ratios, ref_prob_ratios = ({} for _ in range(2))
     effvars = {}
     efficiencies = {}
     for chn in args.channels:
-        #h_single_eff[chn] = {}
         outdata.create_group(chn)
-        prob_ratios[chn] = {}
+        prob_ratios[chn], ref_prob_ratios[chn] = ({} for _ in range(2))
         
         # load efficiency variables obtained previously
         json_name = os.path.join(args.indir_json,
@@ -176,42 +185,26 @@ def runUnionWeightsCalculator(args):
             effvars[chn] = json.load(f)
 
         # load efficiencies
-        efficiencies[chn] = effExtractor(args, chn, effvars[chn], nbins)
-
-        # nbins_eff, eff_low, eff_high = 20, 0., 1.
+        efficiencies[chn] = eff_extractor(args, chn, effvars[chn], nbins)
         
-        # # initialize histograms
+        # initialization
         for var in _variables_unionweights:
-            #h_single_eff[chn][var] = {}
             outdata[chn].create_group(var)
             prob_ratios[chn][var] = {}
-            #var_low, var_high = binedges[var][chn][0], binedges[var][chn][-1]
-            for trig in args.triggers:
-                outdata[chn][var].create_group(trig)
-                prob_ratios[chn][var][trig] = {}
-                for ibin in range(nbins[var][chn]):
-                    outdata[chn][var][trig].create_group(str(ibin))
-                    prob_ratios[chn][var][trig][str(ibin)] = []
-                #name = var + '_' + chn + '_' + trig
-                #h_single_eff[chn][var][trig] = TH2D(name, name,
-                #                                    nbins[var][chn], var_low, var_high,
-                #                                    nbins_eff, eff_low, eff_high)
-
-    # # initialize histograms
-    # h_single_eff = {}
-    # nbins_eff = 20
-    # for chn in args.channels:
-    #     h_single_eff[chn] = {}
-    #     for var in _variables_unionweights:
-    #         h_single_eff[chn][var] = {}
-    #         var_low, var_high = binedges[var][chn][0], binedges[var][chn][-1]
-    #         for trig in args.triggers:
-    #             name = var + '_' + chn + '_' + trig
-    #             eff_low  = unionedges[chn][trig]['low']
-    #             eff_high = unionedges[chn][trig]['high']
-    #             h_single_eff[chn][var][trig] = TH2D(name, name,
-    #                                                 nbins[var][chn], var_low, var_high,
-    #                                                 nbins_eff, eff_low, eff_high)
+            ref_prob_ratios[chn][var] = {}
+            for weightvar in effvars[chn][generateTriggerCombinations(args.triggers)[0][0]][0]: #any trigger works for the constant list
+                outdata[chn][var].create_group(weightvar)
+                prob_ratios[chn][var][weightvar] = {}
+                ref_prob_ratios[chn][var][weightvar] = {}
+                for trig in args.triggers:
+                    outdata[chn][var][weightvar].create_group(trig)
+                    prob_ratios[chn][var][weightvar][trig] = {}
+                    for ibin in range(nbins[var][chn]):
+                        if trig==args.triggers[0]: #reference
+                            outdata[chn][var][weightvar].create_group(str(ibin))
+                        outdata[chn][var][weightvar][trig].create_group(str(ibin))
+                        prob_ratios[chn][var][weightvar][trig][str(ibin)] = []
+                        ref_prob_ratios[chn][var][weightvar].setdefault(str(ibin), [])
 
     # event loop; building scale factor 2D maps
     for entry in range(0,t_in.GetEntries()):
@@ -233,31 +226,31 @@ def runUnionWeightsCalculator(args):
                                                  args.triggers,
                                                  binedges)
 
+            prob_ratio = []
+            for pd,pm in zip(prob_data,prob_mc): #loop over weight variables: dau1_pt, dau1_eta, dau2_pt, dau2_eta
+                prob_ratio.append( pd/pm )
+            assert len(effvars[chn][generateTriggerCombinations(args.triggers)[0][0]][0]) == len(prob_ratio)
+            
             for var in _variables_unionweights:
                 val = lfm.getLeaf(var)
-                for trig in args.triggers:
-                    ptb = pass_trigger_bits(trig, trig_bit, run, isdata=False)
-                    if ptb:
-                        binid = find_bin(binedges[var][chn], val, var)
-                        prob_ratio = prob_data/prob_mc
-                        prob_ratios[chn][var][trig][str(binid-1)].append(prob_ratio                        )
-                        #h_single_eff[chn][var][trig].Fill(val, prob_data / prob_mc )
-                    #print(ptb, chn, var, trig, val, prob_data / prob_mc)
+                binid = find_bin(binedges[var][chn], val, var)
+                for iw,weightvar in enumerate(effvars[chn][generateTriggerCombinations(args.triggers)[0][0]][0]): #any trigger works for the constant list
+                    ref_prob_ratios[chn][var][weightvar][str(binid-1)].append(prob_ratio[iw])
+                    for trig in args.triggers:
+                        ptb = pass_trigger_bits(trig, trig_bit, run, isdata=False)
+                        if ptb:
+                            prob_ratios[chn][var][weightvar][trig][str(binid-1)].append(prob_ratio[iw])
 
     for chn in args.channels:
         for var in _variables_unionweights:
-            for trig in args.triggers:
-                for ibin in range(nbins[var][chn]):
-                    outdata[chn][var][trig][str(ibin)]['prob_ratios'] = prob_ratios[chn][var][trig][str(ibin)]
+            for weightvar in effvars[chn][generateTriggerCombinations(args.triggers)[0][0]][0]: #any trigger works for the constant list
+                for trig in args.triggers:
+                    for ibin in range(nbins[var][chn]):
+                        outdata[chn][var][weightvar][trig][str(ibin)]['prob_ratios'] = prob_ratios[chn][var][weightvar][trig][str(ibin)]
+                        if trig==args.triggers[0]:
+                            outdata[chn][var][weightvar][str(ibin)]['ref_prob_ratios'] = ref_prob_ratios[chn][var][weightvar][str(ibin)]
     outdata.attrs['doc'] = ( 'Probability ratios (data/MC) and counts per bin for all'
                              ' channels, variables and triggers' )
-    # f_out = TFile(output, 'RECREATE')
-    # f_out.cd()
-    # for chn in args.channels:
-    #     for var in _variables_unionweights:
-    #         for trig in args.triggers:
-    #             h_single_eff[chn][var][trig].Write(
-    #                 get_histo_names('Closure')('Eff',chn,var,trig) )
                 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Choose the most significant variables to draw the efficiencies.')
@@ -272,6 +265,7 @@ if __name__ == '__main__':
     parser.add_argument('--sample', dest='sample', required=True, help='Process name as in SKIM directory')
     parser.add_argument('--file_name', dest='file_name', required=True, help='ID of input root file')
     parser.add_argument('--outdir', help='Output directory for ROOT files', required=True)
+    parser.add_argument('--inprefix', dest='inprefix', required=True, help='In histos prefix.')
     parser.add_argument('--outprefix', dest='outprefix', required=True, help='Out histos prefix.')
     parser.add_argument('--data_name', dest='data_name', required=True, help='Data sample name')
     parser.add_argument('--mc_name', dest='mc_name', required=True, help='MC sample name')

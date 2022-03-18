@@ -134,7 +134,11 @@ def get_root_input_files(proc, indir):
     return filelist, inputdir
 
 def get_root_object(name, afile):
-    _keys = afile.GetListOfKeys()
+    try:
+        _keys = afile.GetListOfKeys()
+    except ReferenceError:
+        print('File {} does not exist!'.format(afile))
+        raise
     if name not in _keys:
         msg =  'Wrong ROOT object name!\n'
         msg += 'File name: {}\n'.format(afile.GetName())

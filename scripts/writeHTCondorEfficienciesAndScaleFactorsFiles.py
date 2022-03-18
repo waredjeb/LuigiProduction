@@ -49,6 +49,7 @@ def writeHTCondorEfficienciesAndScaleFactorsFiles(args):
                    '--channels {channels} --variables {variables} '
                    '--binedges_filename {binedges_filename} --subtag {subtag} '
                    '--tprefix {tprefix} '
+                   '--canvas_prefix {cprefix} '
                   ).format( prog=prog, indir=args.indir, outdir=args.outdir,
                             mc_processes=' '.join(args.mc_processes,),
                             mc_name=args.mc_name, data_name=args.data_name,
@@ -57,6 +58,7 @@ def writeHTCondorEfficienciesAndScaleFactorsFiles(args):
                             subtag=args.subtag,
                             draw_independent_MCs=1 if args.draw_independent_MCs else 0,
                             tprefix=args.tprefix,
+                            cprefix=args.canvas_prefix,
                            )
                 )
 

@@ -24,9 +24,9 @@ from utils.utils import (
   getKeyList,
   get_root_object,
   get_histo_names,
+  load_binning,
   redrawBorder,
   rewriteCutString,
-  restoreBinning,
 )
 
 from luigi_conf import (
@@ -253,7 +253,7 @@ def drawEfficienciesAndScaleFactors(proc, channel, variable, trig, save_names, b
     leg.SetFillColor(0)
     leg.SetShadowColor(0)
     leg.SetBorderSize(0)
-    leg.SetTextSize(0.06)
+    leg.SetTextSize(0.04)
     leg.SetFillStyle(0)
     leg.SetTextFont(42)
 
@@ -263,7 +263,7 @@ def drawEfficienciesAndScaleFactors(proc, channel, variable, trig, save_names, b
 
     redrawBorder()
 
-    lX, lY, lYstep = 0.25, 0.84, 0.1
+    lX, lY, lYstep = 0.1, 0.84, 0.05
     l = TLatex()
     l.SetNDC()
     l.SetTextFont(72)
@@ -352,7 +352,7 @@ def _getCanvasName(proc, chn, var, trig, data_name, subtag):
       of cuts beforehand, which adds complexity with no major benefit.
     """
     add = proc + '_' + chn + '_' + var + '_' + trig
-    n = 'trigSF_' + data_name + '_' + add + subtag
+    n = args.canvas_prefix + data_name + '_' + add + subtag
     n += _placeholder_cuts
     return n
 
@@ -398,7 +398,7 @@ def runEfficienciesAndScaleFactors(indir, outdir,
                                                                           subtag,
                                                                           draw_independent_MCs)
   
-  binedges, nbins = load_binning(binedges_filename, subtag, channels, variables)
+  binedges, nbins = load_binning(binedges_filename, subtag, variables, channels)
   
   dv = len(args.variables)
   dc = len(args.channels) * dv

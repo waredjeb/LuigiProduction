@@ -59,6 +59,7 @@ def writeHTCondorUnionWeightsCalculatorFiles(args):
                      + '--indir_json {indir_json} '.format(indir_json=args.indir_json)
                      + '--indir_eff {indir_eff} '.format(indir_eff=args.indir_eff)
                      + '--outdir {outr} '.format(outr=args.outdir)
+                     + '--inprefix {inprefix} '.format(inprefix=args.inprefix)
                      + '--outprefix {outprefix} '.format(outprefix=args.outprefix)
                      + '--sample {sample} '.format(sample=proc)
                      + '--channels {channels} '.format(channels=' '.join(args.channels,))

@@ -139,6 +139,7 @@ class cfg(luigi.Config):
     modes = {'histos': 'hist_',
              'counts': 'counts_'}
     _closure_prefix = 'Closure'
+    _sf_prefix = 'trigSF_'
 
     subtag = ( FLAGS.subtag if FLAGS.subtag==''
                else ( '_' + FLAGS.subtag if FLAGS.subtag[0] != '_' else FLAGS.subtag ) )
@@ -223,6 +224,7 @@ class cfg(luigi.Config):
                   'binedges_filename': binedges_filename,
                   'tag': tag,
                   'subtag': subtag,
+                  'canvas_prefix': _sf_prefix,
                   'intersection_str': intersection_str,
                   'nocut_dummy_str': nocut_dummy_str,
                   'debug': FLAGS.debug_workflow,} )
@@ -297,6 +299,7 @@ class cfg(luigi.Config):
                   'indir_json': data_storage,
                   'indir_eff': out_storage,
                   'outdir': data_storage,
+                  'inprefix': _sf_prefix,
                   'outprefix': _closure_prefix,
                   'data_name': FLAGS.data,
                   'mc_name': FLAGS.mc_process,
@@ -324,11 +327,14 @@ class cfg(luigi.Config):
     #### draw single efficiencies closure
     ####
     closure_params = luigi.DictParameter(
-        default={ 'binedges_filename': binedges_filename,
-                  'indir_ref': data_storage,
+        default={ 'data_name': FLAGS.data,
+                  'mc_name': FLAGS.mc_process,
+                  'binedges_filename': binedges_filename,
+                  'indir_eff': out_storage,
                   'indir_union': data_storage,
                   'outdir': data_storage,
                   'inprefix': _closure_prefix,
+                  'eff_prefix': _sf_prefix,
                   'mc_processes': _mc_processes[FLAGS.mc_process],
                   'out_weighted_prefix': _closure_prefix,
                   'out_original_prefix': modes['histos'],

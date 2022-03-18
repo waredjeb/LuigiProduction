@@ -40,7 +40,7 @@ def writeHTCondorClosureFiles(args):
     outs_job, outs_submit, outs_check = writeHTCondorClosureFiles_outputs(args)
 
     #### Write shell executable (python scripts must be wrapped in shell files to run on HTCondor)
-    command =  ( '{prog} --indir_ref {inref} '.format(prog=prog, inref=args.indir_ref)
+    command =  ( '{prog} --indir_eff {inref} '.format(prog=prog, inref=args.indir_eff)
                  + '--indir_union {inunion} '.format(inunion=args.outdir)
                  + '--mc_processes {procs} '.format(procs=' '.join(args.mc_processes))
                  + '--outdir {outdir} '.format(outdir=args.outdir)
@@ -50,6 +50,9 @@ def writeHTCondorClosureFiles(args):
                  + '--triggers {triggers} '.format(triggers=' '.join(args.triggers))
                  + '--subtag {subtag} '.format(subtag=args.subtag)
                  + '--binedges_fname {be} '.format(be=args.binedges_filename)
+                 + '--data_name {dn} '.format(dn=args.data_name)
+                 + '--mc_name {mn} '.format(mn=args.mc_name)
+                 + '--eff_prefix {effprefix} '.format(effprefix=args.eff_prefix)
                 )
     
     if args.debug:
