@@ -82,7 +82,7 @@ def find_bin(edges, value, var):
 
     return binid
 
-def generateTriggerCombinations(trigs):
+def generate_trigger_combinations(trigs):
     """Set all possible trigger combinations of intersections with any number of elements"""
     return list( it.chain.from_iterable(it.combinations(trigs, x)
                                         for x in range(1,len(trigs)+1)) )
@@ -162,7 +162,7 @@ def is_channel_consistent(chn, pairtype):
     op, val = _sel[chn]['pairType']
     return opdict[op](pairtype, val)
   
-def joinNameTriggerIntersection(tuple_element):
+def join_name_trigger_intersection(tuple_element):
     inters = '_PLUS_'
     return inters.join(tuple_element)
 

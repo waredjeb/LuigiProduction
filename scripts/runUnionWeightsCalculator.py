@@ -18,11 +18,11 @@ gROOT.SetBatch(True)
 
 from utils.utils import (
     find_bin,
-    generateTriggerCombinations,
+    generate_trigger_combinations,
     get_histo_names,
     get_root_input_files,
     is_channel_consistent,
-    joinNameTriggerIntersection as joinNTC,
+    join_name_trigger_intersection as joinNTC,
     LeafManager,
     load_binning,
     pass_any_trigger,
@@ -43,7 +43,7 @@ def eff_extractor(args, chn, effvars, nbins):
     efficiencies_data, efficiencies_data_ehigh, efficiencies_data_elow = ({} for _ in range(3))
     efficiencies_mc, efficiencies_mc_ehigh, efficiencies_mc_elow = ({} for _ in range(3)) 
     
-    triggercomb = generateTriggerCombinations(args.triggers)
+    triggercomb = generate_trigger_combinations(args.triggers)
     for tcomb in triggercomb:
         tcstr = joinNTC(tcomb)
         comb_vars = effvars[tcstr][0]
@@ -108,7 +108,7 @@ def prob_calculator(efficiencies, effvars, leaf_manager, channel, triggers, bine
     nweight_vars = 4 #dau1_pt, dau1_eta, dau2_pt, dau2_eta
     prob_data, prob_mc = ([0 for _ in range(nweight_vars)] for _ in range(2))
 
-    triggercomb = generateTriggerCombinations(triggers)
+    triggercomb = generate_trigger_combinations(triggers)
     for tcomb in triggercomb:
         joincomb = joinNTC(tcomb)
 
@@ -192,7 +192,7 @@ def runUnionWeightsCalculator(args):
             outdata[chn].create_group(var)
             prob_ratios[chn][var] = {}
             ref_prob_ratios[chn][var] = {}
-            for weightvar in effvars[chn][generateTriggerCombinations(args.triggers)[0][0]][0]: #any trigger works for the constant list
+            for weightvar in effvars[chn][generate_trigger_combinations(args.triggers)[0][0]][0]: #any trigger works for the constant list
                 outdata[chn][var].create_group(weightvar)
                 prob_ratios[chn][var][weightvar] = {}
                 ref_prob_ratios[chn][var][weightvar] = {}
@@ -229,12 +229,12 @@ def runUnionWeightsCalculator(args):
             prob_ratio = []
             for pd,pm in zip(prob_data,prob_mc): #loop over weight variables: dau1_pt, dau1_eta, dau2_pt, dau2_eta
                 prob_ratio.append( pd/pm )
-            assert len(effvars[chn][generateTriggerCombinations(args.triggers)[0][0]][0]) == len(prob_ratio)
+            assert len(effvars[chn][generate_trigger_combinations(args.triggers)[0][0]][0]) == len(prob_ratio)
             
             for var in _variables_unionweights:
                 val = lfm.getLeaf(var)
                 binid = find_bin(binedges[var][chn], val, var)
-                for iw,weightvar in enumerate(effvars[chn][generateTriggerCombinations(args.triggers)[0][0]][0]): #any trigger works for the constant list
+                for iw,weightvar in enumerate(effvars[chn][generate_trigger_combinations(args.triggers)[0][0]][0]): #any trigger works for the constant list
                     ref_prob_ratios[chn][var][weightvar][str(binid-1)].append(prob_ratio[iw])
                     for trig in args.triggers:
                         ptb = pass_trigger_bits(trig, trig_bit, run, isdata=False)
@@ -243,7 +243,7 @@ def runUnionWeightsCalculator(args):
 
     for chn in args.channels:
         for var in _variables_unionweights:
-            for weightvar in effvars[chn][generateTriggerCombinations(args.triggers)[0][0]][0]: #any trigger works for the constant list
+            for weightvar in effvars[chn][generate_trigger_combinations(args.triggers)[0][0]][0]: #any trigger works for the constant list
                 for trig in args.triggers:
                     for ibin in range(nbins[var][chn]):
                         outdata[chn][var][weightvar][trig][str(ibin)]['prob_ratios'] = prob_ratios[chn][var][weightvar][trig][str(ibin)]

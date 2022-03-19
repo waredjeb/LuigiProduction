@@ -332,6 +332,7 @@ class cfg(luigi.Config):
                   'binedges_filename': binedges_filename,
                   'indir_eff': out_storage,
                   'indir_union': data_storage,
+                  'indir_json': data_storage,
                   'outdir': data_storage,
                   'inprefix': _closure_prefix,
                   'eff_prefix': _sf_prefix,

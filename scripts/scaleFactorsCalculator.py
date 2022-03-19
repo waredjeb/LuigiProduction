@@ -11,8 +11,8 @@ ROOT.gROOT.SetBatch(True)
 from ROOT import TFile
 
 from utils.utils import (
-    generateTriggerCombinations,
-    joinNameTriggerIntersection as joinNTC,
+    generate_trigger_combinations,
+    join_name_trigger_intersection as joinNTC,
 )
 
 def discriminator(args, chn):
@@ -22,7 +22,7 @@ def discriminator(args, chn):
     """
     result = {}
 
-    triggercomb = generateTriggerCombinations(args.triggers)
+    triggercomb = generate_trigger_combinations(args.triggers)
     for tcomb in triggercomb:
         result[joinNTC(tcomb)] = 'dau1_pt' #CHANGE!!!!!!!!!!!!!!!!!!!
 

@@ -25,11 +25,11 @@ import sys
 sys.path.append( os.environ['PWD'] ) 
 
 from utils.utils import (
-    generateTriggerCombinations,
+    generate_trigger_combinations,
     get_histo_names,
     get_trigger_bit,
     is_channel_consistent,
-    joinNameTriggerIntersection as joinNTC,
+    join_name_trigger_intersection as joinNTC,
     LeafManager,
     load_binning,
     pass_any_trigger,
@@ -140,7 +140,7 @@ def get_trigger_eff_sig(indir, outdir, sample, fileName,
     binedges, nbins = load_binning(afile=binedges_fname, key=subtag,
                                    variables=variables, channels=channels)
 
-    triggercomb = generateTriggerCombinations(triggers)
+    triggercomb = generate_trigger_combinations(triggers)
     
     # Define 1D histograms:
     #  hRef: pass the reference trigger

@@ -6,8 +6,8 @@ import os
 import argparse
 
 from utils.utils import (
-  generateTriggerCombinations,
-  joinNameTriggerIntersection as joinNTC,
+  generate_trigger_combinations,
+  join_name_trigger_intersection as joinNTC,
   setPureInputNamespace,
 )
 
@@ -82,7 +82,7 @@ def writeHTCondorEfficienciesAndScaleFactorsFiles(args):
     #### Write submission file
     queue = 'short'
     queuevar = 'triggercomb'
-    triggercomb = generateTriggerCombinations(args.triggers)
+    triggercomb = generate_trigger_combinations(args.triggers)
     with open(outs_submit, 'w') as s:
         s.write('Universe = vanilla\n')
         s.write('Executable = {}\n'.format(outs_job))

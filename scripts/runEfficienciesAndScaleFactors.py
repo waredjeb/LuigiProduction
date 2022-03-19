@@ -202,7 +202,7 @@ def drawEfficienciesAndScaleFactors(proc, channel, variable, trig, save_names, b
 
     
   if debug:
-    print('[=debug=] Plotting...')  
+    print('[=debug=] Plotting...')
 
   for akey in sf:
     canvas_name = os.path.basename(save_names[0]).split('.')[0]

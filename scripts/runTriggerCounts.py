@@ -26,7 +26,7 @@ from utils.utils import (
     checkBit,
     get_trigger_bit,
     isChannelConsistent,
-    joinNameTriggerIntersection as joinNTC,
+    join_name_trigger_intersection as joinNTC,
     LeafManager,
     set_custom_trigger_bit,
 )

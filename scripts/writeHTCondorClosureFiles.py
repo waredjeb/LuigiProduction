@@ -10,27 +10,27 @@ from utils.utils import (
 
 @setPureInputNamespace
 def writeHTCondorClosureFiles_outputs(args):
-  """
-  Outputs are guaranteed to have the same length.
-  Returns all separate paths to avoid code duplication.
-  """
-  base_dir = os.path.join(args.localdir, 'jobs', args.tag)
-  specific_str = 'Closure'
-  
-  jobDir = os.path.join(base_dir, 'submission')
-  os.system('mkdir -p {}'.format(jobDir))
-
-  checkDir = os.path.join(base_dir, 'outputs', specific_str)
-  os.system('mkdir -p {}'.format(checkDir))
-
-  name = 'job{}.{}'
-  check_name = specific_str + '_C$(Cluster)P$(Process).o'
-
-  jobFiles   = os.path.join(jobDir, name.format(specific_str, 'sh'))
-  submFiles  = os.path.join(jobDir, name.format(specific_str, 'condor'))
-  checkFiles = os.path.join(checkDir, check_name)
-
-  return jobFiles, submFiles, checkFiles
+    """
+    Outputs are guaranteed to have the same length.
+    Returns all separate paths to avoid code duplication.
+    """
+    base_dir = os.path.join(args.localdir, 'jobs', args.tag)
+    specific_str = 'Closure'
+    
+    jobDir = os.path.join(base_dir, 'submission')
+    os.system('mkdir -p {}'.format(jobDir))
+   
+    checkDir = os.path.join(base_dir, 'outputs', specific_str)
+    os.system('mkdir -p {}'.format(checkDir))
+   
+    name = 'job{}.{}'
+    check_name = specific_str + '_C$(Cluster)P$(Process).o'
+   
+    jobFiles   = os.path.join(jobDir, name.format(specific_str, 'sh'))
+    submFiles  = os.path.join(jobDir, name.format(specific_str, 'condor'))
+    checkFiles = os.path.join(checkDir, check_name)
+   
+    return jobFiles, submFiles, checkFiles
 
 @setPureInputNamespace
 def writeHTCondorClosureFiles(args):
@@ -41,10 +41,11 @@ def writeHTCondorClosureFiles(args):
 
     #### Write shell executable (python scripts must be wrapped in shell files to run on HTCondor)
     command =  ( '{prog} --indir_eff {inref} '.format(prog=prog, inref=args.indir_eff)
-                 + '--indir_union {inunion} '.format(inunion=args.outdir)
+                 + '--indir_union {inunion} '.format(inunion=args.indir_union)
+                 + '--indir_json {injson} '.format(injson=args.indir_json)
                  + '--mc_processes {procs} '.format(procs=' '.join(args.mc_processes))
                  + '--outdir {outdir} '.format(outdir=args.outdir)
-                 + '--inprefix {inprefix} '.format(inprefix=args.inprefix)
+                 + '--in_prefix {inprefix} '.format(inprefix=args.inprefix)
                  + '--channel ${1} '
                  + '--variables {variables} '.format(variables=' '.join(args.variables))
                  + '--triggers {triggers} '.format(triggers=' '.join(args.triggers))
