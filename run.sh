@@ -16,11 +16,11 @@
 # 	condor_submit "${sub}"
 # done
 
-for sub in jobs/TEST/submission/jobUnionWeightsCalculator_*.condor;do
-	condor_submit "${sub}"
-done
+# for sub in jobs/TEST/submission/jobUnionWeightsCalculator_*.condor;do
+# 	condor_submit "${sub}"
+# done
 
 # REMOVED condor_submit jobs/TEST/submission/jobHaddEff.condor
 # REMOVED condor_submit jobs/TEST/submission/jobHaddEffAgg.condor
 
-# condor_submit jobs/TEST/submission/jobClosure.condor
+condor_submit jobs/TEST/submission/jobClosure.condor

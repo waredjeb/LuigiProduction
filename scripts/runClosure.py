@@ -18,14 +18,14 @@ from ROOT import (
     TPad,
     TFile,
     TEfficiency,
-    TGraph,
     TGraphAsymmErrors,
     TH1D,
     TH2D,
     TLatex,
     TLegend,
+    TMath,
 )
-
+import array
 import sys
 sys.path.append( os.path.join(os.environ['CMSSW_BASE'], 'src', 'METTriggerStudies'))
 
@@ -44,6 +44,15 @@ from luigi_conf import (
     _placeholder_cuts,
     _variables_unionweights,
 )
+
+def get_div_error_propagation(num, den, enum, eden):
+    """Ratio propagation of errors (numerator and denominator as arguments)"""
+    if num==0. or den==0.:
+        return 0.
+    first = (enum*enum)/(num*num)
+    second = (eden*eden)/(den*den)
+    val = num/den
+    return val * TMath.Sqrt(first + second)
 
 def get_ref_obj( indir_union, channel, var, weightvar,
                    nbins, edges, prefix,
@@ -69,14 +78,33 @@ def get_ref_obj( indir_union, channel, var, weightvar,
     if flag:
         return False
 
-    eff1d_ref = TGraph(nbins)
+    graph_xvals, graph_yvals = ([] for _ in range(2))
+    graph_exvals_low, graph_exvals_high = ([] for _ in range(2))
+    graph_eyvals_low, graph_eyvals_high = ([] for _ in range(2))
     for ix in range(nbins):
         yvals = values[str(ix)]
+        fake_xval = (edges[ix]+edges[ix+1])/2 #used only for filling the correct bin
+        graph_xvals.append( fake_xval )
+        graph_exvals_low.append( abs(fake_xval-edges[ix]) )
+        graph_exvals_high.append( abs(fake_xval-edges[ix+1]) )
         if len(yvals)>0:
             yvals_sum = sum(yvals)
-            fake_xval = (edges[ix]+edges[ix+1])/2 #used only for filling the correct bin
-            eff1d_ref.SetPoint(ix, fake_xval, yvals_sum)
+            graph_yvals.append( yvals_sum )
+            graph_eyvals_low.append( TMath.Sqrt(yvals_sum)/2 )
+            graph_eyvals_high.append( TMath.Sqrt(yvals_sum)/2 )
+        else:
+            graph_yvals.append(0.)
+            graph_eyvals_low.append(0.)
+            graph_eyvals_high.append(0.)
 
+    
+    eff1d_ref = TGraphAsymmErrors( nbins,
+                                   array.array('d', graph_xvals),
+                                   array.array('d', graph_yvals),
+                                   array.array('d', graph_exvals_low),
+                                   array.array('d', graph_exvals_high),
+                                   array.array('d', graph_eyvals_low),
+                                   array.array('d', graph_eyvals_high) )
     return eff1d_ref
 
 
@@ -117,7 +145,10 @@ def draw_single_eff( ref_obj, indir_union, indir_eff, channel, var, weightvar, t
                 ymin = min(values[str(i)])
 
     histo_name = in_prefix + '_' + channel + '_' + var + '_' + weightvar + '_' + trig
-    eff_prof = TGraph(nbins)
+    graph_xvals, graph_yvals = ([] for _ in range(2))
+    graph_exvals_low, graph_exvals_high = ([] for _ in range(2))
+    graph_eyvals_low, graph_eyvals_high = ([] for _ in range(2))
+
     #counts_prof = TGraph( histo_name + '_counts', histo_name + '_counts' )
     weights2d_mc = TH2D( histo_name + '_weights', histo_name + '_weights',
                          nbins, edges[0], edges[-1],
@@ -126,13 +157,32 @@ def draw_single_eff( ref_obj, indir_union, indir_eff, channel, var, weightvar, t
     for ix in range(nbins):
         yvals = values[str(ix)]
         yvals_count = len(yvals)
+        fake_xval = (edges[ix]+edges[ix+1])/2 #used only for filling the correct bin
+        graph_xvals.append( fake_xval )
+        graph_exvals_low.append( abs(fake_xval-edges[ix]) )
+        graph_exvals_high.append( abs(fake_xval-edges[ix+1]) )
         if yvals_count>0:
             yvals_sum = sum(yvals)
-            fake_xval = (edges[ix]+edges[ix+1])/2 #used only for filling the correct bin
-            eff_prof.SetPoint(ix, fake_xval, yvals_sum)
+            graph_yvals.append(yvals_sum)
+            graph_eyvals_low.append( TMath.Sqrt(yvals_sum)/2 )
+            graph_eyvals_high.append( TMath.Sqrt(yvals_sum)/2 )
+
             #counts_prof.AddPoint(fake_xval, yvals_count)
             for yval in yvals:
                 weights2d_mc.Fill(fake_xval, yval)
+        else:
+            graph_yvals.append(0.)
+            graph_eyvals_low.append(0.)
+            graph_eyvals_high.append(0.)
+
+
+    eff_prof = TGraphAsymmErrors( nbins,
+                                  array.array('d', graph_xvals),
+                                  array.array('d', graph_yvals),
+                                  array.array('d', graph_exvals_low),
+                                  array.array('d', graph_exvals_high),
+                                  array.array('d', graph_eyvals_low),
+                                  array.array('d', graph_eyvals_high) )
 
     weights2d_canvas_name  = os.path.basename(weights2d_names[0]).split('.')[0]
     prof_canvas_name = os.path.basename(prof_names[0]).split('.')[0]
@@ -194,7 +244,7 @@ def draw_single_eff( ref_obj, indir_union, indir_eff, channel, var, weightvar, t
     weights2d_canvas.cd()
 
     weights2d_mc.GetYaxis().SetTitle('P_{Data} / P_{MC}')
-    weights2d_mc.GetYaxis().SetTitleOffset(1.05)
+    weights2d_mc.GetYaxis().SetTitleOffset(.7)
     weights2d_mc.SetLineColor(1)
     weights2d_mc.SetLineWidth(2)
     weights2d_mc.SetMarkerColor(1)
@@ -231,11 +281,58 @@ def draw_single_eff( ref_obj, indir_union, indir_eff, channel, var, weightvar, t
     eff1d_data = get_root_object('Data', eff1d_file)
     eff1d_mc = get_root_object('MC', eff1d_file)
 
+
     # get the efficiency by dividing the weighted yields
+    # graph_div_xvals, graph_div_yvals = (for _ in range(2))
+    # graph_div_exvals_low, graph_div_exvals_high = (for _ in range(2))
+    # graph_div_eyvals_low, graph_div_eyvals_high = (for _ in range(2))
+
+    # for ix in range(nbins):
+    #     yvals = values[str(ix)]
+    #     fake_xval = (edges[ix]+edges[ix+1])/2 #used only for filling the correct bin
+    #     graph_div_xvals.append( fake_xval )
+    #     graph_div_exvals_low.append( abs(fake_xval-edges[ix]) )
+    #     graph_div_exvals_high.append( abs(fake_xval-edges[ix+1]) )
+    #     if yvals_count>0:
+    #         yvals_sum = sum(yvals)
+    #         graph_div_xvals.append(fake_xval)
+    #         graph_div_yvals.append(yvals_sum)
+    #         graph_div_eyvals_low.append( sqrt(yvals_sum)/2 )
+    #         graph_div_eyvals_high.append( sqrt(yvals_sum)/2 )
+
+    #         #counts_prof.AddPoint(fake_xval, yvals_count)
+    #         for yval in yvals:
+    #             weights2d_mc.Fill(fake_xval, yval)
+    #     else:
+    #         graph_div_yvals.append(0.)
+    #         graph_div_eyvals_low.append(0.)
+    #         graph_div_eyvals_high.append(0.)
+
+
+    # eff_prof_div = TGraphAsymmErrors( nbins,
+    #                                   array.array('d', graph_div_xvals),
+    #                                   array.array('d', graph_div_yvals),
+    #                                   array.array('d', graph_div_exvals_low),
+    #                                   array.array('d', graph_div_exvals_high),
+    #                                   array.array('d', graph_div_eyvals_low),
+    #                                   array.array('d', graph_div_eyvals_high) )
+
     for point in range(nbins):
+        orig_yvalue = eff_prof.GetPointY(point)
         eff_prof.SetPoint(point,
                           eff_prof.GetPointX(point),
-                          eff_prof.GetPointY(point) / ref_obj.GetPointY(point) )
+                          orig_yvalue / ref_obj.GetPointY(point) )
+        eff_prof.SetPointEXlow(point, eff_prof.GetErrorXlow(point))
+        eff_prof.SetPointEXhigh(point, eff_prof.GetErrorXhigh(point))
+        binomial_variance = ref_obj.GetPointY(point)*eff_prof.GetPointY(point)*(1-eff_prof.GetPointY(point))
+        binomial_std = TMath.Sqrt(binomial_variance)
+        binomial_ratio_std = get_div_error_propagation( binomial_std, #eff_prof.GetPointY(point)
+                                                        ref_obj.GetPointY(point),
+                                                        eff_prof.GetErrorXlow(point) + eff_prof.GetErrorXhigh(point),
+                                                        ref_obj.GetErrorXlow(point)  + ref_obj.GetErrorXhigh(point),
+                                                       )
+        eff_prof.SetPointEYlow(point, binomial_ratio_std/2)
+        eff_prof.SetPointEYhigh(point, binomial_ratio_std/2)
 
     eff_prof.GetYaxis().SetTitle('Efficiency')
     eff_prof.GetXaxis().SetTitle(var)

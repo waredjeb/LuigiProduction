@@ -42,7 +42,7 @@ def runTrigger_outputs(args, param='root'):
         folder = os.path.join( args.outdir, proc )
         for inp in inputs:
             number = exp.search(inp)
-            basename = args.mode + '_' + proc + number.group(1) + args.subtag + extension
+            basename = args.tprefix + '_' + proc + number.group(1) + args.subtag + extension
             t.append( os.path.join(folder, basename) )
 
     return t
@@ -107,20 +107,22 @@ def writeHTCondorHistogramFiles(args):
         command =  ( ( '{prog} --indir {indir} '
                        '--outdir {outdir} '
                        '--sample {sample} '
-                       '--isData {isData} '
+                       '--isdata {isdata} '
                        '--file ${{1}} '
                        '--subtag {subtag} '
                        '--channels {channels} '
                        '--triggers {triggers} '
                        '--variables {variables} '
                        '--tprefix {tprefix} ' )
-                     .format( prog=prog, indir=inputdir, outdir=args.outdir,
-                              sample=thisProc, isData=int(thisProc in args.data),
+                     .format( prog=prog,
+                              indir=inputdir, outdir=args.outdir,
+                              sample=thisProc,
+                              isdata=int(thisProc in args.data),
                               subtag=args.subtag,
                               channels=' '.join(args.channels,),
                               triggers=' '.join(args.triggers,),
                               variables=' '.join(args.variables,),
-                              tprefix=args.mode + '_')
+                              tprefix=args.tprefix )
                     )
         
         if args.debug:
@@ -178,6 +180,7 @@ if __name__ == '__main__':
     parser.add_argument('--outdir', dest='outdir', required=True, help='out directory')
     parser.add_argument('--tag', dest='tag', required=True, help='tag')
     parser.add_argument('--subtag', dest='subtag', required=True, help='subtag')
+    parser.add_argument('--tprefix', dest='tprefix', required=True, help='target prefix')
     parser.add_argument('--mc_processes', dest='mc_processes', required=True, nargs='+', type=str,
                         help='list of MC process names')                
     parser.add_argument('--data', dest='data', required=True, nargs='+', type=str,

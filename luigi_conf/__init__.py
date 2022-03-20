@@ -44,30 +44,33 @@ _trigger_shift  = lambda x : {'mc': x, 'data': x+5}
 # https://twiki.cern.ch/twiki/bin/viewauth/CMS/TauTrigger
 _triggers_map = {
     'IsoMu24':     _trigger_linear(0),
-    'IsoMu27':     _trigger_linear(1),
-    'Ele32':       _trigger_linear(2),
-    'Ele35':       _trigger_linear(3),
-    'IsoTauCustom': {'IsoTau':    {'mc': 4, 'data': (4,5,6)},
-                     'IsoTauHPS': {'mc': 4, 'data': 7}},
-    'IsoMuIsoTauCustom': { 'IsoMuIsoTau':    {'mc': 5, 'data': 9},
-                           'IsoMuIsoTauHPS': {'mc': 5, 'data': 8} },
-    'EleIsoTauCustom': {'EleIsoTau': {'mc': 6, 'data': 11},
-                        'EleIsoTauHPS': {'mc': 6, 'data': 10}},
-    'VBFTauCustom':  {'VBFTau':    {'mc': 8, 'data': 12},
-                      'VBFTauHPS': _trigger_shift(8)},
-    'METNoMu120':  _trigger_shift(9),
-    'IsoTau50':    _trigger_shift(10),
-    'IsoTau180':   _trigger_shift(11),
+    # 'IsoMu27':     _trigger_linear(1),
+    # 'Ele32':       _trigger_linear(2),
+    # 'Ele35':       _trigger_linear(3),
+    # 'IsoTauCustom': {'IsoTau':    {'mc': 4, 'data': (4,5,6)},
+    #                  'IsoTauHPS': {'mc': 4, 'data': 7}},
+    # 'IsoMuIsoTauCustom': { 'IsoMuIsoTau':    {'mc': 5, 'data': 9},
+    #                        'IsoMuIsoTauHPS': {'mc': 5, 'data': 8} },
+    # 'EleIsoTauCustom': {'EleIsoTau': {'mc': 6, 'data': 11},
+    #                     'EleIsoTauHPS': {'mc': 6, 'data': 10}},
+    # 'VBFTauCustom':  {'VBFTau':    {'mc': 8, 'data': 12},
+    #                   'VBFTauHPS': _trigger_shift(8)},
+    # 'METNoMu120':  _trigger_shift(9),
+    # 'IsoTau50':    _trigger_shift(10),
+    # 'IsoTau180':   _trigger_shift(11),
 }
-_triggers_custom = { 'VBFTauCustom', 'IsoTauCustom',
-                     'IsoMuIsoTauCustom', 'EleIsoTauCustom' }
+_triggers_custom = set( #'VBFTauCustom',
+                        #'IsoTauCustom',
+                        #'IsoMuIsoTauCustom',
+                        #'EleIsoTauCustom'
+)
 assert(_triggers_custom.issubset(set(_triggers_map.keys())))
 
 #######################################################################################################
 ########### CUTS ######################################################################################
 #######################################################################################################
-_cuts = {'METNoMu120': {'metnomu_et': ('>', [120,180]), 'mhtnomu_et': ('>', [100,160])},
-         'IsoTau50':   {'dau1_pt': ('>', [80]), 'dau1_eta': ('<', [2.0]), 'met_et': ('>', [150])},
+_cuts = {#'METNoMu120': {'metnomu_et': ('>', [120,180]), 'mhtnomu_et': ('>', [100,160])},
+         #'IsoTau50':   {'dau1_pt': ('>', [80]), 'dau1_eta': ('<', [2.0]), 'met_et': ('>', [150])},
          }
 assert( set(_cuts.keys()).issubset(set(_triggers_map.keys())) )
 for x in _cuts.values():
@@ -98,8 +101,8 @@ _corr = {'etau': {},
 #######################################################################################################
 ########### 2D PLOTS ##################################################################################
 #######################################################################################################
-_2Dpairs = {'METNoMu120':      (('metnomu_et', 'mhtnomu_et'),),
-         }
+_2Dpairs = {#'METNoMu120':      (('metnomu_et', 'mhtnomu_et'),),
+            }
 assert( set(_2Dpairs.keys()).issubset(set(_triggers_map.keys())) )
 for x in _2Dpairs.values():
     for pair in x:

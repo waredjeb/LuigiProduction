@@ -125,7 +125,7 @@ if __name__ == '__main__':
     parser.add_argument('--dataset_name',dest='dset_name',   required=True, help='Name of the dataset.')
     parser.add_argument('--subtag',      dest='subtag',      required=True,
                         help='Additional (sub)tag to differ  entiate similar runs within the same tag.')
-    parser.add_argument('--isData',      dest='isData',      required=True, help='Whether it is data or MC', type=int)
+    parser.add_argument('--isdata',      dest='isdata',      required=True, help='Whether it is data or MC', type=int)
     parser.add_argument('--tprefix',     dest='tprefix',     required=True, help='Targets name prefix.')
     parser.add_argument('--channels',    dest='channels',    required=True, nargs='+', type=str,  
                         help='Select the channels over w  hich the workflow will be run.' )

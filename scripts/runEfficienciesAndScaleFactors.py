@@ -219,12 +219,13 @@ def drawEfficienciesAndScaleFactors(proc, channel, variable, trig, save_names, b
     pad1.Draw()
     pad1.cd()
 
-    axor = TH2D('axor'+akey,'axor'+akey, nbins,
-                binedges[0]-halfbinwidths[0]/2, binedges[-1]+halfbinwidths[-1]/2,
+    axor = TH2D('axor'+akey,'axor'+akey,
+                nbins, binedges[0]-halfbinwidths[0]/2, binedges[-1]+halfbinwidths[-1]/2,
                 100, -0.1, 1.4)
     axor.GetYaxis().SetTitle('Efficiency')
+    axor.GetYaxis().SetNdivisions(507)
     axor.GetXaxis().SetLabelOffset(1)
-    axor.GetXaxis().SetLabelOffset(1.)
+    axor.GetXaxis().SetNdivisions(705)
     axor.GetYaxis().SetTitleSize(0.08)
     axor.GetYaxis().SetTitleOffset(.85)
     axor.GetXaxis().SetLabelSize(0.07)
@@ -263,7 +264,7 @@ def drawEfficienciesAndScaleFactors(proc, channel, variable, trig, save_names, b
 
     redrawBorder()
 
-    lX, lY, lYstep = 0.1, 0.84, 0.05
+    lX, lY, lYstep = 0.23, 0.84, 0.05
     l = TLatex()
     l.SetNDC()
     l.SetTextFont(72)
@@ -278,7 +279,7 @@ def drawEfficienciesAndScaleFactors(proc, channel, variable, trig, save_names, b
     ucode = '+'
     trig_str = trig.split(intersection_str)
     trig_names_str = ''
-    if not isinstance(trig_str, (tuple,list)):
+    if len(trig_str)==1:
       trig_names_str = trig
     else:
       for i,elem in enumerate(trig_str):
@@ -290,7 +291,7 @@ def drawEfficienciesAndScaleFactors(proc, channel, variable, trig, save_names, b
           trig_names_str += elem + ' ' + ucode + '}{'
 
     trig_start_str = 'Trigger' + ('' if len(trig_str)==1 else 's') + ': '
-    l.DrawLatex( lX, lY,        'Channel: '+latexChannel)
+    l.DrawLatex( lX, lY, 'Channel: '+latexChannel)
     l.DrawLatex( lX, lY-lYstep, trig_start_str+trig_names_str)
 
     canvas.cd()
@@ -302,10 +303,13 @@ def drawEfficienciesAndScaleFactors(proc, channel, variable, trig, save_names, b
     pad2.cd()
     pad2.SetGridy()
 
-    axor2 = TH2D('axor2'+akey, 'axor2'+akey, nbins, binedges[0], binedges[-1], 100, 0.45, 1.55)
+    axor2 = TH2D('axor2'+akey, 'axor2'+akey,
+                 nbins, binedges[0]-halfbinwidths[0]/2, binedges[-1]+halfbinwidths[-1]/2,
+                 100, 0.45, 1.55)
     axor2.GetYaxis().SetNdivisions(507)
     axor2.GetYaxis().SetLabelSize(0.12)
     axor2.GetXaxis().SetLabelSize(0.12)
+    axor2.GetXaxis().SetNdivisions(705)
     axor2.SetTitleSize(0.15,'X')
     axor2.SetTitleSize(0.15,'Y')
     axor2.GetXaxis().SetTitleOffset(1.)
@@ -320,7 +324,6 @@ def drawEfficienciesAndScaleFactors(proc, channel, variable, trig, save_names, b
     sf[akey].SetMarkerColor(ROOT.kRed)
     sf[akey].SetMarkerSize(1.3)
     sf[akey].SetMarkerStyle(22)
-    sf[akey].GetYaxis().SetNdivisions(507)
     sf[akey].GetYaxis().SetLabelSize(0.12)
     sf[akey].GetXaxis().SetLabelSize(0.12)
     sf[akey].GetXaxis().SetTitleSize(0.15)
@@ -433,6 +436,7 @@ parser = argparse.ArgumentParser(description='Draw trigger scale factors')
 parser.add_argument('--indir', help='Inputs directory', required=True)
 parser.add_argument('--outdir', help='Output directory', required=True, )
 parser.add_argument('--tprefix', help='prefix to the names of the produced outputs (targets in luigi lingo)', required=True)
+parser.add_argument('--canvas_prefix', help='canvas prefix', required=True)
 parser.add_argument('--subtag',           dest='subtag',           required=True, help='subtag')
 parser.add_argument('--mc_processes', help='MC processes to be analyzed', required=True, nargs='+', type=str)
 parser.add_argument('--binedges_filename', dest='binedges_filename', required=True, help='in directory')

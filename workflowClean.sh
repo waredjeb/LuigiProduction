@@ -80,7 +80,7 @@ declare -a COMMANDS=( "rm -rf ${EOS_PATH}/www/TriggerScaleFactors/${TAG}/"
 		      "rm -rf jobs/${TAG}/" )
 
 if $FULL; then
-    COMMANDS+=( "rm -rf ${BASE_PATH}/${TAG}/" )
+    COMMANDS=( "rm -rf ${BASE_PATH}/${TAG}/" )
 fi
 
 for comm in "${COMMANDS[@]}"; do

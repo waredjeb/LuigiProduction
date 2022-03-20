@@ -4,7 +4,7 @@ Script which calculates the trigger scale factors.
 On production mode should run in the grid via scripts/submitTriggerEff.py. 
 Local run example:
 
-python3 /home/llr/cms/alves/CMSSW_12_2_0_pre1/src/METTriggerStudies/scripts/getTriggerCounts.py --indir /data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_2018_UL_data_test11Jan22/ --outdir /data_CMS/cms/alves/CountsTest/ --sample SKIM_MET2018 --file output_0.root --channels etau mutau tautau --subtag _default --isData 1 --tprefix count_ --triggers IsoMuIsoTau EleIsoTau VBFTau VBFTauHPS METNoMu120 IsoTau50 IsoTau180 --debug
+python3 /home/llr/cms/alves/CMSSW_12_2_0_pre1/src/METTriggerStudies/scripts/getTriggerCounts.py --indir /data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_2018_UL_data_test11Jan22/ --outdir /data_CMS/cms/alves/CountsTest/ --sample SKIM_MET2018 --file output_0.root --channels etau mutau tautau --subtag _default --isdata 1 --tprefix count_ --triggers IsoMuIsoTau EleIsoTau VBFTau VBFTauHPS METNoMu120 IsoTau50 IsoTau180 --debug
 """
 import re
 import os
@@ -46,7 +46,7 @@ def checkBit(number, bitpos):
     
 def getTriggerCounts(indir, outdir, sample, fileName,
                      channels, triggers,
-                     subtag, tprefix, isData ):
+                     subtag, tprefix, isdata ):
     # -- Check if outdir exists, if not create it
     if not os.path.exists(outdir):
         os.makedirs(outdir)
@@ -111,8 +111,8 @@ def getTriggerCounts(indir, outdir, sample, fileName,
 
                     passAllTriggerBits = functools.reduce(
                         lambda x,y: x and y, #logic AND to join all triggers in this option
-                        [ ( checkBit(trigBit, get_trigger_bit(x, isData))
-                            if x not in _triggers_custom else set_custom_trigger_bit(x, trigBit, run, isData) )
+                        [ ( checkBit(trigBit, get_trigger_bit(x, isdata))
+                            if x not in _triggers_custom else set_custom_trigger_bit(x, trigBit, run, isdata) )
                           for x in tcomb ]
                     )
 
@@ -140,7 +140,7 @@ parser = argparse.ArgumentParser(description='Command line parser')
 parser.add_argument('--indir',       dest='indir',       required=True, help='SKIM directory')
 parser.add_argument('--outdir',      dest='outdir',      required=True, help='output directory')
 parser.add_argument('--sample',      dest='sample',      required=True, help='Process name as in SKIM directory')
-parser.add_argument('--isData',      dest='isData',      required=True, help='Whether it is data or MC', type=int)
+parser.add_argument('--isdata',      dest='isdata',      required=True, help='Whether it is data or MC', type=int)
 parser.add_argument('--file',        dest='fileName',    required=True, help='ID of input root file')
 parser.add_argument('--subtag',      dest='subtag',      required=True,
                     help='Additional (sub)tag to differ  entiate similar runs within the same tag.')
@@ -155,4 +155,4 @@ args = parser.parse_args()
 
 getTriggerCounts( args.indir, args.outdir, args.sample, args.fileName,
                   args.channels, args.triggers,
-                  args.subtag, args.tprefix, args.isData )
+                  args.subtag, args.tprefix, args.isdata )

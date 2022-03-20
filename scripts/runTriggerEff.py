@@ -195,34 +195,35 @@ def get_trigger_eff_sig(indir, outdir, sample, fileName,
         if np.isnan(lumi): lumi=1
         if np.isnan(idandiso): idandiso=1
 
-        evtW = pureweight*trigsf*lumi*idandiso
-        if np.isnan(evtW) or isdata:
-            evtW = 1
+        evt_weight = pureweight*trigsf*lumi*idandiso
+        if np.isnan(evt_weight) or isdata:
+            evt_weight = 1
 
-        fillVar = {}
+        fill_var = {}
         for v in variables:
-            fillVar[v] = {}
+            fill_var[v] = {}
             for chn in channels:
-                fillVar[v].update({chn: lf.getLeaf(v)})
-                if fillVar[v][chn]>binedges[v][chn][-1]:
-                    fillVar[v][chn]=binedges[v][chn][-1] # include overflow
+                fill_var[v].update({chn: lf.getLeaf(v)})
+                if fill_var[v][chn]>binedges[v][chn][-1]:
+                    fill_var[v][chn]=binedges[v][chn][-1] # include overflow
 
         pass_trigger, pass_cuts = ({} for _ in range(2))
+
         for trig in triggers:
             pass_trigger[trig] = pass_trigger_bits(trig, trig_bit, run, isdata)
-                
+
             pass_cuts[trig] = {}
             for var in variables:
                 pass_cuts[trig][var] = passes_cuts(trig, [var], lf, args.debug)
 
         for i in channels:
-            if is_channel_consistent(i, pairtype):
+            if is_channel_consistent(i, lf.getLeaf('pairType')):
 
                 # fill histograms for 1D efficiencies
                 for j in variables:
                     binning = (nbins[j][i], binedges[j][i])
 
-                    hRef[i][j].Fill(fillVar[j][i], evtW)
+                    hRef[i][j].Fill(fill_var[j][i], evt_weight)
 
                     for tcomb in triggercomb:
 
@@ -269,7 +270,7 @@ def get_trigger_eff_sig(indir, outdir, sample, fileName,
                                     hTrig[i][j][joinNTC(tcomb)][pckey] = ROOT.TH1D(htrig_name, '', *binning)
                                 #hTrig[i][j][joinNTC(tcomb)].setdefault(pckey, ROOT.TH1D(htrig_name, '', *binning))
                                 if pcval:
-                                    hTrig[i][j][joinNTC(tcomb)][pckey].Fill(fillVar[j][i], evtW)
+                                    hTrig[i][j][joinNTC(tcomb)][pckey].Fill(fill_var[j][i], evt_weight)
 
                 # fill 2D efficiencies (currently only reference vs trigger, i.e.,
                 # all events pass the reference cut)
@@ -296,14 +297,14 @@ def get_trigger_eff_sig(indir, outdir, sample, fileName,
                     
                 #                     trigger_flag = ( pass_trigger_bits[k] and pcval )
                 #                     effRefVsTrig[i][vname][k][pckey].Fill( trigger_flag,
-                #                                                            fillVar[j[0]][i],
-                #                                                            fillVar[j[1]][i] )
+                #                                                            fill_var[j[0]][i],
+                #                                                            fill_var[j[1]][i] )
                                 
     file_id = ''.join( c for c in fileName[-10:] if c.isdigit() ) 
-    outName = os.path.join(outdir, tprefix + sample + '_' + file_id + subtag + '.root')
-    print('Saving file {} at {} '.format(file_id, outName) )
+    outname = os.path.join(outdir, tprefix + sample + '_' + file_id + subtag + '.root')
+    print('Saving file {} at {} '.format(file_id, outname) )
 
-    f_out = ROOT.TFile(outName, 'RECREATE')
+    f_out = ROOT.TFile(outname, 'RECREATE')
     f_out.cd()
     for i in channels:
         for j in variables:
@@ -313,10 +314,10 @@ def get_trigger_eff_sig(indir, outdir, sample, fileName,
                     base_str = get_histo_names('Trig1D')(i,j,joinNTC(tcomb))
                     print(base_str, khist)
 
-                    writeName = rewriteCutString(base_str, khist)
-                    print(writeName)
+                    writename = rewriteCutString(base_str, khist)
+                    print(writename)
 
-                    vhist.Write( writeName )
+                    vhist.Write( writename )
 
     # Writing 2D efficiencies to the current file
     # for i in channels:
@@ -358,5 +359,5 @@ parser.add_argument('--debug', action='store_true', help='debug verbosity')
 args = parser.parse_args()
 
 get_trigger_eff_sig(args.indir, args.outdir, args.sample, args.fileName,
-                 args.channels, args.variables, args.triggers,
-                 args.subtag, args.tprefix, args.isdata, args.binedges_fname)
+                    args.channels, args.variables, args.triggers,
+                    args.subtag, args.tprefix, args.isdata, args.binedges_fname)
