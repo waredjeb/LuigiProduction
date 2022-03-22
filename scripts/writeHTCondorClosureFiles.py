@@ -47,8 +47,8 @@ def writeHTCondorClosureFiles(args):
                  + '--outdir {outdir} '.format(outdir=args.outdir)
                  + '--in_prefix {inprefix} '.format(inprefix=args.inprefix)
                  + '--channel ${1} '
+                 + '--closure_single_trigger ${2} '
                  + '--variables {variables} '.format(variables=' '.join(args.variables))
-                 + '--triggers {triggers} '.format(triggers=' '.join(args.triggers))
                  + '--subtag {subtag} '.format(subtag=args.subtag)
                  + '--binedges_fname {be} '.format(be=args.binedges_filename)
                  + '--data_name {dn} '.format(dn=args.data_name)
@@ -73,11 +73,11 @@ def writeHTCondorClosureFiles(args):
 
     #### Write submission file
     queue = 'short'
-    queuevar = 'channel'
+    queuevars = 'channel', 'closure_single_trigger'
     with open(outs_submit, 'w') as s:
         s.write('Universe = vanilla\n')
         s.write('Executable = {}\n'.format(outs_job))
-        s.write('Arguments = $({}) \n'.format(queuevar))
+        s.write('Arguments = $({}) $({}) \n'.format(queuevars[0],queuevars[1]))
         s.write('input = /dev/null\n')
         s.write('output = {}\n'.format(outs_check))
         s.write('error  = {}\n'.format(outs_check.replace('.o', '.e')))
@@ -86,7 +86,8 @@ def writeHTCondorClosureFiles(args):
         s.write('WNTag=el7\n')
         s.write('+SingularityCmd = ""\n')
         s.write('include : /opt/exp_soft/cms/t3/t3queue |\n\n')
-        s.write('queue {} from (\n'.format(queuevar))
+        s.write('queue {},{} from (\n'.format(queuevars[0],queuevars[1]))
         for chn in args.channels:
-            s.write('  {}\n'.format(chn))
+            for trig in args.closure_single_triggers:
+                s.write('  {},{}\n'.format(chn,trig))
         s.write(')\n')

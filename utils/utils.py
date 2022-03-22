@@ -84,10 +84,34 @@ def find_bin(edges, value, var):
 
 def generate_trigger_combinations(trigs):
     """Set all possible trigger combinations of intersections with any number of elements"""
-    return list( it.chain.from_iterable(it.combinations(trigs, x)
-                                        for x in range(1,len(trigs)+1)) )
+    complete_list = list( it.chain.from_iterable(it.combinations(trigs, x)
+                                                 for x in range(1,len(trigs)+1)) )
+    length1_list = list( it.chain.from_iterable(it.combinations(trigs, 1)) )
+    for elem in length1_list:
+        if elem not in _triggers_map.keys():
+            raise ValueError('[utils.generate_trigger_combinations] Trigger {} is not supported'.format(elem))
 
-def getKeyList(afile, inherits=['TH1']):
+    # remove combinations that are necessarily orthogonal to save computating time and reduce number of plots
+    trigger_combinations_to_remove = []
+    for elem in complete_list:        
+        if ( # mixing muon and electron channels
+                ('IsoMu24' in elem and 'Ele32' in elem) or
+                ('IsoMu27' in elem and 'Ele32' in elem) or
+                ('IsoMu24' in elem and 'Ele35' in elem) or
+                ('IsoMu27' in elem and 'Ele35' in elem) or
+                # mixing muon and double tau channels
+                ('IsoMu24' in elem and 'IsoDoubleTauCustom' in elem) or
+                ('IsoMu27' in elem and 'IsoDoubleTauCustom' in elem) or
+                # mixing electron and double tau channels
+                ('Ele32' in elem and 'IsoDoubleTauCustom' in elem) or
+                ('Ele35' in elem and 'IsoDoubleTauCustom' in elem)
+        ):
+            trigger_combinations_to_remove.append( elem )
+
+
+    return list(set(complete_list) - set(trigger_combinations_to_remove))
+
+def get_key_list(afile, inherits=['TH1']):
     tmp = []
     keylist = ROOT.TIter(afile.GetListOfKeys())
     for key in keylist:
@@ -147,12 +171,18 @@ def get_root_object(name, afile):
         raise ValueError(msg)
     return afile.Get(name)
 
-def get_trigger_bit(trigger_name, isData):
+def get_trigger_bit(trigger_name, isdata):
     """
     Returns the trigger bit corresponding to '_triggers_map'
     """
-    s = 'data' if isData else 'mc'
-    return _triggers_map[trigger_name][s]
+    s = 'data' if isdata else 'mc'
+    res = _triggers_map[trigger_name]
+    try:
+        res = res[s]
+    except KeyError:
+        print('You likely forgot to add your custom trigger to _triggers_custom.')
+        raise
+    return res
 
 def is_channel_consistent(chn, pairtype):
     opdict = { '<':  operator.lt,
@@ -254,7 +284,7 @@ def pass_selection_cuts(leaf_manager, invert_mass_cut=True):
 
     return True
 
-def redrawBorder():
+def redraw_border():
     """
     this little macro redraws the axis tick marks and the pad border lines.
     """
@@ -311,10 +341,10 @@ def set_custom_trigger_bit(trigger, trigBit, run, isData):
     if run < 317509 and isData:
         if trigger == 'VBFTauCustom':
             bits = check_bit(trigBit, _triggers_map[trigger]['VBFTau']['data'])
-        elif trigger == 'IsoTauCustom':
-            bits = ( check_bit(trigBit, _triggers_map[trigger]['IsoTau']['data'][0]) or
-                     check_bit(trigBit, _triggers_map[trigger]['IsoTau']['data'][1]) or
-                     check_bit(trigBit, _triggers_map[trigger]['IsoTau']['data'][2]) )
+        elif trigger == 'IsoDoubleTauCustom':
+            bits = ( check_bit(trigBit, _triggers_map[trigger]['IsoDoubleTau']['data'][0]) or
+                     check_bit(trigBit, _triggers_map[trigger]['IsoDoubleTau']['data'][1]) or
+                     check_bit(trigBit, _triggers_map[trigger]['IsoDoubleTau']['data'][2]) )
         elif trigger == 'IsoMuIsoTauCustom':
             bits = check_bit(trigBit, _triggers_map[trigger]['IsoMuIsoTau']['data'])
         elif trigger == 'EleIsoTauCustom':
@@ -324,8 +354,8 @@ def set_custom_trigger_bit(trigger, trigBit, run, isData):
         s = 'data' if isData else 'mc'
         if trigger == 'VBFTauCustom':
             bits = check_bit(trigBit, _triggers_map[trigger]['VBFTauHPS'][s])
-        elif trigger == 'IsoTauCustom':
-            bits = check_bit(trigBit, _triggers_map[trigger]['IsoTauHPS'][s])
+        elif trigger == 'IsoDoubleTauCustom':
+            bits = check_bit(trigBit, _triggers_map[trigger]['IsoDoubleTauHPS'][s])
         elif trigger == 'IsoMuIsoTauCustom':
             bits = check_bit(trigBit, _triggers_map[trigger]['IsoMuIsoTauHPS'][s])
         elif trigger == 'EleIsoTauCustom':

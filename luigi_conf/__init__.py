@@ -44,26 +44,26 @@ _trigger_shift  = lambda x : {'mc': x, 'data': x+5}
 # https://twiki.cern.ch/twiki/bin/viewauth/CMS/TauTrigger
 _triggers_map = {
     'IsoMu24':     _trigger_linear(0),
-    # 'IsoMu27':     _trigger_linear(1),
-    # 'Ele32':       _trigger_linear(2),
-    # 'Ele35':       _trigger_linear(3),
-    # 'IsoTauCustom': {'IsoTau':    {'mc': 4, 'data': (4,5,6)},
-    #                  'IsoTauHPS': {'mc': 4, 'data': 7}},
-    # 'IsoMuIsoTauCustom': { 'IsoMuIsoTau':    {'mc': 5, 'data': 9},
-    #                        'IsoMuIsoTauHPS': {'mc': 5, 'data': 8} },
-    # 'EleIsoTauCustom': {'EleIsoTau': {'mc': 6, 'data': 11},
-    #                     'EleIsoTauHPS': {'mc': 6, 'data': 10}},
-    # 'VBFTauCustom':  {'VBFTau':    {'mc': 8, 'data': 12},
-    #                   'VBFTauHPS': _trigger_shift(8)},
+    'IsoMu27':     _trigger_linear(1),
+    'Ele32':       _trigger_linear(2),
+    'Ele35':       _trigger_linear(3),
+    'IsoDoubleTauCustom': {'IsoDoubleTau':    {'mc': 4, 'data': (4,5,6)},
+                           'IsoDoubleTauHPS': {'mc': 4, 'data': 7}},
+    'IsoMuIsoTauCustom': { 'IsoMuIsoTau':    {'mc': 5, 'data': 9},
+                           'IsoMuIsoTauHPS': {'mc': 5, 'data': 8} },
+    'EleIsoTauCustom': {'EleIsoTau': {'mc': 6, 'data': 11},
+                        'EleIsoTauHPS': {'mc': 6, 'data': 10}},
+    'VBFTauCustom':  {'VBFTau':    {'mc': 8, 'data': 12},
+                      'VBFTauHPS': _trigger_shift(8)},
     # 'METNoMu120':  _trigger_shift(9),
-    # 'IsoTau50':    _trigger_shift(10),
+    'IsoTau50':    _trigger_shift(10),
     # 'IsoTau180':   _trigger_shift(11),
 }
-_triggers_custom = set( #'VBFTauCustom',
-                        #'IsoTauCustom',
-                        #'IsoMuIsoTauCustom',
-                        #'EleIsoTauCustom'
-)
+_triggers_custom = { 'VBFTauCustom',
+                     'IsoDoubleTauCustom',
+                     'IsoMuIsoTauCustom',
+                     'EleIsoTauCustom',
+                     }
 assert(_triggers_custom.issubset(set(_triggers_map.keys())))
 
 #######################################################################################################
@@ -111,9 +111,17 @@ for x in _2Dpairs.values():
 #######################################################################################################
 ########### BINNING ###################################################################################
 #######################################################################################################
-_binedges = {} #Example: {'met_et': {'mumu': [100,200,300,400,500,600]},}
+_pog_pt_binedges = [26., 30., 40., 50., 60., 120., 200]
+_binedges = { 'dau1_pt': { 'etau':   _pog_pt_binedges,
+                           'mutau':  _pog_pt_binedges,
+                           'tautau': _pog_pt_binedges },
+              'dau2_pt': { 'etau':   _pog_pt_binedges,
+                           'mutau':  _pog_pt_binedges,
+                           'tautau': _pog_pt_binedges },
+             }
 assert( set(_binedges.keys()).issubset(_variables_join) )
 for x in _binedges.values():
+    assert( set(x.keys()).issubset(_channels) )
     assert( len(x) == len(list(_binedges.values())[0]) )
 
 #######################################################################################################

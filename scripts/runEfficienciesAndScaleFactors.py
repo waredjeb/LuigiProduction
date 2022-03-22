@@ -21,11 +21,11 @@ sys.path.append( os.path.join(os.environ['CMSSW_BASE'], 'src', 'METTriggerStudie
 
 from utils.utils import (
   create_single_dir,
-  getKeyList,
+  get_key_list,
   get_root_object,
   get_histo_names,
   load_binning,
-  redrawBorder,
+  redraw_border,
   rewriteCutString,
 )
 
@@ -58,8 +58,8 @@ def drawEfficienciesAndScaleFactors(proc, channel, variable, trig, save_names, b
              'trig': get_histo_names('Trig1D')(channel, variable, trig)
             }
 
-  keylist_data = getKeyList(file_data, inherits=['TH1'])
-  keylist_mc = getKeyList(file_mc, inherits=['TH1'])
+  keylist_data = get_key_list(file_data, inherits=['TH1'])
+  keylist_mc = get_key_list(file_mc, inherits=['TH1'])
   
   for k in keylist_data:
     if k not in keylist_mc:
@@ -107,6 +107,10 @@ def drawEfficienciesAndScaleFactors(proc, channel, variable, trig, save_names, b
   eff_data, eff_mc = ({} for _ in range(2))
   for khisto, vhisto in histos_data['trig'].items():
     eff_data[khisto] = TGraphAsymmErrors( vhisto, histos_data['ref'])
+  print(histos_data['ref'].GetNbinsX())
+  print(eff_data[khisto].GetN())
+  assert eff_data[khisto].GetN() == 6
+
   for khisto, vhisto in histos_mc['trig'].items():
     eff_mc[khisto] = TGraphAsymmErrors( vhisto, histos_mc['ref'] )
 
@@ -219,8 +223,9 @@ def drawEfficienciesAndScaleFactors(proc, channel, variable, trig, save_names, b
     pad1.Draw()
     pad1.cd()
 
+    axor_info = nbins, binedges[0]-halfbinwidths[0]/2, binedges[-1]+halfbinwidths[-1]/2
     axor = TH2D('axor'+akey,'axor'+akey,
-                nbins, binedges[0]-halfbinwidths[0]/2, binedges[-1]+halfbinwidths[-1]/2,
+                axor_info[0], axor_info[1], axor_info[2],
                 100, -0.1, 1.4)
     axor.GetYaxis().SetTitle('Efficiency')
     axor.GetYaxis().SetNdivisions(507)
@@ -262,7 +267,7 @@ def drawEfficienciesAndScaleFactors(proc, channel, variable, trig, save_names, b
     leg.AddEntry(eff_mc[akey],   proc,   'p')
     leg.Draw('same')
 
-    redrawBorder()
+    redraw_border()
 
     lX, lY, lYstep = 0.23, 0.84, 0.05
     l = TLatex()
@@ -303,9 +308,9 @@ def drawEfficienciesAndScaleFactors(proc, channel, variable, trig, save_names, b
     pad2.cd()
     pad2.SetGridy()
 
-    axor2 = TH2D('axor2'+akey, 'axor2'+akey,
-                 nbins, binedges[0]-halfbinwidths[0]/2, binedges[-1]+halfbinwidths[-1]/2,
-                 100, 0.45, 1.55)
+    axor2 = TH2D( 'axor2'+akey,'axor2'+akey,
+                  axor_info[0], axor_info[1], axor_info[2],
+                  100, 0.45, 1.55 )
     axor2.GetYaxis().SetNdivisions(507)
     axor2.GetYaxis().SetLabelSize(0.12)
     axor2.GetXaxis().SetLabelSize(0.12)
@@ -334,7 +339,7 @@ def drawEfficienciesAndScaleFactors(proc, channel, variable, trig, save_names, b
     sf[akey].GetXaxis().SetTitle(variable)
     sf[akey].Draw('same P0')
 
-    redrawBorder()
+    redraw_border()
 
     for aname in save_names[:-1]:
       _name = rewriteCutString(aname, akey, regex=True)

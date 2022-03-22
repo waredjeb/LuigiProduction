@@ -60,6 +60,19 @@ parser.add_argument(
     help='Select the processes over which the workflow will be run.'
 )
 parser.add_argument(
+    '--triggers_closure',
+    nargs='+', #1 or more arguments
+    type=str,
+    required=False,
+    default=list(_triggers_map.keys()),
+    choices=_triggers_map.keys(),
+    help=( 'Select the triggers considered for the closure.' +
+           'The default is to consider all of them.\n' +
+           'To do a closure for one single trigger efficiency (which ' +
+           'should provide a perfect match between original and ' +
+           'weighted MC), one must specify here the trigger to consider.' )
+)
+parser.add_argument(
     '--channels',
     nargs='+', #1 or more arguments
     type=str,
@@ -116,6 +129,7 @@ parser.add_argument(
     help="Explicitly print the functions being run for each task, for workflow debugging purposes."
 )
 FLAGS, _ = parser.parse_known_args()
+assert set(FLAGS.triggers_closure).issubset(set(FLAGS.triggers))
 
 ########################################################################
 ### LUIGI CONFIGURATION ################################################
@@ -307,6 +321,7 @@ class cfg(luigi.Config):
                   'mc_processes': _mc_processes[FLAGS.mc_process],
                   'localdir': local_folder,
                   'triggers': FLAGS.triggers,
+                  'closure_single_triggers': FLAGS.triggers_closure,
                   'channels': FLAGS.channels,
                   'variables': FLAGS.variables_for_efficiencies,
                   'tag': tag,
@@ -341,7 +356,7 @@ class cfg(luigi.Config):
                   'out_weighted_prefix': _closure_prefix,
                   'out_original_prefix': modes['histos'],
                   'localdir': local_folder,
-                  'triggers': FLAGS.triggers,
+                  'closure_single_triggers': FLAGS.triggers_closure,
                   'channels': FLAGS.channels,
                   'variables': FLAGS.variables_for_efficiencies,
                   'tag': tag,

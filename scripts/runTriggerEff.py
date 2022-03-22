@@ -139,6 +139,9 @@ def get_trigger_eff_sig(indir, outdir, sample, fileName,
 
     binedges, nbins = load_binning(afile=binedges_fname, key=subtag,
                                    variables=variables, channels=channels)
+    for v in variables:
+        for c in channels:
+            assert nbins[v][c]==6            
 
     triggercomb = generate_trigger_combinations(triggers)
     

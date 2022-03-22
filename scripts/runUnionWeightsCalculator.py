@@ -77,7 +77,11 @@ def eff_extractor(args, chn, effvars, nbins):
                 key_list = TIter(in_file.GetListOfKeys())
                 for key in key_list:
                     obj = key.ReadObj()
-                    assert(nbins[var][chn] == obj.GetN())
+                    print(obj.GetName())
+                    print(in_file_name)
+                    print(nbins[var][chn], obj.GetN(), var, chn)
+                    
+                    assert nbins[var][chn] == obj.GetN()
                     if obj.GetName() == 'Data':
                         for datapoint in range(obj.GetN()):
                             efficiencies_data[tcstr][var].append( obj.GetPointY(datapoint) )
@@ -95,7 +99,7 @@ def eff_extractor(args, chn, effvars, nbins):
              (efficiencies_mc,   efficiencies_mc_ehigh,   efficiencies_mc_elow) )
 
 
-def prob_calculator(efficiencies, effvars, leaf_manager, channel, triggers, binedges):
+def prob_calculator(efficiencies, effvars, leaf_manager, channel, closure_single_trigger, binedges):
     """
     Calculates the probabilities of this event to fire at least one of the triggers under study.
 
@@ -108,7 +112,7 @@ def prob_calculator(efficiencies, effvars, leaf_manager, channel, triggers, bine
     nweight_vars = 4 #dau1_pt, dau1_eta, dau2_pt, dau2_eta
     prob_data, prob_mc = ([0 for _ in range(nweight_vars)] for _ in range(2))
 
-    triggercomb = generate_trigger_combinations(triggers)
+    triggercomb = generate_trigger_combinations(closure_single_trigger)
     for tcomb in triggercomb:
         joincomb = joinNTC(tcomb)
 
@@ -126,8 +130,8 @@ def prob_calculator(efficiencies, effvars, leaf_manager, channel, triggers, bine
                 # The following is 1D only CHANGE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 binid = find_bin(binedges[weightvar][channel], values[iw], weightvar)
 
-                term_data = efficiencies[0][0][joinNTC(tcomb)][weightvar][binid-1]
-                term_mc   = efficiencies[1][0][joinNTC(tcomb)][weightvar][binid-1]
+                term_data = efficiencies[0][0][joincomb][weightvar][binid-1]
+                term_mc   = efficiencies[1][0][joincomb][weightvar][binid-1]
 
                 if len(tcomb)%2==0:
                     prob_data[iw] -= term_data
@@ -143,8 +147,9 @@ def runUnionWeightsCalculator_outputs(args, proc):
 
     exp = re.compile('output(_[0-9]{1,5}).root')
     inputs, _ = get_root_input_files(proc, [args.indir_root])
-    folder = os.path.join( args.outdir, proc )
-
+    folder = os.path.join( args.outdir, proc, 'Closure_' + args.closure_single_trigger[0] )
+    os.system('mkdir -p {}'.format(folder))
+    
     for inp in inputs:
         number = exp.search(inp)
         basename = args.outprefix + '_' + proc + number.group(1) + args.subtag + '.hdf5'
@@ -223,12 +228,16 @@ def runUnionWeightsCalculator(args):
                                                  effvars[chn],
                                                  lfm,
                                                  chn,
-                                                 args.triggers,
+                                                 args.closure_single_trigger, #args.triggers
                                                  binedges)
 
             prob_ratio = []
             for pd,pm in zip(prob_data,prob_mc): #loop over weight variables: dau1_pt, dau1_eta, dau2_pt, dau2_eta
-                prob_ratio.append( pd/pm )
+                 if pm==0.:
+                     prob_ratio.append( 0. )
+                     print('WARNING: Appending 0 for channel {}.'.format(chn))
+                 else:
+                     prob_ratio.append( pd/pm )
             assert len(effvars[chn][generate_trigger_combinations(args.triggers)[0][0]][0]) == len(prob_ratio)
             
             for var in _variables_unionweights:
@@ -269,8 +278,10 @@ if __name__ == '__main__':
     parser.add_argument('--outprefix', dest='outprefix', required=True, help='Out histos prefix.')
     parser.add_argument('--data_name', dest='data_name', required=True, help='Data sample name')
     parser.add_argument('--mc_name', dest='mc_name', required=True, help='MC sample name')
-    parser.add_argument('--triggers', dest='triggers', nargs='+', type=str,
-                        required=True, help='Triggers included in the workfow.')
+    parser.add_argument('--triggers', dest='triggers', nargs='+', type=str, required=True,
+                        help='Triggers included in the workflow.')
+    parser.add_argument('--closure_single_trigger', dest='closure_single_trigger', nargs='+', type=str, required=True,
+                        help='Single trigger considered for the closure.')
     parser.add_argument('--channels',    dest='channels',    required=True, nargs='+', type=str,  
                         help='Select the channels over which the workflow will be run.' )
     parser.add_argument('--variables', dest='variables', required=True, nargs='+', type=str,

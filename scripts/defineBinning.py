@@ -33,7 +33,7 @@ def skipDataLoop(args):
 
 @setPureInputNamespace
 def defineBinning_outputs(args):
-    assert( os.path.splitext(args.binedges_filename)[1] == '.hdf5' )
+    assert os.path.splitext(args.binedges_filename)[1] == '.hdf5'
     return os.path.join(args.outdir, args.binedges_filename)
 
 @setPureInputNamespace
@@ -102,28 +102,32 @@ def defineBinning(args):
                         _minedge[var][chn][sample] = treesize*quantiles[chn].loc[quant_down, var]
                         _maxedge[var][chn][sample] = treesize*quantiles[chn].loc[quant_up, var]
 
-                        if args.debug:
-                            print( '{} quantiles in channel {}:  Q({})={}, Q({})={}'
-                                   .format(var, chn,
-                                           quant_down[chn], _minedge[var][chn][sample],
-                                           quant_up[chn],   _maxedge[var][chn][sample]) )
-                    else:
-                        if args.debug:
-                            print('Quantiles were not calculated. Custom bins for variable {} and channel {} were instead used.'
-                                  .format(var, chn))
-
         # Do weighted average based on the number of events in each dataset
         maxedge, minedge = ({} for _ in range(2))
         for var in args.variables:
             maxedge[var], minedge[var] = ({} for _ in range(2))
             for chn in args.channels:
-                maxedge[var].update({chn: sum(_maxedge[var][chn].values()) / nTotEntries})
-                minedge[var].update({chn: sum(_minedge[var][chn].values()) / nTotEntries})
-                assert(maxedge[var][chn] > minedge[var][chn])
+                if var not in _binedges or chn not in _binedges[var]:
+                    maxedge[var].update({chn: sum(_maxedge[var][chn].values()) / nTotEntries})
+                    minedge[var].update({chn: sum(_minedge[var][chn].values()) / nTotEntries})
+                    if maxedge[var][chn] <= minedge[var][chn]:
+                        print('MaxEdge: {}, MinEdge: {}'.format(maxedge[var][chn], minedge[var][chn]))
+                        print('Channel: {}, Var: {}'.format(chn, var))
+                        raise ValueError('Wrong binning!')
+                    if args.debug:
+                        print( '{} quantiles in channel {}:  Q({})={}, Q({})={}'
+                               .format(var, chn,
+                                       quant_down, minedge[var][chn],
+                                       quant_up,   maxedge[var][chn]) )
+                else:
+                    if args.debug:
+                        print('Quantiles were not calculated. '
+                              'Custom bins for variable {} and channel {} were instead used.'.format(var, chn))
+
+
     ###############################################
     ############## Data Loop: End #################
     ###############################################
-            
     for _ in (True,): #breakable scope (otherwise 'break' cannot be used)
         with h5py.File( defineBinning_outputs(args), 'a') as f:
             try:
@@ -160,12 +164,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Command line parser')
 
     parser.add_argument('--binedges_filename', dest='binedges_filename', required=True, help='in directory')
-    parser.add_argument('--nbins',             dest='nbins',    required=True, help='number of X bins')
-    parser.add_argument('-a', '--indir',       dest='indir',              required=True, help='in directory')
-    parser.add_argument('-o', '--outdir',      dest='outdir',             required=True, help='out directory')
-    parser.add_argument('-t', '--tag',         dest='tag',                required=True, help='tag')
-    parser.add_argument('--subtag',            dest='subtag',             required=True, help='subtag')
-    parser.add_argument('--data',              dest='data',               required=True, nargs='+', type=str,
+    parser.add_argument('--nbins',             dest='nbins',             required=True, help='number of X bins')
+    parser.add_argument('-a', '--indir',       dest='indir',             required=True, help='in directory')
+    parser.add_argument('-o', '--outdir',      dest='outdir',            required=True, help='out directory')
+    parser.add_argument('-t', '--tag',         dest='tag',               required=True, help='tag')
+    parser.add_argument('--subtag',            dest='subtag',            required=True, help='subtag')
+    parser.add_argument('--data',              dest='data',              required=True, nargs='+', type=str,
                         help='list of datasets')                          
     parser.add_argument('--variables',        dest='variables',          required=True, nargs='+', type=str,
                         help='Select the variables to calculate the binning' )

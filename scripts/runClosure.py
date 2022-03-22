@@ -32,11 +32,11 @@ sys.path.append( os.path.join(os.environ['CMSSW_BASE'], 'src', 'METTriggerStudie
 from utils.utils import (
     create_single_dir,
     find_bin,
-    getKeyList,
     generate_trigger_combinations,
     get_root_object,
     get_histo_names,
     load_binning,
+    redraw_border,
 )
 
 from luigi_conf import (
@@ -55,11 +55,12 @@ def get_div_error_propagation(num, den, enum, eden):
     return val * TMath.Sqrt(first + second)
 
 def get_ref_obj( indir_union, channel, var, weightvar,
-                   nbins, edges, prefix,
-                   subtag ):
+                 nbins, edges, prefix,
+                 subtag ):
     globfiles = []
     for proc in args.mc_processes:
-        name_mc = os.path.join(indir_union, proc, prefix + '*' + subtag + '.hdf5')
+        name_mc = os.path.join(indir_union, proc, 'Closure_' + args.closure_single_trigger[0],
+                               prefix + '*' + subtag + '.hdf5')
         globfiles.extend( glob.glob(name_mc) )
 
     values = {}
@@ -110,12 +111,12 @@ def get_ref_obj( indir_union, channel, var, weightvar,
 
 def draw_single_eff( ref_obj, indir_union, indir_eff, channel, var, weightvar, trig,
                      nbins, edges, in_prefix, eff_prefix, data_name, mc_name,
-                     weights2d_names, prof_names, ref_names, subtag ):
+                     weights2d_names, prof_names, ref_names, subtag, debug ):
     #potentially many MC processes
-
     globfiles = []
     for proc in args.mc_processes:
-        name_mc = os.path.join(indir_union, proc, in_prefix + '*' + subtag + '.hdf5')
+        name_mc = os.path.join(indir_union, proc, 'Closure_' + args.closure_single_trigger[0],
+                               in_prefix + '*' + subtag + '.hdf5')
         globfiles.extend( glob.glob(name_mc) )
 
     nbins_eff = nbins
@@ -128,13 +129,13 @@ def draw_single_eff( ref_obj, indir_union, indir_eff, channel, var, weightvar, t
         for i in range(nbins):
             values[str(i)].extend( indata[channel][var][weightvar][trig][str(i)]['prob_ratios'][:] )
 
-    # Check f everything is empty
+    # Check if everything is empty
     flag = True
     for i in range(nbins):
         flag = flag and len(values[str(i)])==0
     if flag:
         return False
-        
+
     # get Y max and min edges
     ymax, ymin = -1., 2.
     for i in range(nbins):
@@ -149,7 +150,6 @@ def draw_single_eff( ref_obj, indir_union, indir_eff, channel, var, weightvar, t
     graph_exvals_low, graph_exvals_high = ([] for _ in range(2))
     graph_eyvals_low, graph_eyvals_high = ([] for _ in range(2))
 
-    #counts_prof = TGraph( histo_name + '_counts', histo_name + '_counts' )
     weights2d_mc = TH2D( histo_name + '_weights', histo_name + '_weights',
                          nbins, edges[0], edges[-1],
                          nbins_eff, ymin, ymax )
@@ -167,7 +167,6 @@ def draw_single_eff( ref_obj, indir_union, indir_eff, channel, var, weightvar, t
             graph_eyvals_low.append( TMath.Sqrt(yvals_sum)/2 )
             graph_eyvals_high.append( TMath.Sqrt(yvals_sum)/2 )
 
-            #counts_prof.AddPoint(fake_xval, yvals_count)
             for yval in yvals:
                 weights2d_mc.Fill(fake_xval, yval)
         else:
@@ -212,7 +211,6 @@ def draw_single_eff( ref_obj, indir_union, indir_eff, channel, var, weightvar, t
     eff_prof.SetMarkerStyle(20)
     eff_prof.SetLineColor(kBlack)
     eff_prof.Draw('p same')
-    #counts_prof.Draw('text same')
 
     lX, lY, lYstep = 0.20, 0.94, 0.03
     l = TLatex()
@@ -220,14 +218,14 @@ def draw_single_eff( ref_obj, indir_union, indir_eff, channel, var, weightvar, t
     l.SetTextFont(72)
     l.SetTextColor(1)
     l.SetTextSize(0.03)
-    l.DrawLatex( lX, lY,        'Channel: {}   /   Single Trigger: {} '.format(channel,trig))
-    l.DrawLatex( lX, lY-lYstep, 'MC weighted by {}'.format(weightvar))
+    l.DrawLatex( lX, lY, 'Single Trigger Closure, MC weighted by {}'.format(weightvar))
+    l.DrawLatex( lX, lY-lYstep, 'Channel: {}   /   Single Trigger: {} '.format(channel,trig))
 
-    leg = TLegend(0.62, 0.65, 0.96, 0.9)
+    leg = TLegend(0.62, 0.7, 0.96, 0.9)
     leg.SetFillColor(0)
     leg.SetShadowColor(0)
     leg.SetBorderSize(0)
-    leg.SetTextSize(0.035)
+    leg.SetTextSize(0.05)
     leg.SetFillStyle(0)
     leg.SetTextFont(42)
     leg.AddEntry(ref_obj, '#sum_{i}^{all}w_{i}', 'p')
@@ -252,7 +250,7 @@ def draw_single_eff( ref_obj, indir_union, indir_eff, channel, var, weightvar, t
     weights2d_mc.SetMarkerStyle(20)
     weights2d_mc.Draw('colz')
 
-    lX, lY, lYstep = 0.11, 0.94, 0.03
+    lX, lY, lYstep = 0.21, 0.94, 0.03
     l = TLatex()
     l.SetNDC()
     l.SetTextFont(72)
@@ -281,42 +279,6 @@ def draw_single_eff( ref_obj, indir_union, indir_eff, channel, var, weightvar, t
     eff1d_data = get_root_object('Data', eff1d_file)
     eff1d_mc = get_root_object('MC', eff1d_file)
 
-
-    # get the efficiency by dividing the weighted yields
-    # graph_div_xvals, graph_div_yvals = (for _ in range(2))
-    # graph_div_exvals_low, graph_div_exvals_high = (for _ in range(2))
-    # graph_div_eyvals_low, graph_div_eyvals_high = (for _ in range(2))
-
-    # for ix in range(nbins):
-    #     yvals = values[str(ix)]
-    #     fake_xval = (edges[ix]+edges[ix+1])/2 #used only for filling the correct bin
-    #     graph_div_xvals.append( fake_xval )
-    #     graph_div_exvals_low.append( abs(fake_xval-edges[ix]) )
-    #     graph_div_exvals_high.append( abs(fake_xval-edges[ix+1]) )
-    #     if yvals_count>0:
-    #         yvals_sum = sum(yvals)
-    #         graph_div_xvals.append(fake_xval)
-    #         graph_div_yvals.append(yvals_sum)
-    #         graph_div_eyvals_low.append( sqrt(yvals_sum)/2 )
-    #         graph_div_eyvals_high.append( sqrt(yvals_sum)/2 )
-
-    #         #counts_prof.AddPoint(fake_xval, yvals_count)
-    #         for yval in yvals:
-    #             weights2d_mc.Fill(fake_xval, yval)
-    #     else:
-    #         graph_div_yvals.append(0.)
-    #         graph_div_eyvals_low.append(0.)
-    #         graph_div_eyvals_high.append(0.)
-
-
-    # eff_prof_div = TGraphAsymmErrors( nbins,
-    #                                   array.array('d', graph_div_xvals),
-    #                                   array.array('d', graph_div_yvals),
-    #                                   array.array('d', graph_div_exvals_low),
-    #                                   array.array('d', graph_div_exvals_high),
-    #                                   array.array('d', graph_div_eyvals_low),
-    #                                   array.array('d', graph_div_eyvals_high) )
-
     for point in range(nbins):
         orig_yvalue = eff_prof.GetPointY(point)
         eff_prof.SetPoint(point,
@@ -334,23 +296,16 @@ def draw_single_eff( ref_obj, indir_union, indir_eff, channel, var, weightvar, t
         eff_prof.SetPointEYlow(point, binomial_ratio_std/2)
         eff_prof.SetPointEYhigh(point, binomial_ratio_std/2)
 
-    eff_prof.GetYaxis().SetTitle('Efficiency')
-    eff_prof.GetXaxis().SetTitle(var)
-    #eff_prof.GetXaxis().SetLabelOffset(1)
-    eff_prof.GetYaxis().SetTitleSize(0.04)
-    eff_prof.GetYaxis().SetTitleOffset(1.05)
-    eff_prof.GetXaxis().SetLabelSize(0.03)
-    eff_prof.GetYaxis().SetLabelSize(0.03)
-    eff_prof.SetLineColor(kGreen+3)
-    eff_prof.SetLineWidth(2)
-    eff_prof.SetMarkerColor(kGreen+3)
-    eff_prof.SetMarkerSize(1.3)
-    eff_prof.SetMarkerStyle(20)
+    pad1 = TPad('pad1', 'pad1', 0, 0.35, 1, 1)
+    pad1.SetBottomMargin(0.005)
+    pad1.SetLeftMargin(0.2)
+    pad1.Draw()
+    pad1.cd()
 
-    def get_graph_max_min(graph, npoints, prof):
+    def get_obj_max_min(graph, npoints, ishisto):
         vmax, vmin = 0, 1e10
         for point in range(npoints):
-            if prof:
+            if ishisto:
                 val = graph.GetBinContent(point+1)
             else:
                 val = graph.GetPointY(point)
@@ -360,51 +315,212 @@ def draw_single_eff( ref_obj, indir_union, indir_eff, channel, var, weightvar, t
                 vmin = val
         return vmax, vmin
 
-    max1, min1 = get_graph_max_min(eff_prof,   nbins, False)
-    max2, min2 = get_graph_max_min(eff1d_data, nbins, False)
-    max3, min3 = get_graph_max_min(eff1d_mc,    nbins, False)
+    max1, min1 = get_obj_max_min(eff_prof,   nbins, False)
+    max2, min2 = get_obj_max_min(eff1d_data, nbins, False)
+    max3, min3 = get_obj_max_min(eff1d_mc,    nbins, False)
     prof_max = max([ max1, max2, max3 ])
     prof_min = min([ min1, min2, min3 ])
-    eff_prof.SetMaximum(prof_max+0.3*(prof_max-prof_min))
-    eff_prof.SetMinimum(prof_min-0.1*(prof_max-prof_min))
-    eff_prof.Draw('ap')
+    
+    halfbinwidths = (edges[1:]-edges[:-1])/2
+    axor_info = nbins, edges[0]-halfbinwidths[0]/2, edges[-1]+halfbinwidths[-1]/2
+    axor = TH2D( 'axor', 'axor',
+                 axor_info[0], axor_info[1], axor_info[2],
+                 100, prof_min-0.1*(prof_max-prof_min), prof_max+0.4*(prof_max-prof_min) )
+    axor.GetYaxis().SetTitle('Efficiency')
+    axor.GetYaxis().SetNdivisions(507)
+    axor.GetXaxis().SetLabelOffset(1)
+    axor.GetXaxis().SetNdivisions(705)
+    axor.GetYaxis().SetTitleSize(0.07)
+    axor.GetYaxis().SetTitleOffset(1.05)
+    axor.GetXaxis().SetLabelSize(0.06)
+    axor.GetYaxis().SetLabelSize(0.06)
+    axor.Draw()
 
-    eff1d_data.GetYaxis().SetTitleSize(0.04)
-    eff1d_data.GetXaxis().SetLabelSize(0.03)
-    eff1d_data.GetYaxis().SetLabelSize(0.03)
+    eff_prof.SetLineColor(kGreen+3)
+    eff_prof.SetLineWidth(2)
+    eff_prof.SetMarkerColor(kGreen+3)
+    eff_prof.SetMarkerSize(1.3)
+    eff_prof.SetMarkerStyle(20)
+    eff_prof.Draw('same p0')
+
     eff1d_data.SetLineColor(kBlack)
     eff1d_data.SetLineWidth(2)
     eff1d_data.SetMarkerColor(kBlack)
     eff1d_data.SetMarkerSize(1.3)
     eff1d_data.SetMarkerStyle(20)
-    eff1d_data.SetMaximum(1.1)
-    eff1d_data.Draw('p same')
+    eff1d_data.Draw('same p0')
 
-    eff1d_mc.GetYaxis().SetTitleSize(0.04)
-    eff1d_mc.GetXaxis().SetLabelSize(0.03)
-    eff1d_mc.GetYaxis().SetLabelSize(0.03)
     eff1d_mc.SetLineColor(kRed)
     eff1d_mc.SetLineWidth(2)
     eff1d_mc.SetMarkerColor(kRed)
     eff1d_mc.SetMarkerSize(1.3)
     eff1d_mc.SetMarkerStyle(20)
-    eff1d_mc.SetMaximum(1.1)
-    eff1d_mc.Draw('p same')
+    eff1d_mc.Draw('same p0 e')
 
     l.DrawLatex( lX, lY,        'Channel: {}   /   Single Trigger: {} '.format(channel,trig))
     l.DrawLatex( lX, lY-lYstep, 'MC weighted by {}'.format(weightvar))
 
-    leg = TLegend(0.62, 0.79, 0.96, 0.89)
+    pad1.RedrawAxis()
+    
+    leg = TLegend(0.62, 0.73, 0.96, 0.89)
     leg.SetFillColor(0)
     leg.SetShadowColor(0)
     leg.SetBorderSize(0)
-    leg.SetTextSize(0.035)
+    leg.SetTextSize(0.05)
     leg.SetFillStyle(0)
     leg.SetTextFont(42)
     leg.AddEntry(eff_prof, 'MC weighted', 'p')
     leg.AddEntry(eff1d_data, 'Data', 'p')
     leg.AddEntry(eff1d_mc, 'MC', 'p')
     leg.Draw('same')
+
+    prof_canvas.cd()
+    pad2 = TPad('pad2','pad2',0,0.0,1,0.35)
+    pad2.SetTopMargin(0.01)
+    pad2.SetBottomMargin(0.4)
+    pad2.SetLeftMargin(0.2)
+    pad2.Draw()
+    pad2.cd()
+    pad2.SetGridy()
+
+    x_data, y_data   = ( [] for _ in range(2) )
+    eu_data, ed_data = ( [] for _ in range(2) )
+    x_prof, y_prof   = ( [] for _ in range(2) )
+    eu_prof, ed_prof = ( [] for _ in range(2) )
+    x_mc, y_mc   = ( [] for _ in range(2) )
+    eu_mc, ed_mc = ( [] for _ in range(2) )
+
+    x_sf1, y_sf1   = ( [] for _ in range(2) )
+    eu_sf1, ed_sf1 = ( [] for _ in range(2) )
+    x_sf2, y_sf2   = ( [] for _ in range(2) )
+    eu_sf2, ed_sf2 = ( [] for _ in range(2) )
+
+    for i in range(nbins):
+        #ctypes conversions needed
+        x_mc.append( ctypes.c_double(0.) )
+        y_mc.append( ctypes.c_double(0.) )
+        eff1d_mc.GetPoint(i, x_mc[i], y_mc[i])
+        x_mc[i] = x_mc[i].value
+        y_mc[i] = y_mc[i].value
+
+        eu_mc.append( eff1d_mc.GetErrorYhigh(i) )
+        ed_mc.append( eff1d_mc.GetErrorYlow(i) )
+        if debug:
+            print('xp[{}] = {} - yp[{}] = {} +{}/-{}\n'.format(i,x_mc[i],iy_mc[i],eu_mc[i],ed_mc[i]))
+
+        x_prof.append( ctypes.c_double(0.) )
+        y_prof.append( ctypes.c_double(0.) )
+        x_data.append( ctypes.c_double(0.) )
+        y_data.append( ctypes.c_double(0.) )
+        eff_prof.GetPoint(i, x_prof[i], y_prof[i])
+        eff1d_data.GetPoint(i, x_data[i], y_data[i])
+        x_prof[i] = x_prof[i].value
+        y_prof[i] = y_prof[i].value
+        x_data[i] = x_data[i].value
+        y_data[i] = y_data[i].value
+
+        eu_data.append( eff1d_data.GetErrorYhigh(i) )
+        ed_data.append( eff1d_data.GetErrorYlow(i) )
+        eu_prof.append( eff_prof.GetErrorYhigh(i) )
+        ed_prof.append( eff_prof.GetErrorYlow(i) )
+        
+        if debug:
+            print('xp[{}] = {} - yp[{}] = {} +{}/-{}\n'.format(i,x_prof[i],i,y_prof[i],eu_prof[i],ed_prof[i]))
+            print('xp[{}] = {} - yp[{}] = {} +{}/-{}\n'.format(i,x_data[i],i,y_data[i],eu_data[i],ed_data[i]))
+            print()
+
+        x_sf1.append( x_mc[i] )
+        x_sf2.append( x_mc[i] )
+        assert(x_data[i] == x_mc[i])
+        assert(x_prof[i] == x_mc[i])
+
+        try:
+            y_sf1.append( y_data[i] / y_mc[i] )
+        except ZeroDivisionError:
+            print('WARNING: There was a division by zero!')
+            y_sf1.append( 0 )
+            
+        try:
+            y_sf2.append( y_data[i] / y_prof[i] )
+        except ZeroDivisionError:
+            print('WARNING: There was a division by zero!')
+            y_sf2.append( 0 )
+
+        if y_sf1[i] == 0:
+            eu_sf1.append(0.)
+            ed_sf1.append(0.)
+        else:
+            eu_sf1.append(np.sqrt( eu_mc[i]**2 + eu_data[i]**2 ))
+            ed_sf1.append(np.sqrt( ed_mc[i]**2 + ed_data[i]**2 ))
+
+        if y_sf2[i] == 0:
+            eu_sf2.append(0.)
+            ed_sf2.append(0.)
+        else:
+            eu_sf2.append(np.sqrt( eu_prof[i]**2 + eu_data[i]**2 ))
+            ed_sf2.append(np.sqrt( ed_prof[i]**2 + ed_data[i]**2 ))
+
+        if debug:
+            print('=== Scale Factors ====')
+            for i in range(nbins):
+                print('Unweighted: xp[{}] = {} - yp[{}] = {} +{}/-{}\n'
+                      .format(i,x_sf1[i],i,y_sf1[i],eu_sf1[i],ed_sf1[i]))
+                print('Weighted: xp[{}] = {} - yp[{}] = {} +{}/-{}\n'
+                      .format(i,x_sf2[i],i,y_sf2[i],eu_sf2[i],ed_sf2[i]))
+            print()
+
+    darr = lambda x : np.array(x).astype(dtype=np.double)
+    sf1 = TGraphAsymmErrors( nbins,
+                             darr(x_sf1),
+                             darr(y_sf1),
+                             darr(halfbinwidths),
+                             darr(halfbinwidths),
+                             darr(ed_sf1),
+                             darr(eu_sf1) )
+    sf2 = TGraphAsymmErrors( nbins,
+                             darr(x_sf2),
+                             darr(y_sf2),
+                             darr(halfbinwidths),
+                             darr(halfbinwidths),
+                             darr(ed_sf2),
+                             darr(eu_sf2) )
+
+    max1, min1 = max(y_sf1)+max(eu_sf1),min(y_sf1)-max(ed_sf1)
+    max2, min2 = max(y_sf2)+max(eu_sf2),min(y_sf2)-max(ed_sf2)
+    prof_max = max([ max1, max2 ])
+    prof_min = min([ min1, min2 ])
+    axor2 = TH2D( 'axor2', 'axor2',
+                  axor_info[0], axor_info[1], axor_info[2],
+                  100, prof_min-0.1*(prof_max-prof_min), prof_max+0.1*(prof_max-prof_min) )
+    axor2.GetYaxis().SetNdivisions(405)
+    axor2.GetYaxis().SetLabelSize(0.08)
+    axor2.GetXaxis().SetLabelSize(0.08)
+    axor2.GetXaxis().SetNdivisions(705)
+    axor2.SetTitleSize(0.1,'X')
+    axor2.SetTitleSize(0.11,'Y')
+    axor2.GetXaxis().SetTitleOffset(1.)
+    axor2.GetYaxis().SetTitleOffset(.5)
+    axor2.GetYaxis().SetTitleSize(0.1)
+    axor2.GetYaxis().SetTitle('Data/MC')
+    axor2.GetXaxis().SetTitle(var)
+    axor2.Draw()
+
+    sf1.SetLineColor(ROOT.kRed)
+    sf1.SetLineWidth(2)
+    sf1.SetMarkerColor(ROOT.kRed)
+    sf1.SetMarkerSize(1.3)
+    sf1.SetMarkerStyle(22)
+    sf1.GetXaxis().SetTitle(var)
+    sf1.Draw('same p0')
+    
+    sf2.SetLineColor(ROOT.kGreen+3)
+    sf2.SetLineWidth(2)
+    sf2.SetMarkerColor(ROOT.kGreen+3)
+    sf2.SetMarkerSize(1.3)
+    sf2.SetMarkerStyle(22)
+    sf2.Draw('same p0')
+
+    redraw_border()
 
     for aname in prof_names:
       prof_canvas.SaveAs( aname )
@@ -439,7 +555,7 @@ def run_closure_outputs(outdir, channel, variables, weightvars, triggers, subtag
                 prof_name = outname('Prof')
                 ref_name = outname('Ref')
                 
-                thisbase = os.path.join(outdir, channel, var, '')
+                thisbase = os.path.join(outdir, channel, var, 'Closure')
                 create_single_dir( thisbase )
 
                 for ext,out in zip(_extensions[:-1], outputs):
@@ -468,7 +584,8 @@ def run_closure( indir_union,
                  in_prefix,
                  eff_prefix,
                  data_name,
-                 mc_name ):
+                 mc_name,
+                 debug ):
     gStyle.SetOptStat(0)
     gStyle.SetOptTitle(0)
     gStyle.SetPaintTextFormat("4.4f");
@@ -482,7 +599,7 @@ def run_closure( indir_union,
                              'runVariableImportanceDiscriminator_{}.json'.format(channel))
     with open(json_name, 'r') as f:
         effvars[channel] = json.load(f)
-    weightvars = effvars[channel][generate_trigger_combinations(args.triggers)[0][0]][0]
+    weightvars = effvars[channel][generate_trigger_combinations(triggers)[0][0]][0]
     
     _, outs = run_closure_outputs(outdir, channel, variables, weightvars, triggers, subtag)
     
@@ -502,7 +619,7 @@ def run_closure( indir_union,
                                  in_prefix, eff_prefix,
                                  data_name, mc_name,
                                  weights2d_names, prof_names, ref_names,
-                                 subtag )
+                                 subtag, debug )
 
 parser = argparse.ArgumentParser(description='Draw trigger scale factors')
 
@@ -525,8 +642,8 @@ parser.add_argument('--channel', dest='channel', required=True,
                     help='Select the channels over which the workflow will be run.' )
 parser.add_argument('--variables', dest='variables', required=True, nargs='+', type=str,
                     help='Select the variables over which the workflow will be run.' )
-parser.add_argument('--triggers', dest='triggers', required=True, nargs='+', type=str,
-                    help='Select the triggers over which the workflow will be run.' )
+parser.add_argument('--closure_triggers', dest='closure_triggers', nargs='+', type=str, required=True,
+                    help='Triggers considered for the closure. Originally used to find the expected perfect closure for a single trigger efficiency.')
 parser.add_argument('--subtag', dest='subtag', required=True, help='subtag')
 parser.add_argument('--data_name', dest='data_name', required=True, help='Data sample name')
 parser.add_argument('--mc_name', dest='mc_name', required=True, help='MC sample name')
@@ -536,7 +653,8 @@ args = parser.parse_args()
 
 run_closure( args.indir_union, args.indir_eff,
              args.outdir,
-             args.channel, args.variables, args.triggers,
+             args.channel, args.variables, args.closure_triggers,
              args.subtag,
              args.in_prefix, args.eff_prefix,
-             args.data_name, args.mc_name )
+             args.data_name, args.mc_name,
+             args.debug )

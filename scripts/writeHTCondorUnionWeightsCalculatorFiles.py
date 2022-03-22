@@ -65,6 +65,7 @@ def writeHTCondorUnionWeightsCalculatorFiles(args):
                      + '--channels {channels} '.format(channels=' '.join(args.channels,))
                      + '--triggers {triggers} '.format(triggers=' '.join(args.triggers,))
                      + '--file_name ${1} '
+                     + '--closure_single_trigger ${2} '
                      + '--variables {variables} '.format(variables=' '.join(args.variables,))
                      + '--tag {tag} '.format(tag=args.tag)
                      + '--subtag {subtag} '.format(subtag=args.subtag)
@@ -92,10 +93,11 @@ def writeHTCondorUnionWeightsCalculatorFiles(args):
 
         #### Write submission file
         queue = 'short'
+        queuevars = 'filename', 'closure_single_trigger'
         with open(subs[i], 'w') as s:
             s.write('Universe = vanilla\n')
             s.write('Executable = {}\n'.format(jobs[i]))
-            s.write('Arguments = $(filename) \n')
+            s.write('Arguments = $({}) $({})\n'.format(queuevars[0],queuevars[1]))
             s.write('input = /dev/null\n')
             s.write('output = {}\n'.format(checks[i]))
             s.write('error  = {}\n'.format(checks[i].replace('.o', '.e')))
@@ -104,9 +106,10 @@ def writeHTCondorUnionWeightsCalculatorFiles(args):
             s.write('WNTag=el7\n')
             s.write('+SingularityCmd = ""\n')
             s.write('include : /opt/exp_soft/cms/t3/t3queue |\n\n')
-            s.write('queue filename from (\n')
+            s.write('queue {},{} from (\n'.format(queuevars[0],queuevars[1]))
             for listname in filelist:
-                s.write('  {}\n'.format( os.path.basename(listname).replace('\n','') ))
+                for trig in args.closure_single_triggers:
+                    s.write('  {},{}\n'.format( os.path.basename(listname).replace('\n',''), trig ))
             s.write(')\n')
 
     # os.system('condor_submit -name llrt3condor {}'.format(submFile))
