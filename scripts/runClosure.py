@@ -162,10 +162,12 @@ def draw_single_eff( ref_obj, indir_union, indir_eff, channel, var, weightvar, t
         graph_exvals_low.append( abs(fake_xval-edges[ix]) )
         graph_exvals_high.append( abs(fake_xval-edges[ix+1]) )
         if yvals_count>0:
-            yvals_sum = sum(yvals)
-            graph_yvals.append(yvals_sum)
-            graph_eyvals_low.append( TMath.Sqrt(yvals_sum)/2 )
-            graph_eyvals_high.append( TMath.Sqrt(yvals_sum)/2 )
+            yvals_median = np.median(yvals) #avoid the binning in the TProfile
+            graph_yvals.append(yvals_median)
+
+            # Currently assuming zero error for the median of P_{Data}/P_{MC}. CHANGE!!!!!!!!!!!
+            graph_eyvals_low.append( 0. )
+            graph_eyvals_high.append( 0. )
 
             for yval in yvals:
                 weights2d_mc.Fill(fake_xval, yval)
@@ -251,6 +253,8 @@ def draw_single_eff( ref_obj, indir_union, indir_eff, channel, var, weightvar, t
     weights2d_mc.SetMarkerStyle(20)
     weights2d_mc.Draw('colz')
 
+    # The following tow lines are used for visualization only
+    # The values used for the closure are stored in `eff_prof`
     weights2d_prof = weights2d_mc.ProfileX( histo_name + '_weights_prof', 1, -1, 'o' )
     weights2d_prof.Draw('same')
 
@@ -283,22 +287,43 @@ def draw_single_eff( ref_obj, indir_union, indir_eff, channel, var, weightvar, t
     eff1d_data = get_root_object('Data', eff1d_file)
     eff1d_mc = get_root_object('MC', eff1d_file)
 
+    # This was done when I was istakenly trying to convert the number of events and not the efficiency directly
+    # for point in range(nbins):
+    #     orig_yvalue = eff_prof.GetPointY(point)
+    #     eff_prof.SetPoint(point,
+    #                       eff_prof.GetPointX(point),
+    #                       orig_yvalue / ref_obj.GetPointY(point) )
+    #     eff_prof.SetPointEXlow(point, eff_prof.GetErrorXlow(point))
+    #     eff_prof.SetPointEXhigh(point, eff_prof.GetErrorXhigh(point))
+    #     binomial_variance = ref_obj.GetPointY(point)*eff_prof.GetPointY(point)*(1-eff_prof.GetPointY(point))
+    #     binomial_std = TMath.Sqrt(binomial_variance)
+    #     binomial_ratio_std = get_div_error_propagation( binomial_std, #eff_prof.GetPointY(point)
+    #                                                     ref_obj.GetPointY(point),
+    #                                                     eff_prof.GetErrorXlow(point) + eff_prof.GetErrorXhigh(point),
+    #                                                     ref_obj.GetErrorXlow(point)  + ref_obj.GetErrorXhigh(point),
+    #                                                    )
+    #     eff_prof.SetPointEYlow(point, binomial_ratio_std/2)
+    #     eff_prof.SetPointEYhigh(point, binomial_ratio_std/2)
     for point in range(nbins):
         orig_yvalue = eff_prof.GetPointY(point)
+        orig_error = eff_prof.GetErrorYlow(point) + eff_prof.GetErrorYhigh(point)
+        value = eff1d_mc.GetPointY(point)*orig_yvalue
         eff_prof.SetPoint(point,
                           eff_prof.GetPointX(point),
-                          orig_yvalue / ref_obj.GetPointY(point) )
+                          value )
         eff_prof.SetPointEXlow(point, eff_prof.GetErrorXlow(point))
         eff_prof.SetPointEXhigh(point, eff_prof.GetErrorXhigh(point))
-        binomial_variance = ref_obj.GetPointY(point)*eff_prof.GetPointY(point)*(1-eff_prof.GetPointY(point))
-        binomial_std = TMath.Sqrt(binomial_variance)
-        binomial_ratio_std = get_div_error_propagation( binomial_std, #eff_prof.GetPointY(point)
-                                                        ref_obj.GetPointY(point),
-                                                        eff_prof.GetErrorXlow(point) + eff_prof.GetErrorXhigh(point),
-                                                        ref_obj.GetErrorXlow(point)  + ref_obj.GetErrorXhigh(point),
-                                                       )
-        eff_prof.SetPointEYlow(point, binomial_ratio_std/2)
-        eff_prof.SetPointEYhigh(point, binomial_ratio_std/2)
+        error_mc = eff1d_mc.GetErrorYlow(point) + eff1d_mc.GetErrorYhigh(point)
+        variance = ( value *
+                     TMath.Sqrt( (orig_error*orig_error)/(orig_yvalue*orig_yvalue) +
+                                 (error_mc*error_mc)/(eff1d_mc.GetPointY(point)*eff1d_mc.GetPointY(point)))
+                     )
+        std = TMath.Sqrt(variance)
+        print('Error orig: ', orig_error)
+        print('Error MC: ', error_mc)
+        print('Std:', std)
+        eff_prof.SetPointEYlow(point, std/2)
+        eff_prof.SetPointEYhigh(point, std/2)
 
     pad1 = TPad('pad1', 'pad1', 0, 0.35, 1, 1)
     pad1.SetBottomMargin(0.005)
