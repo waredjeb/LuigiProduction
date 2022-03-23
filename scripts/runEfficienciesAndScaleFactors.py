@@ -197,7 +197,7 @@ def drawEfficienciesAndScaleFactors(proc, channel, variable, trig, save_names, b
                 eu_sf[i] = 0
                 ed_sf[i] = 0
             else:
-                eu_sf[i] = np.sqrt( eu_mc[i]**2 + eu_data[i]**2 )
+  con              eu_sf[i] = np.sqrt( eu_mc[i]**2 + eu_data[i]**2 )
                 ed_sf[i] = np.sqrt( ed_mc[i]**2 + ed_data[i]**2 )
    
             if debug:

@@ -17,11 +17,11 @@ TAG="AllSingle_Closure"
 # 	condor_submit "${sub}"
 # done
 
-for sub in jobs/"${TAG}"/submission/jobUnionWeightsCalculator_*.condor;do
-	condor_submit "${sub}"
-done
+# for sub in jobs/"${TAG}"/submission/jobUnionWeightsCalculator_*.condor;do
+# 	condor_submit "${sub}"
+# done
 
 # REMOVED condor_submit jobs/"${TAG}"/submission/jobHaddEff.condor
 # REMOVED condor_submit jobs/"${TAG}"/submission/jobHaddEffAgg.condor
 
-# condor_submit jobs/"${TAG}"/submission/jobClosure.condor
+condor_submit jobs/"${TAG}"/submission/jobClosure.condor

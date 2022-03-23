@@ -68,7 +68,7 @@ def writeHTCondorClosureFiles(args):
         s.write('cd {}/\n'.format(args.localdir))
         s.write('eval `scramv1 runtime -sh`\n')
         s.write(command)
-        s.write('echo "runClosure for channel ${1} done."\n')
+        s.write('echo "runClosure for channel ${1} and single trigger ${2} done."\n')
     os.system('chmod u+rwx '+ outs_job)
 
     #### Write submission file

@@ -19,10 +19,10 @@ from ROOT import (
     TFile,
     TEfficiency,
     TGraphAsymmErrors,
-    TH1D,
     TH2D,
     TLatex,
     TLegend,
+    TLine,
     TMath,
 )
 import array
@@ -322,45 +322,76 @@ def draw_single_eff( ref_obj, indir_union, indir_eff, channel, var, weightvar, t
     prof_min = min([ min1, min2, min3 ])
     
     halfbinwidths = (edges[1:]-edges[:-1])/2
-    axor_info = nbins, edges[0]-halfbinwidths[0]/2, edges[-1]+halfbinwidths[-1]/2
+    axor_info = nbins+1, -1, nbins
+    axor_ndiv = 605, 705
     axor = TH2D( 'axor', 'axor',
                  axor_info[0], axor_info[1], axor_info[2],
                  100, prof_min-0.1*(prof_max-prof_min), prof_max+0.4*(prof_max-prof_min) )
+    axor.GetXaxis().SetNdivisions(axor_ndiv[0])
+    axor.GetYaxis().SetNdivisions(axor_ndiv[1])
+    axor.GetXaxis().SetTickLength(0)
     axor.GetYaxis().SetTitle('Efficiency')
-    axor.GetYaxis().SetNdivisions(507)
-    axor.GetXaxis().SetLabelOffset(1)
-    axor.GetXaxis().SetNdivisions(705)
     axor.GetYaxis().SetTitleSize(0.07)
     axor.GetYaxis().SetTitleOffset(1.05)
-    axor.GetXaxis().SetLabelSize(0.06)
     axor.GetYaxis().SetLabelSize(0.06)
     axor.Draw()
 
-    eff_prof.SetLineColor(kGreen+3)
-    eff_prof.SetLineWidth(2)
-    eff_prof.SetMarkerColor(kGreen+3)
-    eff_prof.SetMarkerSize(1.3)
-    eff_prof.SetMarkerStyle(20)
-    eff_prof.Draw('same p0')
+    ########################
+    # Change X axis labels #
+    ########################
+    eff_prof_new = TGraphAsymmErrors( nbins )
+    for ip in range(eff_prof.GetN()):
+        eff_prof_new.SetPoint(ip, ip, eff_prof.GetPointY(ip) )
+        eff_prof_new.SetPointError(ip, .5, .5,
+                                   eff_prof.GetErrorYlow(ip), eff_prof.GetErrorYhigh(ip) )
 
-    eff1d_data.SetLineColor(kBlack)
-    eff1d_data.SetLineWidth(2)
-    eff1d_data.SetMarkerColor(kBlack)
-    eff1d_data.SetMarkerSize(1.3)
-    eff1d_data.SetMarkerStyle(20)
-    eff1d_data.Draw('same p0')
+    eff1d_mc_new = TGraphAsymmErrors( nbins )
+    for ip in range(eff1d_mc.GetN()):
+        eff1d_mc_new.SetPoint(ip, ip, eff1d_mc.GetPointY(ip) )
+        eff1d_mc_new.SetPointError(ip, .5, .5,
+                                   eff1d_mc.GetErrorYlow(ip), eff1d_mc.GetErrorYhigh(ip) )
 
-    eff1d_mc.SetLineColor(kRed)
-    eff1d_mc.SetLineWidth(2)
-    eff1d_mc.SetMarkerColor(kRed)
-    eff1d_mc.SetMarkerSize(1.3)
-    eff1d_mc.SetMarkerStyle(20)
-    eff1d_mc.Draw('same p0 e')
+    eff1d_data_new = TGraphAsymmErrors( nbins )
+    for ip in range(eff1d_data.GetN()):
+        eff1d_data_new.SetPoint(ip, ip, eff1d_data.GetPointY(ip) )
+        eff1d_data_new.SetPointError(ip, .5, .5,
+                                   eff1d_data.GetErrorYlow(ip), eff1d_data.GetErrorYhigh(ip) )
+
+    eff_prof_new.SetLineColor(kGreen+3)
+    eff_prof_new.SetLineWidth(2)
+    eff_prof_new.SetMarkerColor(kGreen+3)
+    eff_prof_new.SetMarkerSize(1.3)
+    eff_prof_new.SetMarkerStyle(20)
+    eff_prof_new.Draw('same p0')
+
+    eff1d_data_new.SetLineColor(kBlack)
+    eff1d_data_new.SetLineWidth(2)
+    eff1d_data_new.SetMarkerColor(kBlack)
+    eff1d_data_new.SetMarkerSize(1.3)
+    eff1d_data_new.SetMarkerStyle(20)
+    eff1d_data_new.Draw('same p0')
+
+    eff1d_mc_new.SetLineColor(kRed)
+    eff1d_mc_new.SetLineWidth(2)
+    eff1d_mc_new.SetMarkerColor(kRed)
+    eff1d_mc_new.SetMarkerSize(1.3)
+    eff1d_mc_new.SetMarkerStyle(20)
+    eff1d_mc_new.Draw('same p0 e')
 
     l.DrawLatex( lX, lY,        'Channel: {}   /   Single Trigger: {} '.format(channel,trig))
     l.DrawLatex( lX, lY-lYstep, 'MC weighted by {}'.format(weightvar))
 
     pad1.RedrawAxis()
+    l = TLine()
+    l.SetLineWidth(2)
+    padmin = prof_min-0.1*(prof_max-prof_min)
+    padmax = prof_max+0.1*(prof_max-prof_min)
+    fraction = (padmax-padmin)/45
+    for i in range(nbins):
+      x = axor.GetXaxis().GetBinLowEdge(i) + 1.5;
+      l.DrawLine(x,padmin-fraction,x,padmin+fraction)
+    l.DrawLine(x+1,padmin-fraction,x+1,padmin+fraction)
+
     
     leg = TLegend(0.62, 0.73, 0.96, 0.89)
     leg.SetFillColor(0)
@@ -369,9 +400,9 @@ def draw_single_eff( ref_obj, indir_union, indir_eff, channel, var, weightvar, t
     leg.SetTextSize(0.05)
     leg.SetFillStyle(0)
     leg.SetTextFont(42)
-    leg.AddEntry(eff_prof, 'MC weighted', 'p')
-    leg.AddEntry(eff1d_data, 'Data', 'p')
-    leg.AddEntry(eff1d_mc, 'MC', 'p')
+    leg.AddEntry(eff_prof_new, 'MC weighted', 'p')
+    leg.AddEntry(eff1d_data_new, 'Data', 'p')
+    leg.AddEntry(eff1d_mc_new, 'MC', 'p')
     leg.Draw('same')
 
     prof_canvas.cd()
@@ -381,7 +412,6 @@ def draw_single_eff( ref_obj, indir_union, indir_eff, channel, var, weightvar, t
     pad2.SetLeftMargin(0.2)
     pad2.Draw()
     pad2.cd()
-    pad2.SetGridy()
 
     x_data, y_data   = ( [] for _ in range(2) )
     eu_data, ed_data = ( [] for _ in range(2) )
@@ -492,10 +522,15 @@ def draw_single_eff( ref_obj, indir_union, indir_eff, channel, var, weightvar, t
     axor2 = TH2D( 'axor2', 'axor2',
                   axor_info[0], axor_info[1], axor_info[2],
                   100, prof_min-0.1*(prof_max-prof_min), prof_max+0.1*(prof_max-prof_min) )
-    axor2.GetYaxis().SetNdivisions(405)
+    axor2.GetXaxis().SetNdivisions(axor_ndiv[0])
+    axor2.GetYaxis().SetNdivisions(axor_ndiv[1])
+    for i,elem in enumerate(sf1.GetX()):
+        axor2.GetXaxis().SetBinLabel(i+1, str(round(elem-sf1.GetErrorXlow(i),2)))
+    axor2.GetXaxis().SetBinLabel(i+2, str(round(elem+sf1.GetErrorXlow(i),2)))
+
     axor2.GetYaxis().SetLabelSize(0.08)
-    axor2.GetXaxis().SetLabelSize(0.08)
-    axor2.GetXaxis().SetNdivisions(705)
+    axor2.GetXaxis().SetLabelSize(0.15)
+    axor2.GetXaxis().SetLabelOffset(0.01)
     axor2.SetTitleSize(0.1,'X')
     axor2.SetTitleSize(0.11,'Y')
     axor2.GetXaxis().SetTitleOffset(1.)
@@ -503,22 +538,46 @@ def draw_single_eff( ref_obj, indir_union, indir_eff, channel, var, weightvar, t
     axor2.GetYaxis().SetTitleSize(0.1)
     axor2.GetYaxis().SetTitle('Data/MC')
     axor2.GetXaxis().SetTitle(var)
+
+    axor2.GetXaxis().SetTickLength(0)
     axor2.Draw()
 
-    sf1.SetLineColor(ROOT.kRed)
-    sf1.SetLineWidth(2)
-    sf1.SetMarkerColor(ROOT.kRed)
-    sf1.SetMarkerSize(1.3)
-    sf1.SetMarkerStyle(22)
-    sf1.GetXaxis().SetTitle(var)
-    sf1.Draw('same p0')
-    
-    sf2.SetLineColor(ROOT.kGreen+3)
-    sf2.SetLineWidth(2)
-    sf2.SetMarkerColor(ROOT.kGreen+3)
-    sf2.SetMarkerSize(1.3)
-    sf2.SetMarkerStyle(22)
-    sf2.Draw('same p0')
+    sf1_new = TGraphAsymmErrors( nbins )
+    for ip in range(sf1.GetN()):
+        sf1_new.SetPoint(ip, ip, sf1.GetPointY(ip) )
+        sf1_new.SetPointError(ip, .5, .5,
+                                   sf1.GetErrorYlow(ip), sf1.GetErrorYhigh(ip) )
+    sf1_new.SetLineColor(kRed)
+    sf1_new.SetLineWidth(2)
+    sf1_new.SetMarkerColor(kRed)
+    sf1_new.SetMarkerSize(1.3)
+    sf1_new.SetMarkerStyle(22)
+    sf1_new.GetXaxis().SetTitle(var)
+    sf1_new.Draw('same p0')
+
+    sf2_new = TGraphAsymmErrors( nbins )
+    for ip in range(sf2.GetN()):
+        sf2_new.SetPoint(ip, ip, sf2.GetPointY(ip) )
+        sf2_new.SetPointError(ip, .5, .5,
+                                   sf2.GetErrorYlow(ip), sf2.GetErrorYhigh(ip) )
+
+    sf2_new.SetLineColor(ROOT.kGreen+3)
+    sf2_new.SetLineWidth(2)
+    sf2_new.SetMarkerColor(ROOT.kGreen+3)
+    sf2_new.SetMarkerSize(1.3)
+    sf2_new.SetMarkerStyle(22)
+    sf2_new.Draw('same p0')
+
+    pad2.cd()
+    l = TLine()
+    l.SetLineWidth(2)
+    padmin = prof_min-0.1*(prof_max-prof_min)
+    padmax = prof_max+0.1*(prof_max-prof_min)
+    fraction = (padmax-padmin)/30
+    for i in range(nbins):
+      x = axor2.GetXaxis().GetBinLowEdge(i) + 1.5;
+      l.DrawLine(x,padmin-fraction,x,padmin+fraction)
+    l.DrawLine(x+1,padmin-fraction,x+1,padmin+fraction)
 
     redraw_border()
 
@@ -642,7 +701,8 @@ parser.add_argument('--channel', dest='channel', required=True,
                     help='Select the channels over which the workflow will be run.' )
 parser.add_argument('--variables', dest='variables', required=True, nargs='+', type=str,
                     help='Select the variables over which the workflow will be run.' )
-parser.add_argument('--closure_triggers', dest='closure_triggers', nargs='+', type=str, required=True,
+parser.add_argument('--closure_single_trigger', dest='closure_single_trigger', nargs='+',
+                    type=str, required=True,
                     help='Triggers considered for the closure. Originally used to find the expected perfect closure for a single trigger efficiency.')
 parser.add_argument('--subtag', dest='subtag', required=True, help='subtag')
 parser.add_argument('--data_name', dest='data_name', required=True, help='Data sample name')
@@ -653,7 +713,7 @@ args = parser.parse_args()
 
 run_closure( args.indir_union, args.indir_eff,
              args.outdir,
-             args.channel, args.variables, args.closure_triggers,
+             args.channel, args.variables, args.closure_single_trigger,
              args.subtag,
              args.in_prefix, args.eff_prefix,
              args.data_name, args.mc_name,
