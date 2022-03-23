@@ -72,7 +72,7 @@ def get_ref_obj( indir_union, channel, var, weightvar,
         for i in range(nbins):
             values[str(i)].extend( indata[channel][var][weightvar][str(i)]['ref_prob_ratios'][:] )
 
-    # Check f everything is empty
+    # Check if everything is empty
     flag = True
     for i in range(nbins):
         flag = flag and len(values[str(i)])==0
@@ -119,7 +119,7 @@ def draw_single_eff( ref_obj, indir_union, indir_eff, channel, var, weightvar, t
                                in_prefix + '*' + subtag + '.hdf5')
         globfiles.extend( glob.glob(name_mc) )
 
-    nbins_eff = nbins
+    nbins_eff = 5*nbins
     values = {}
     for i in range(nbins):
         values[str(i)] = []
@@ -151,9 +151,9 @@ def draw_single_eff( ref_obj, indir_union, indir_eff, channel, var, weightvar, t
     graph_eyvals_low, graph_eyvals_high = ([] for _ in range(2))
 
     weights2d_mc = TH2D( histo_name + '_weights', histo_name + '_weights',
-                         nbins, edges[0], edges[-1],
+                         nbins, array.array('d', edges),
                          nbins_eff, ymin, ymax )
-
+    
     for ix in range(nbins):
         yvals = values[str(ix)]
         yvals_count = len(yvals)
@@ -173,7 +173,6 @@ def draw_single_eff( ref_obj, indir_union, indir_eff, channel, var, weightvar, t
             graph_yvals.append(0.)
             graph_eyvals_low.append(0.)
             graph_eyvals_high.append(0.)
-
 
     eff_prof = TGraphAsymmErrors( nbins,
                                   array.array('d', graph_xvals),
@@ -243,12 +242,17 @@ def draw_single_eff( ref_obj, indir_union, indir_eff, channel, var, weightvar, t
 
     weights2d_mc.GetYaxis().SetTitle('P_{Data} / P_{MC}')
     weights2d_mc.GetYaxis().SetTitleOffset(.7)
+    weights2d_mc.GetXaxis().SetTitle(var)
+    weights2d_mc.GetXaxis().SetLabelOffset(0.)
     weights2d_mc.SetLineColor(1)
     weights2d_mc.SetLineWidth(2)
     weights2d_mc.SetMarkerColor(1)
     weights2d_mc.SetMarkerSize(1.3)
     weights2d_mc.SetMarkerStyle(20)
     weights2d_mc.Draw('colz')
+
+    weights2d_prof = weights2d_mc.ProfileX( histo_name + '_weights_prof', 1, -1, 'o' )
+    weights2d_prof.Draw('same')
 
     lX, lY, lYstep = 0.21, 0.94, 0.03
     l = TLatex()
