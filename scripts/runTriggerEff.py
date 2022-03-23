@@ -15,7 +15,10 @@ import fnmatch
 import math
 from array import array
 import numpy as np
-import ROOT
+from ROOT import (
+    TFile,
+    TH1D,
+)
 import h5py
 
 from collections import defaultdict
@@ -132,16 +135,16 @@ def get_trigger_eff_sig(indir, outdir, sample, fileName,
     if not os.path.exists(fname):
         raise ValueError('[' + os.path.basename(__file__) + '] {} does not exist.'.format(fname))
 
-    f_in = ROOT.TFile( fname )
+    f_in = TFile( fname )
     t_in = f_in.Get('HTauTauTree')
 
     lf = LeafManager( fname, t_in )
 
-    binedges, nbins = load_binning(afile=binedges_fname, key=subtag,
-                                   variables=variables, channels=channels)
+    binedges, nbins = load_binning( afile=binedges_fname, key=subtag,
+                                    variables=variables, channels=channels )
     for v in variables:
         for c in channels:
-            assert nbins[v][c]==6            
+            assert nbins[v][c]==6
 
     triggercomb = generate_trigger_combinations(triggers)
     
@@ -155,7 +158,7 @@ def get_trigger_eff_sig(indir, outdir, sample, fileName,
         for j in variables:
             binning = (nbins[j][i], binedges[j][i])
             hTrig[i][j]={}
-            hRef[i][j] = ROOT.TH1D( get_histo_names('Ref1D')(i, j), '', *binning)
+            hRef[i][j] = TH1D( get_histo_names('Ref1D')(i, j), '', *binning)
             for tcomb in triggercomb:
                 hTrig[i][j][joinNTC(tcomb)]={}
 
@@ -270,8 +273,8 @@ def get_trigger_eff_sig(indir, outdir, sample, fileName,
                                 htrig_name = rewriteCutString(base_str, pckey)
 
                                 if pckey not in hTrig[i][j][joinNTC(tcomb)]:
-                                    hTrig[i][j][joinNTC(tcomb)][pckey] = ROOT.TH1D(htrig_name, '', *binning)
-                                #hTrig[i][j][joinNTC(tcomb)].setdefault(pckey, ROOT.TH1D(htrig_name, '', *binning))
+                                    hTrig[i][j][joinNTC(tcomb)][pckey] = TH1D(htrig_name, '', *binning)
+                                #hTrig[i][j][joinNTC(tcomb)].setdefault(pckey, TH1D(htrig_name, '', *binning))
                                 if pcval:
                                     hTrig[i][j][joinNTC(tcomb)][pckey].Fill(fill_var[j][i], evt_weight)
 
@@ -288,7 +291,7 @@ def get_trigger_eff_sig(indir, outdir, sample, fileName,
                 #                     if pckey not in effRefVsTrig[i][vname][k]:
                 #                         effRefVsTrig_name = 'effRefVsTrig_{}_{}_{}'.format(i,k,vname)
                 #                         effRefVsTrig_name += '_CUTS_' + pckey
-                #                         effRefVsTrig[i][vname][k][pckey] = ROOT.TEfficiency( effRefVsTrig_name,
+                #                         effRefVsTrig[i][vname][k][pckey] = TEfficiency( effRefVsTrig_name,
                 #                                                                              '',
                 #                                                                              nbins[j[0]][i],
                 #                                                                              binedges[j[0]][i],
@@ -307,7 +310,7 @@ def get_trigger_eff_sig(indir, outdir, sample, fileName,
     outname = os.path.join(outdir, tprefix + sample + '_' + file_id + subtag + '.root')
     print('Saving file {} at {} '.format(file_id, outname) )
 
-    f_out = ROOT.TFile(outname, 'RECREATE')
+    f_out = TFile(outname, 'RECREATE')
     f_out.cd()
     for i in channels:
         for j in variables:

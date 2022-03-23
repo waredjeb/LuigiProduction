@@ -81,7 +81,7 @@ def eff_extractor(args, chn, effvars, nbins):
                     print(in_file_name)
                     print(nbins[var][chn], obj.GetN(), var, chn)
                     
-                    assert nbins[var][chn] == obj.GetN()
+                    #assert nbins[var][chn] == obj.GetN()
                     if obj.GetName() == 'Data':
                         for datapoint in range(obj.GetN()):
                             efficiencies_data[tcstr][var].append( obj.GetPointY(datapoint) )
