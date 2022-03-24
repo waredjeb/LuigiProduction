@@ -349,7 +349,7 @@ class cfg(luigi.Config):
                   'indir_eff': out_storage,
                   'indir_union': data_storage,
                   'indir_json': data_storage,
-                  'outdir': data_storage,
+                  'outdir': out_storage,
                   'inprefix': _closure_prefix,
                   'eff_prefix': _sf_prefix,
                   'mc_processes': _mc_processes[FLAGS.mc_process],

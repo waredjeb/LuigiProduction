@@ -10,7 +10,10 @@ import h5py
 from types import SimpleNamespace
 
 import ROOT
-from ROOT import TLine
+from ROOT import (
+    TGraphAsymmErrors,
+    TLine,
+)
 
 from luigi_conf import (
     _placeholder_cuts,
@@ -111,6 +114,19 @@ def generate_trigger_combinations(trigs):
 
     return list(set(complete_list) - set(trigger_combinations_to_remove))
 
+def get_display_variable_name(channel, var):
+    if channel == 'mutau':
+        var_custom = var.replace('dau1', 'mu').replace('dau2', 'tau')
+    elif channel == 'etau':
+        var_custom = var.replace('dau1', 'electron').replace('dau2', 'electron')
+    elif channel == 'tautau':
+        var_custom = var.replace('dau1', 'tau').replace('dau2', 'tau')
+    elif channel == 'mumu':
+        var_custom = var.replace('dau1', 'mu').replace('dau2', 'mu')
+    else:
+        var_custom = var
+    return var_custom
+
 def get_key_list(afile, inherits=['TH1']):
     tmp = []
     keylist = ROOT.TIter(afile.GetListOfKeys())
@@ -137,6 +153,19 @@ def get_histo_names(opt):
         import inspect
         currentFunction = inspect.getframeinfo(frame).function
         raise ValueError('[{}] option not supported.'.format(currentFunction))
+
+def get_obj_max_min(graph, npoints, ishisto):
+    vmax, vmin = 0, 1e10
+    for point in range(npoints):
+        if ishisto:
+            val = graph.GetBinContent(point+1)
+        else:
+            val = graph.GetPointY(point)
+        if val > vmax:
+            vmax = val
+        if val < vmin:
+            vmin = val
+    return vmax, vmin
 
 def get_root_input_files(proc, indir):
     #### Check input folder
@@ -384,6 +413,15 @@ def pass_trigger_bits(trig, trig_bit, run, isdata):
 def slashToUnderscoreAndKeep(s, n=4):
     """Replaces slashes by underscores, keeping only the last 'n' slash-separated strings"""
     return '_'.join( s.split('/')[-n:] )
+
+def uniformize_bin_width(old_histo):
+        """Change X axis labels."""
+        new_histo = TGraphAsymmErrors( old_histo.GetN() )
+        for ip in range(old_histo.GetN()):
+            new_histo.SetPoint(ip, ip, old_histo.GetPointY(ip) )
+            new_histo.SetPointError(ip, .5, .5,
+                                    old_histo.GetErrorYlow(ip), old_histo.GetErrorYhigh(ip) )
+        return new_histo
 
 def upify(s):
     """capitalizes the first letter of the passed string"""

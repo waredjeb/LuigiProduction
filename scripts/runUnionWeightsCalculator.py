@@ -92,8 +92,12 @@ def eff_extractor(args, chn, effvars, nbins):
                             efficiencies_mc[tcstr][var].append( obj.GetPointY(datapoint) )
                             efficiencies_mc_elow[tcstr][var].append( obj.GetErrorYlow(datapoint) )
                             efficiencies_mc_ehigh[tcstr][var].append( obj.GetErrorYhigh(datapoint) )
-                assert len(efficiencies_data[tcstr][var]) != 0
-                assert len(efficiencies_mc[tcstr][var]) != 0
+                    elif obj.GetName() == 'ScaleFactors':
+                        pass
+                    else:
+                        raise ValueError('[runUnionWeightsCalculator.py] It must be either Data or MC. It was {}.'.format(obj.GetName()))
+                assert len(efficiencies_data[tcstr][var]) > 0
+                assert len(efficiencies_mc[tcstr][var]) > 0
 
     return ( (efficiencies_data, efficiencies_data_ehigh, efficiencies_data_elow),
              (efficiencies_mc,   efficiencies_mc_ehigh,   efficiencies_mc_elow) )

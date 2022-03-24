@@ -11,32 +11,34 @@ import ROOT
 ROOT.gROOT.SetBatch(True)
 from ROOT import (
     TCanvas,
-    TPad,
-    TFile,
     TEfficiency,
+    TFile,
     TGraphAsymmErrors,
     TH1D,
     TH2D,
     TLatex,
     TLegend,
-    )
+    TLine,
+    TPad,
+)
 
 import sys
 sys.path.append( os.path.join(os.environ['CMSSW_BASE'], 'src', 'METTriggerStudies'))
-
 from utils.utils import (
-  create_single_dir,
-  get_key_list,
-  get_root_object,
-  get_histo_names,
-  load_binning,
-  redraw_border,
-  rewriteCutString,
+    create_single_dir,
+    get_display_variable_name,
+    get_key_list,
+    get_histo_names,
+    get_obj_max_min,
+    get_root_object,
+    load_binning,
+    redraw_border,
+    rewriteCutString,
+    uniformize_bin_width,
 )
-
 from luigi_conf import (
-  _extensions,
-  _placeholder_cuts,
+    _extensions,
+    _placeholder_cuts,
 )
 
 def drawEfficienciesAndScaleFactors(proc, channel, variable, trig, save_names, binedges, nbins,
@@ -197,7 +199,7 @@ def drawEfficienciesAndScaleFactors(proc, channel, variable, trig, save_names, b
                 eu_sf[i] = 0
                 ed_sf[i] = 0
             else:
-  con              eu_sf[i] = np.sqrt( eu_mc[i]**2 + eu_data[i]**2 )
+                eu_sf[i] = np.sqrt( eu_mc[i]**2 + eu_data[i]**2 )
                 ed_sf[i] = np.sqrt( ed_mc[i]**2 + ed_data[i]**2 )
    
             if debug:
@@ -250,49 +252,66 @@ def drawEfficienciesAndScaleFactors(proc, channel, variable, trig, save_names, b
         pad1.SetLeftMargin(0.2)
         pad1.Draw()
         pad1.cd()
-         
-        axor_info = nbins, binedges[0]-halfbinwidths[0]/2, binedges[-1]+halfbinwidths[-1]/2
+
+        max1, min1 = get_obj_max_min(eff_data[akey], nbins, False)
+        max2, min2 = get_obj_max_min(eff_mc[akey], nbins, False)
+        eff_max = max([ max1, max2 ])
+        eff_min = min([ min1, min2 ])
+
+        axor_info = nbins+1, -1, nbins
+        axor_ndiv = 605, 705
         axor = TH2D('axor'+akey,'axor'+akey,
                     axor_info[0], axor_info[1], axor_info[2],
-                    100, -0.1, 1.4)
+                    100, eff_min-0.1*(eff_max-eff_min), eff_max+0.4*(eff_max-eff_min) )
         axor.GetYaxis().SetTitle('Efficiency')
-        axor.GetYaxis().SetNdivisions(507)
+        axor.GetYaxis().SetNdivisions(axor_ndiv[1])
         axor.GetXaxis().SetLabelOffset(1)
-        axor.GetXaxis().SetNdivisions(705)
+        axor.GetXaxis().SetNdivisions(axor_ndiv[0])
         axor.GetYaxis().SetTitleSize(0.08)
         axor.GetYaxis().SetTitleOffset(.85)
         axor.GetXaxis().SetLabelSize(0.07)
         axor.GetYaxis().SetLabelSize(0.07)
+        axor.GetXaxis().SetTickLength(0)
         axor.Draw()
 
-        eff_data[akey].SetName('Data')
-        eff_data[akey].SetLineColor(1)
-        eff_data[akey].SetLineWidth(2)
-        eff_data[akey].SetMarkerColor(1)
-        eff_data[akey].SetMarkerSize(1.3)
-        eff_data[akey].SetMarkerStyle(20)
-        eff_data[akey].Draw('same p0 e')
+        eff_data_new = uniformize_bin_width(eff_data[akey])
+        eff_mc_new = uniformize_bin_width(eff_mc[akey])
 
-        eff_mc[akey].SetName('MC')
-        eff_mc[akey].SetLineColor(ROOT.kRed)
-        eff_mc[akey].SetLineWidth(2)
-        eff_mc[akey].SetMarkerColor(ROOT.kRed)
-        eff_mc[akey].SetMarkerSize(1.3)
-        eff_mc[akey].SetMarkerStyle(22)
-        eff_mc[akey].Draw('same p0')
+        eff_data_new.SetLineColor(1)
+        eff_data_new.SetLineWidth(2)
+        eff_data_new.SetMarkerColor(1)
+        eff_data_new.SetMarkerSize(1.3)
+        eff_data_new.SetMarkerStyle(20)
+        eff_data_new.Draw('same p0 e')
+
+        eff_mc_new.SetLineColor(ROOT.kRed)
+        eff_mc_new.SetLineWidth(2)
+        eff_mc_new.SetMarkerColor(ROOT.kRed)
+        eff_mc_new.SetMarkerSize(1.3)
+        eff_mc_new.SetMarkerStyle(22)
+        eff_mc_new.Draw('same p0')
 
         pad1.RedrawAxis()
+        l = TLine()
+        l.SetLineWidth(2)
+        padmin = eff_min-0.1*(eff_max-eff_min)
+        padmax = eff_max+0.1*(eff_max-eff_min)
+        fraction = (padmax-padmin)/45
+        for i in range(nbins):
+          x = axor.GetXaxis().GetBinLowEdge(i) + 1.5;
+          l.DrawLine(x,padmin-fraction,x,padmin+fraction)
+        l.DrawLine(x+1,padmin-fraction,x+1,padmin+fraction)
 
         leg = TLegend(0.77, 0.77, 0.96, 0.87)
         leg.SetFillColor(0)
         leg.SetShadowColor(0)
         leg.SetBorderSize(0)
-        leg.SetTextSize(0.04)
+        leg.SetTextSize(0.05)
         leg.SetFillStyle(0)
         leg.SetTextFont(42)
 
-        leg.AddEntry(eff_data[akey], 'Data', 'p')
-        leg.AddEntry(eff_mc[akey],   proc,   'p')
+        leg.AddEntry(eff_data_new, 'Data', 'p')
+        leg.AddEntry(eff_mc_new,   proc,   'p')
         leg.Draw('same')
 
         redraw_border()
@@ -336,36 +355,58 @@ def drawEfficienciesAndScaleFactors(proc, channel, variable, trig, save_names, b
         pad2.cd()
         pad2.SetGridy()
 
+        max1, min1 = max(y_sf)+max(eu_sf),min(y_sf)-max(ed_sf)
         axor2 = TH2D( 'axor2'+akey,'axor2'+akey,
                       axor_info[0], axor_info[1], axor_info[2],
-                      100, 0.45, 1.55 )
-        axor2.GetYaxis().SetNdivisions(507)
+                      100, min1-0.1*(max1-min1), max1+0.1*(max1-min1) )
+        axor2.GetXaxis().SetNdivisions(axor_ndiv[0])
+        axor2.GetYaxis().SetNdivisions(axor_ndiv[1])
+
+        # Change bin labels
+        rounding = lambda x: int(x) if 'pt' in variable else round(x, 2)
+        for i,elem in enumerate(sf[akey].GetX()):
+            axor2.GetXaxis().SetBinLabel(i+1, str(rounding(elem-sf[akey].GetErrorXlow(i))))
+        axor2.GetXaxis().SetBinLabel(i+2, str(rounding(elem+sf[akey].GetErrorXlow(i))))
+
         axor2.GetYaxis().SetLabelSize(0.12)
-        axor2.GetXaxis().SetLabelSize(0.12)
-        axor2.GetXaxis().SetNdivisions(705)
-        axor2.SetTitleSize(0.15,'X')
-        axor2.SetTitleSize(0.15,'Y')
+        axor2.GetXaxis().SetLabelSize(0.18)
+        axor2.GetXaxis().SetLabelOffset(0.015)
+        axor2.SetTitleSize(0.13,'X')
+        axor2.SetTitleSize(0.12,'Y')
         axor2.GetXaxis().SetTitleOffset(1.)
-        axor2.GetYaxis().SetTitleOffset(0.45)
+        axor2.GetYaxis().SetTitleOffset(0.5)
         axor2.GetYaxis().SetTitle('Data/MC')
-        axor2.GetXaxis().SetTitle(variable)
+            
+        axor2.GetXaxis().SetTitle( get_display_variable_name(channel, variable) )
+        axor2.GetXaxis().SetTickLength(0)
         axor2.Draw()
 
-        sf[akey].SetName('ScaleFactors')
-        sf[akey].SetLineColor(ROOT.kRed)
-        sf[akey].SetLineWidth(2)
-        sf[akey].SetMarkerColor(ROOT.kRed)
-        sf[akey].SetMarkerSize(1.3)
-        sf[akey].SetMarkerStyle(22)
-        sf[akey].GetYaxis().SetLabelSize(0.12)
-        sf[akey].GetXaxis().SetLabelSize(0.12)
-        sf[akey].GetXaxis().SetTitleSize(0.15)
-        sf[akey].GetYaxis().SetTitleSize(0.15)
-        sf[akey].GetXaxis().SetTitleOffset(1.)
-        sf[akey].GetYaxis().SetTitleOffset(0.45)
-        sf[akey].GetYaxis().SetTitle('Data/MC')
-        sf[akey].GetXaxis().SetTitle(variable)
-        sf[akey].Draw('same P0')
+        sf_new = uniformize_bin_width(sf[akey])
+        sf_new.SetLineColor(ROOT.kRed)
+        sf_new.SetLineWidth(2)
+        sf_new.SetMarkerColor(ROOT.kRed)
+        sf_new.SetMarkerSize(1.3)
+        sf_new.SetMarkerStyle(22)
+        sf_new.GetYaxis().SetLabelSize(0.12)
+        sf_new.GetXaxis().SetLabelSize(0.12)
+        sf_new.GetXaxis().SetTitleSize(0.15)
+        sf_new.GetYaxis().SetTitleSize(0.15)
+        sf_new.GetXaxis().SetTitleOffset(1.)
+        sf_new.GetYaxis().SetTitleOffset(0.45)
+        sf_new.GetYaxis().SetTitle('Data/MC')
+        sf_new.GetXaxis().SetTitle( get_display_variable_name(channel, variable) )
+        sf_new.Draw('same P0')
+
+        pad2.cd()
+        l = TLine()
+        l.SetLineWidth(2)
+        padmin = min1-0.1*(max1-min1)
+        padmax = max1+0.1*(max1-min1)
+        fraction = (padmax-padmin)/30
+        for i in range(nbins):
+          x = axor2.GetXaxis().GetBinLowEdge(i) + 1.5;
+          l.DrawLine(x,padmin-fraction,x,padmin+fraction)
+        l.DrawLine(x+1,padmin-fraction,x+1,padmin+fraction)
 
         redraw_border()
 
@@ -376,6 +417,11 @@ def drawEfficienciesAndScaleFactors(proc, channel, variable, trig, save_names, b
         _name = rewriteCutString(save_names[-1], akey, regex=True)
         eff_file = TFile.Open(_name, 'RECREATE')
         eff_file.cd()
+
+        eff_data[akey].SetName('Data')
+        eff_mc[akey].SetName('MC')
+        sf[akey].SetName('ScaleFactors')
+
         eff_data[akey].Write('Data')
         eff_mc[akey].Write('MC')
         sf[akey].Write('ScaleFactors')

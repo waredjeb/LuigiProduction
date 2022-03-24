@@ -6,43 +6,45 @@ import argparse
 import ctypes
 import numpy as np
 from copy import copy
+import array
+import sys
+sys.path.append( os.path.join(os.environ['CMSSW_BASE'], 'src', 'METTriggerStudies'))
 
 import ROOT
 ROOT.gROOT.SetBatch(True)
 from ROOT import (
-    gStyle,
-    kBlack,
-    kGreen,
-    kRed,
     TCanvas,
-    TPad,
-    TFile,
     TEfficiency,
+    TFile,
     TGraphAsymmErrors,
     TH2D,
     TLatex,
     TLegend,
     TLine,
     TMath,
+    TPad,
+    gStyle,
+    kBlack,
+    kGreen,
+    kRed,
 )
-import array
-import sys
-sys.path.append( os.path.join(os.environ['CMSSW_BASE'], 'src', 'METTriggerStudies'))
 
 from utils.utils import (
     create_single_dir,
     find_bin,
     generate_trigger_combinations,
-    get_root_object,
+    get_display_variable_name,
     get_histo_names,
+    get_obj_max_min,
+    get_root_object,
     load_binning,
     redraw_border,
+    uniformize_bin_width,
 )
-
 from luigi_conf import (
-    _extensions,
     _placeholder_cuts,
     _variables_unionweights,
+    _extensions,
 )
 
 def get_div_error_propagation(num, den, enum, eden):
@@ -202,7 +204,7 @@ def draw_single_eff( ref_obj, indir_union, indir_eff, channel, var, weightvar, t
     ref_obj.SetMarkerSize(1.3)
     ref_obj.SetMarkerStyle(20)
     ref_obj.SetLineColor(kRed)
-    ref_obj.GetXaxis().SetTitle(var)
+    ref_obj.GetXaxis().SetTitle( get_display_variable_name(channel, var) )
     ref_obj.Draw('ap')
 
     eff_prof.SetLineColor(1)
@@ -219,7 +221,8 @@ def draw_single_eff( ref_obj, indir_union, indir_eff, channel, var, weightvar, t
     l.SetTextFont(72)
     l.SetTextColor(1)
     l.SetTextSize(0.03)
-    l.DrawLatex( lX, lY, 'Single Trigger Closure, MC weighted by {}'.format(weightvar))
+    l.DrawLatex( lX, lY, 'Single Trigger Closure, MC weighted by {}'
+                 .format( get_display_variable_name(channel, weightvar)))
     l.DrawLatex( lX, lY-lYstep, 'Channel: {}   /   Single Trigger: {} '.format(channel,trig))
 
     leg = TLegend(0.62, 0.7, 0.96, 0.9)
@@ -244,7 +247,7 @@ def draw_single_eff( ref_obj, indir_union, indir_eff, channel, var, weightvar, t
 
     weights2d_mc.GetYaxis().SetTitle('P_{Data} / P_{MC}')
     weights2d_mc.GetYaxis().SetTitleOffset(.7)
-    weights2d_mc.GetXaxis().SetTitle(var)
+    weights2d_mc.GetXaxis().SetTitle( get_display_variable_name(channel, var) )
     weights2d_mc.GetXaxis().SetLabelOffset(0.)
     weights2d_mc.SetLineColor(1)
     weights2d_mc.SetLineWidth(2)
@@ -265,7 +268,8 @@ def draw_single_eff( ref_obj, indir_union, indir_eff, channel, var, weightvar, t
     l.SetTextColor(1)
     l.SetTextSize(0.03)
     l.DrawLatex( lX, lY,        'Channel: {}   /   Single Trigger: {} '.format(channel,trig))
-    l.DrawLatex( lX, lY-lYstep, 'MC weighted by {}'.format(weightvar))
+    l.DrawLatex( lX, lY-lYstep, 'MC weighted by {}'
+                 .format( get_display_variable_name(channel, weightvar)) )
 
     for aname in weights2d_names:
       weights2d_canvas.SaveAs( aname )
@@ -319,9 +323,6 @@ def draw_single_eff( ref_obj, indir_union, indir_eff, channel, var, weightvar, t
                                  (error_mc*error_mc)/(eff1d_mc.GetPointY(point)*eff1d_mc.GetPointY(point)))
                      )
         std = TMath.Sqrt(variance)
-        print('Error orig: ', orig_error)
-        print('Error MC: ', error_mc)
-        print('Std:', std)
         eff_prof.SetPointEYlow(point, std/2)
         eff_prof.SetPointEYhigh(point, std/2)
 
@@ -330,19 +331,6 @@ def draw_single_eff( ref_obj, indir_union, indir_eff, channel, var, weightvar, t
     pad1.SetLeftMargin(0.2)
     pad1.Draw()
     pad1.cd()
-
-    def get_obj_max_min(graph, npoints, ishisto):
-        vmax, vmin = 0, 1e10
-        for point in range(npoints):
-            if ishisto:
-                val = graph.GetBinContent(point+1)
-            else:
-                val = graph.GetPointY(point)
-            if val > vmax:
-                vmax = val
-            if val < vmin:
-                vmin = val
-        return vmax, vmin
 
     max1, min1 = get_obj_max_min(eff_prof,   nbins, False)
     max2, min2 = get_obj_max_min(eff1d_data, nbins, False)
@@ -364,27 +352,10 @@ def draw_single_eff( ref_obj, indir_union, indir_eff, channel, var, weightvar, t
     axor.GetYaxis().SetTitleOffset(1.05)
     axor.GetYaxis().SetLabelSize(0.06)
     axor.Draw()
-
-    ########################
-    # Change X axis labels #
-    ########################
-    eff_prof_new = TGraphAsymmErrors( nbins )
-    for ip in range(eff_prof.GetN()):
-        eff_prof_new.SetPoint(ip, ip, eff_prof.GetPointY(ip) )
-        eff_prof_new.SetPointError(ip, .5, .5,
-                                   eff_prof.GetErrorYlow(ip), eff_prof.GetErrorYhigh(ip) )
-
-    eff1d_mc_new = TGraphAsymmErrors( nbins )
-    for ip in range(eff1d_mc.GetN()):
-        eff1d_mc_new.SetPoint(ip, ip, eff1d_mc.GetPointY(ip) )
-        eff1d_mc_new.SetPointError(ip, .5, .5,
-                                   eff1d_mc.GetErrorYlow(ip), eff1d_mc.GetErrorYhigh(ip) )
-
-    eff1d_data_new = TGraphAsymmErrors( nbins )
-    for ip in range(eff1d_data.GetN()):
-        eff1d_data_new.SetPoint(ip, ip, eff1d_data.GetPointY(ip) )
-        eff1d_data_new.SetPointError(ip, .5, .5,
-                                   eff1d_data.GetErrorYlow(ip), eff1d_data.GetErrorYhigh(ip) )
+    
+    eff_prof_new = uniformize_bin_width(eff_prof)
+    eff1d_mc_new = uniformize_bin_width(eff1d_mc)
+    eff1d_data_new = uniformize_bin_width(eff1d_data)
 
     eff_prof_new.SetLineColor(kGreen+3)
     eff_prof_new.SetLineWidth(2)
@@ -408,7 +379,8 @@ def draw_single_eff( ref_obj, indir_union, indir_eff, channel, var, weightvar, t
     eff1d_mc_new.Draw('same p0 e')
 
     l.DrawLatex( lX, lY,        'Channel: {}   /   Single Trigger: {} '.format(channel,trig))
-    l.DrawLatex( lX, lY-lYstep, 'MC weighted by {}'.format(weightvar))
+    l.DrawLatex( lX, lY-lYstep, 'MC weighted by {}'
+                 .format( get_display_variable_name(channel, weightvar)) )
 
     pad1.RedrawAxis()
     l = TLine()
@@ -441,6 +413,7 @@ def draw_single_eff( ref_obj, indir_union, indir_eff, channel, var, weightvar, t
     pad2.SetLeftMargin(0.2)
     pad2.Draw()
     pad2.cd()
+    pad2.SetGridy()
 
     x_data, y_data   = ( [] for _ in range(2) )
     eu_data, ed_data = ( [] for _ in range(2) )
@@ -553,43 +526,36 @@ def draw_single_eff( ref_obj, indir_union, indir_eff, channel, var, weightvar, t
                   100, prof_min-0.1*(prof_max-prof_min), prof_max+0.1*(prof_max-prof_min) )
     axor2.GetXaxis().SetNdivisions(axor_ndiv[0])
     axor2.GetYaxis().SetNdivisions(axor_ndiv[1])
+
+    # Change bin labels
+    rounding = lambda x: int(x) if 'pt' in var else round(x, 2)
     for i,elem in enumerate(sf1.GetX()):
-        axor2.GetXaxis().SetBinLabel(i+1, str(round(elem-sf1.GetErrorXlow(i),2)))
-    axor2.GetXaxis().SetBinLabel(i+2, str(round(elem+sf1.GetErrorXlow(i),2)))
+        axor2.GetXaxis().SetBinLabel(i+1, str(rounding(elem-sf1.GetErrorXlow(i))))
+    axor2.GetXaxis().SetBinLabel(i+2, str(rounding(elem+sf1.GetErrorXlow(i))))
 
     axor2.GetYaxis().SetLabelSize(0.08)
     axor2.GetXaxis().SetLabelSize(0.15)
-    axor2.GetXaxis().SetLabelOffset(0.01)
+    axor2.GetXaxis().SetLabelOffset(0.015)
     axor2.SetTitleSize(0.1,'X')
     axor2.SetTitleSize(0.11,'Y')
     axor2.GetXaxis().SetTitleOffset(1.)
     axor2.GetYaxis().SetTitleOffset(.5)
     axor2.GetYaxis().SetTitleSize(0.1)
     axor2.GetYaxis().SetTitle('Data/MC')
-    axor2.GetXaxis().SetTitle(var)
-
+    axor2.GetXaxis().SetTitle( get_display_variable_name(channel, var) )
     axor2.GetXaxis().SetTickLength(0)
     axor2.Draw()
 
-    sf1_new = TGraphAsymmErrors( nbins )
-    for ip in range(sf1.GetN()):
-        sf1_new.SetPoint(ip, ip, sf1.GetPointY(ip) )
-        sf1_new.SetPointError(ip, .5, .5,
-                                   sf1.GetErrorYlow(ip), sf1.GetErrorYhigh(ip) )
+    sf1_new = uniformize_bin_width(sf1)
     sf1_new.SetLineColor(kRed)
     sf1_new.SetLineWidth(2)
     sf1_new.SetMarkerColor(kRed)
     sf1_new.SetMarkerSize(1.3)
     sf1_new.SetMarkerStyle(22)
-    sf1_new.GetXaxis().SetTitle(var)
+    sf1_new.GetXaxis().SetTitle( get_display_variable_name(channel, var) )
     sf1_new.Draw('same p0')
 
-    sf2_new = TGraphAsymmErrors( nbins )
-    for ip in range(sf2.GetN()):
-        sf2_new.SetPoint(ip, ip, sf2.GetPointY(ip) )
-        sf2_new.SetPointError(ip, .5, .5,
-                                   sf2.GetErrorYlow(ip), sf2.GetErrorYhigh(ip) )
-
+    sf2_new = uniformize_bin_width(sf2)
     sf2_new.SetLineColor(ROOT.kGreen+3)
     sf2_new.SetLineWidth(2)
     sf2_new.SetMarkerColor(ROOT.kGreen+3)
