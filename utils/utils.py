@@ -42,6 +42,8 @@ def create_single_dir(p):
               "Are you sure the path is correct?".format(p) )
         print(m)
         raise
+    except FileExistsError:
+        pass
     
 def createSingleFile(f):
     """Creates a dummy file if it does not exist"""
