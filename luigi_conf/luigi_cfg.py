@@ -203,7 +203,6 @@ class cfg(luigi.Config):
                       'variables': variables_join,
                       'tag': tag,
                       'subtag': subtag,
-                      'tprefix': modes['histos'],
                       'intersection_str': intersection_str,
                       'nocut_dummy_str': nocut_dummy_str,
                       'debug': FLAGS.debug_workflow
@@ -213,6 +212,15 @@ class cfg(luigi.Config):
     #### haddHisto
     ####
     haddhisto_params = luigi.DictParameter(
+        default={ 'indir': data_storage,
+                  'localdir': local_folder,
+                  'tag': tag,
+                  'subtag': subtag } )
+
+    ####
+    #### haddCounts
+    ####
+    haddcounts_params = luigi.DictParameter(
         default={ 'indir': data_storage,
                   'localdir': local_folder,
                   'tag': tag,

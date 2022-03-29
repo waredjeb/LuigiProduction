@@ -12,38 +12,28 @@ import sys
 import functools
 import argparse
 import fnmatch
-import math
 from array import array
-import numpy as np
-import ROOT
-import h5py
-import itertools as it
+from ROOT import TFile
 
 import sys
-sys.path.append(os.path.join(os.environ['CMSSW_BASE'], 'src', 'METTriggerStudies'))
+sys.path.append( os.environ['PWD'] ) 
 
 from utils.utils import (
-    checkBit,
+    generate_trigger_combinations,
+    get_histo_names,
     get_trigger_bit,
-    isChannelConsistent,
+    is_channel_consistent,
     join_name_trigger_intersection as joinNTC,
     LeafManager,
-    set_custom_trigger_bit,
+    load_binning,
+    pass_any_trigger,
+    pass_selection_cuts,
+    rewriteCutString,
+    pass_trigger_bits,
 )
 
-from luigi_conf import (
-    _cuts,
-    _cuts_ignored,
-    _2Dpairs,
-    _sel,
-    _triggers_custom
-)
+from luigi_conf import _triggers_custom
 
-def checkBit(number, bitpos):
-    bitdigit = 1
-    res = bool(number&(bitdigit<<bitpos))
-    return res
-    
 def getTriggerCounts(indir, outdir, sample, fileName,
                      channels, triggers,
                      subtag, tprefix, isdata ):
@@ -58,11 +48,11 @@ def getTriggerCounts(indir, outdir, sample, fileName,
     if not os.path.exists(fname):
         raise ValueError('[' + os.path.basename(__file__) + '] {} does not exist.'.format(fname))
 
-    f_in = ROOT.TFile( fname )
+    f_in = TFile( fname )
     t_in = f_in.Get('HTauTauTree')
 
-    triggercomb = list( it.chain.from_iterable(it.combinations(triggers, x)
-                                               for x in range(1,len(triggers)+1)) )
+    triggercomb = generate_trigger_combinations(triggers)
+
     counter, counterRef = ({} for _ in range(2))
     for tcomb in triggercomb:
         tcomb_str = joinNTC(tcomb)
@@ -75,49 +65,30 @@ def getTriggerCounts(indir, outdir, sample, fileName,
     
     for entry in range(0,t_in.GetEntries()):
         t_in.GetEntry(entry)
-        
-        pairtype = lf.getLeaf( 'pairType' )
-        mhh = lf.getLeaf( 'HHKin_mass' )
-        if mhh<1:
+
+        if not pass_selection_cuts(lf):
             continue
 
-        dau1_eleiso = lf.getLeaf( 'dau1_eleMVAiso'    )
-        dau1_muiso  = lf.getLeaf( 'dau1_iso'          )
-        dau1_tauiso = lf.getLeaf( 'dau1_deepTauVsJet' )
-        dau2_tauiso = lf.getLeaf( 'dau2_deepTauVsJet' )
-        
-        if pairtype==1 and (dau1_eleiso!=1 or dau2_tauiso<5):
-            continue
-        if pairtype==0 and (dau1_muiso>=0.15 or dau2_tauiso<5):
-            continue
-        if pairtype==2 and (dau1_tauiso<5 or dau2_tauiso<5):
-            continue
-
-        #((tauH_SVFIT_mass-116.)*(tauH_SVFIT_mass-116.))/(35.*35.) + ((bH_mass_raw-111.)*(bH_mass_raw-111.))/(45.*45.) <  1.0
-        svfit_mass = lf.getLeaf('tauH_SVFIT_mass')
-        bH_mass    = lf.getLeaf('bH_mass_raw')
-
-        mcut = ((svfit_mass-129.)*(svfit_mass-129.))/(53.*53.) + ((bH_mass-169.)*(bH_mass-169.))/(145.*145.) <  1.0
-        if mcut: # inverted elliptical mass cut (-> ttCR)
-            continue
-
-        trigBit = lf.getLeaf('pass_triggerbit')
+        trig_bit = lf.getLeaf('pass_triggerbit')
         run = lf.getLeaf('RunNumber')
-        passLEP = lf.getLeaf('isLeptrigger')
+        if not pass_any_trigger(triggers, trig_bit, run, isdata=isdata):
+            continue
+
+        pass_trigger = {}
+        for trig in triggers:
+            pass_trigger[trig] = pass_trigger_bits(trig, trig_bit, run, isdata)
 
         for tcomb in triggercomb:
             for chn in channels:
-                if isChannelConsistent(chn, pairtype) and passLEP:
+                if is_channel_consistent(chn, lf.getLeaf('pairType')):
 
-                    passAllTriggerBits = functools.reduce(
+                    pass_trigger_intersection = functools.reduce(
                         lambda x,y: x and y, #logic AND to join all triggers in this option
-                        [ ( checkBit(trigBit, get_trigger_bit(x, isdata))
-                            if x not in _triggers_custom else set_custom_trigger_bit(x, trigBit, run, isdata) )
-                          for x in tcomb ]
+                        [ pass_trigger[x] for x in tcomb ]
                     )
 
                     counterRef[chn] += 1
-                    if passAllTriggerBits:
+                    if pass_trigger_intersection:
                         tcomb_str = joinNTC(tcomb)
                         counter[tcomb_str][chn] += 1
                                             
@@ -146,9 +117,9 @@ parser.add_argument('--subtag',      dest='subtag',      required=True,
                     help='Additional (sub)tag to differ  entiate similar runs within the same tag.')
 parser.add_argument('--tprefix',     dest='tprefix',     required=True, help='Targets name prefix.')
 parser.add_argument('--channels',    dest='channels',    required=True, nargs='+', type=str,  
-                    help='Select t   he channels over w  hich the workflow will be run.' )
+                    help='Select the channels over which the workflow will be run.' )
 parser.add_argument('--triggers',    dest='triggers',    required=True, nargs='+', type=str,
-                    help='Select t   he triggers over w  hich the workflow will be run.' )
+                    help='Select the triggers over which the workflow will be run.' )
 parser.add_argument('--debug', action='store_true', help='debug verbosity')
 
 args = parser.parse_args()

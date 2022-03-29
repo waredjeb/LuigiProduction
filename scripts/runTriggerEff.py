@@ -2,9 +2,6 @@
 """
 Script which calculates the trigger scale factors.
 On production mode should run in the grid via scripts/submitTriggerEff.py. 
-Local run example:
-
-python3 /home/llr/cms/alves/CMSSW_12_2_0_pre1/src/METTriggerStudies/scripts/get_trigger_eff_sig.py --indir /data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_2018_UL_data_test11Jan22/ --outdir /data_CMS/cms/alves/UL_v1/ --sample SKIM_MET2018 --file output_0.root --channels all etau mutau tautau mumu --subtag _default --binedges /data_CMS/cms/alves/TriggerScaleFactors/UL_v1/binedges.hdf5 --isdata 1 --tprefix hist_eff_ --triggers METNoMu120 IsoTau50 --variables HT20 met_et mht_et metnomu_et mhtnomu_et dau1_pt dau2_pt dau1_eta dau2_eta --nocut_dummy_str NoCut --debug
 """
 import re
 import os
@@ -138,8 +135,6 @@ def get_trigger_eff_sig(indir, outdir, sample, fileName,
     f_in = TFile( fname )
     t_in = f_in.Get('HTauTauTree')
 
-    lf = LeafManager( fname, t_in )
-
     binedges, nbins = load_binning( afile=binedges_fname, key=subtag,
                                     variables=variables, channels=channels )
     for v in variables:
@@ -177,6 +172,8 @@ def get_trigger_eff_sig(indir, outdir, sample, fileName,
     #                 if vname not in effRefVsTrig[i]: #creates subdictionary if it does not exist
     #                     effRefVsTrig[i][vname] = {}
     #                 effRefVsTrig[i][vname][k] = {}
+
+    lf = LeafManager( fname, t_in )
     
     for entry in range(0,t_in.GetEntries()):
         t_in.GetEntry(entry)

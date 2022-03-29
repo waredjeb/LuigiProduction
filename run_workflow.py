@@ -21,9 +21,9 @@ from scripts.defineBinning import (
     defineBinning,
     defineBinning_outputs,
 )
-from scripts.writeHTCondorHistogramFiles import (
-    writeHTCondorHistogramFiles,
-    writeHTCondorHistogramFiles_outputs,
+from scripts.writeHTCondorProcessingFiles import (
+    writeHTCondorProcessingFiles,
+    writeHTCondorProcessingFiles_outputs,
 )
 from scripts.writeHTCondorHaddHistoFiles import (
     writeHTCondorHaddHistoFiles,
@@ -123,7 +123,8 @@ class WriteHTCondorProcessingFiles(ForceRun):
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def output(self):
         self.params['mode'] = self.mode
-        o1, o2, _, _ = writeHTCondorHistogramFiles_outputs(self.params)
+        self.params['tprefix'] = lcfg.modes[self.mode]
+        o1, o2, _, _ = writeHTCondorProcessingFiles_outputs(self.params)
 
         #write the target files for debugging
         target_path = get_target_path( self.__class__.__name__ )
@@ -139,7 +140,8 @@ class WriteHTCondorProcessingFiles(ForceRun):
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def run(self):
         self.params['mode'] = self.mode
-        writeHTCondorHistogramFiles(self.params)
+        self.params['tprefix'] = lcfg.modes[self.mode]
+        writeHTCondorProcessingFiles(self.params)
 
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def requires(self):
@@ -160,6 +162,38 @@ class WriteHTCondorHaddHistoFiles(ForceRun):
         self.args['samples'] = luigi_to_raw( self.samples )
         self.args['dataset_name'] = self.dataset_name
         o1, o2, _ = writeHTCondorHaddHistoFiles_outputs( self.args )
+        
+        #write the target files for debugging
+        target_path = get_target_path( self.__class__.__name__ )
+        utils.remove( target_path )
+        with open( target_path, 'w' ) as f:
+            for t in o1: f.write( t + '\n' )
+            for t in o2: f.write( t + '\n' )
+
+        _c1 = convert_to_luigi_local_targets(o1)
+        _c2 = convert_to_luigi_local_targets(o2)
+        return _c1 + _c2
+
+    @WorkflowDebugger(flag=FLAGS.debug_workflow)
+    def run(self):
+        self.args['samples'] = luigi_to_raw( self.samples )
+        self.args['dataset_name'] = self.dataset_name
+        writeHTCondorHaddHistoFiles( self.args )
+
+########################################################################
+### WRITE HTCONDOR FILES FOR HADDING TXT COUNT FILES ###################
+########################################################################
+class WriteHTCondorHaddHistoFiles(ForceRun):
+    samples = luigi.ListParameter()
+    dataset_name = luigi.Parameter()
+    args = utils.dotDict(lcfg.haddcounts_params)
+    args['tprefix'] = lcfg.modes['counts']
+    
+    @WorkflowDebugger(flag=FLAGS.debug_workflow)
+    def output(self):
+        self.args['samples'] = luigi_to_raw( self.samples )
+        self.args['dataset_name'] = self.dataset_name
+        o1, o2, _ = writeHTCondorHaddCountsFiles_outputs( self.args )
         
         #write the target files for debugging
         target_path = get_target_path( self.__class__.__name__ )
@@ -452,9 +486,9 @@ class WriteDAG(ForceRun):
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def run(self):
         self.pHistos['mode'] = 'histos'
-        _, submHistos, _, _ = writeHTCondorHistogramFiles_outputs(self.pHistos)
+        _, submHistos, _, _ = writeHTCondorProcessingFiles_outputs(self.pHistos)
         self.pHistos['mode'] = 'counts'
-        _, submCounts, _, _ = writeHTCondorHistogramFiles_outputs(self.pHistos)
+        _, submCounts, _, _ = writeHTCondorProcessingFiles_outputs(self.pHistos)
 
         self.pHaddHisto['dataset_name'] = FLAGS.data
         _, submHaddHistoData, _   = writeHTCondorHaddHistoFiles_outputs(self.pHaddHisto)

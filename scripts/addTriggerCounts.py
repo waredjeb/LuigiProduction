@@ -8,9 +8,9 @@ from pathlib import Path
 
 from utils import utils
 
-from matplotlib import pyplot as plt, cm, colors
-from matplotlib.font_manager import FontProperties
-plt.rcParams.update({'font.size': 32})
+# from matplotlib import pyplot as plt, cm, colors
+# from matplotlib.font_manager import FontProperties
+# plt.rcParams.update({'font.size': 32})
 
 @utils.setPureInputNamespace
 def addTriggerCounts_outputs(args):
@@ -83,34 +83,34 @@ def addTriggerCounts(args):
                     #remove the extra info after the line break
                     ftxt.write(str(i) + '\t' +  str(j).split('\n')[0] + '\n')
 
-        triggers = np.reshape(triggers, (nrows,ncols))
-        vals = np.reshape(vals, (nrows,ncols)) + 0.001
-        norm = colors.LogNorm(vals.min(), vals.max(), clip=False)
+        # triggers = np.reshape(triggers, (nrows,ncols))
+        # vals = np.reshape(vals, (nrows,ncols)) + 0.001
+        # norm = colors.LogNorm(vals.min(), vals.max(), clip=False)
 
-        ## Saving the same information on a pictur
-        fig, ax = plt.subplots(figsize=(30, 16))
-        # hide axes
-        fig.patch.set_visible(False)
-        ax.axis('off')
-        ax.axis('tight')
+        # ## Saving the same information on a pictur
+        # fig, ax = plt.subplots(figsize=(30, 16))
+        # # hide axes
+        # fig.patch.set_visible(False)
+        # ax.axis('off')
+        # ax.axis('tight')
 
-        atable = plt.table( cellText=triggers,
-                            colWidths = [0.07]*vals.shape[1],
-                            loc='center',
-                            cellLoc='center',
-                            cellColours=plt.cm.Oranges_r(norm(vals))
-                           )
+        # atable = plt.table( cellText=triggers,
+        #                     colWidths = [0.07]*vals.shape[1],
+        #                     loc='center',
+        #                     cellLoc='center',
+        #                     cellColours=plt.cm.Oranges_r(norm(vals))
+        #                    )
 
-        atable.scale(4,10)
+        # atable.scale(4,10)
 
-        for (row, col), cell in atable.get_celld().items():
-            cell.set_text_props(fontproperties=FontProperties(weight='bold'))
+        # for (row, col), cell in atable.get_celld().items():
+        #     cell.set_text_props(fontproperties=FontProperties(weight='bold'))
             
-        plt.title( ( ('Data' if (smpl in args.data) else 'MC') +
-                     ' (' + k1 + ': ' + str(counterRef[k1]) + ' events)' ),
-                   fontdict={'fontsize': 70, 'fontweight': 30}
-                   )
-        plt.savefig( outputs_png[ic] )
+        # plt.title( ( ('Data' if (smpl in args.data) else 'MC') +
+        #              ' (' + k1 + ': ' + str(counterRef[k1]) + ' events)' ),
+        #            fontdict={'fontsize': 70, 'fontweight': 30}
+        #            )
+        # plt.savefig( outputs_png[ic] )
         
 # Run with:
 # python3 /home/llr/cms/alves/CMSSW_12_2_0_pre1/src/METTriggerStudies/scripts/addTriggerCounts.py --indir /data_CMS/cms/alves/TriggerScaleFactors/CountsTest/ --outdir /data_CMS/cms/alves/TriggerScaleFactors/CountTest/ --samples SKIM_MET2018 --channels etau mutau tautau --subtag _default --tprefix count_ --triggers IsoMuIsoTau EleIsoTau VBFTau VBFTauHPS METNoMu120 IsoTau50 IsoTau180 --debug
