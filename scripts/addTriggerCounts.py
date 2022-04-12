@@ -8,112 +8,90 @@ from pathlib import Path
 
 from utils import utils
 
-# from matplotlib import pyplot as plt, cm, colors
-# from matplotlib.font_manager import FontProperties
-# plt.rcParams.update({'font.size': 32})
-
-@utils.setPureInputNamespace
-def addTriggerCounts_outputs(args):
-    extensions = ('png', 'txt')
-    Path(args.outdir).mkdir(parents=False, exist_ok=True)
-    t = tuple([] for _ in range(len(extensions)))
-    for chn in args.channels:
-        for i,ext in enumerate(extensions):
-            t[i].append( os.path.join( args.outdir, args.dataset_name + '_' + chn + '_triggerCounts.' + ext ) )
-    return t
-
 @utils.setPureInputNamespace
 def addTriggerCounts(args):
-    """Adds ROOT histograms"""
-    regex = re.compile( args.tprefix + '.+_[0-9]{1,5}' + args.subtag + '.txt' )
+    outputs_txt = args.outfile_counts
+    
+    def are_there_files(files, regex):
+        if len(files)==0:
+            m =  '\nThe walk was performed in {} .\n'.format(os.path.join(args.indir, smpl))
+            m += 'The regular expression was {}.\n'.format(regex.pattern)
+            m += 'The regular expression could not retrieve any files.'
+            raise ValueError(m)
 
     inputs_join = []
-    for smpl in args.samples:
-        for root, dirs, files in os.walk( os.path.join(args.indir, smpl) ):
+    if args.aggr:
+        regex = re.compile( args.tprefix + '.+_Sum.*' + args.subtag + '.txt' )
+        walk_path = args.indir
+        for root, d, files in os.walk( walk_path, topdown=True ):
+            if root[len(walk_path):].count(os.sep) < 1:
+
+                for afile in files:
+
+                    if regex.match( os.path.basename(afile) ):
+                        afile_full = os.path.join(root, afile)
+                        if afile_full in args.infile_counts:
+                            inputs_join.append( afile_full )
+
+        are_there_files(files, regex)
+        assert inputs_join==args.infile_counts
+
+    else:
+        regex = re.compile( args.tprefix + '.+_[0-9]{1,5}' + args.subtag + '.txt' )
+        walk_path = os.path.join(args.indir, args.sample)
+        for root, _, files in os.walk( walk_path ):
             for afile in files:
                 if regex.match( os.path.basename(afile) ):
                     inputs_join.append( os.path.join(root, afile) )
-
-    if len(inputs_join)==0:
-        m =  '\nThe walk was performed in {} .\n'.format(os.path.join(args.indir, smpl))
-        m += 'The regular expression was {}.\n'.format(regex.pattern)
-        m += 'The regular expression could not retrieve any files.'
-        raise ValueError(m)
-        
-    counter, counterRef = ({} for _ in range(2))
+            are_there_files(files, regex)
+            
+    counter, counter_ref = ({} for _ in range(2))
     for afile in inputs_join:
         with open(afile, 'r') as f:
             for line in f.readlines():
-                trig, chn, count = [x.replace('\n', '') for x in line.split('\t')]
-                counter.setdefault(chn, {})
-                counterRef.setdefault(chn, 0)
-                counter[chn].setdefault(trig, 0)
-                
-                if trig != 'Total':
-                    counter[chn][trig] += int(count)
-                else:
-                    counterRef[chn] += int(count)
+                if line.strip(): #ignore empty lines
+                    trig, chn, count = [x.replace('\n', '') for x in line.split('\t')]
 
-    outputs_png, outputs_txt = addTriggerCounts_outputs(args)
+                    if trig != 'Total':
+                        counter.setdefault(chn, {})
+                        counter[chn].setdefault(trig, 0)
+                        counter[chn][trig] += int(count)
+                    else:
+                        counter_ref.setdefault(chn, 0)
+                        counter_ref[chn] += int(count)
 
-    for ic,k1 in enumerate(counter):
-        triggers = np.array([x+' \n('+str(y)+')' for x,y in counter[k1].items()])
-        vals = np.array(list(counter[k1].values()))
-        assert(triggers.shape[0]==vals.shape[0])
+    with open( outputs_txt, 'w') as ftxt:
+        for ic,chn in enumerate(counter):
 
-        #sort
-        vals, triggers = (np.array(t[::-1]) for t in zip(*sorted(zip(vals, triggers))))
+            trigs, vals = ([] for _ in range(2))
+            trigs.append('Total')
+            vals.append(counter_ref[chn])
+            for trig,val in counter[chn].items():
+                trigs.append(trig)
+                vals.append(val)
 
-        #remove zeros
-        zeromask = vals == 0
-        vals = vals[~zeromask]
-        triggers = triggers[~zeromask]
+            trigs = np.array(trigs)
+            vals = np.array(vals)
+            for t, v in zip(trigs,vals):
+                 print(t,v)
+            
+            #sort
+            vals, trigs = (np.array(t[::-1]) for t in zip(*sorted(zip(vals, trigs))))
 
-        ncols = 4
-        remainder = vals.shape[0] % ncols
-        nrows = int(vals.shape[0] / ncols) + bool(remainder)
-
-        #padding for obtaining a square table
-        triggers = list(np.pad(triggers, (0,nrows*ncols-triggers.shape[0])))
-        vals = list(np.pad(vals, (0,nrows*ncols-vals.shape[0])))
-
-        with open( outputs_txt[ic], 'w') as ftxt:
-            for i,j in zip(vals,triggers):
+            #remove zeros
+            zeromask = vals == 0
+            vals = vals[~zeromask]
+            trigs = trigs[~zeromask]
+           
+            for i,j in zip(vals,trigs):
                 if i != 0: #do not print the padding
                     #remove the extra info after the line break
-                    ftxt.write(str(i) + '\t' +  str(j).split('\n')[0] + '\n')
+                    ftxt.write(str(j) + '\t' + chn + '\t' + str(i) + '\n')
 
-        # triggers = np.reshape(triggers, (nrows,ncols))
-        # vals = np.reshape(vals, (nrows,ncols)) + 0.001
-        # norm = colors.LogNorm(vals.min(), vals.max(), clip=False)
-
-        # ## Saving the same information on a pictur
-        # fig, ax = plt.subplots(figsize=(30, 16))
-        # # hide axes
-        # fig.patch.set_visible(False)
-        # ax.axis('off')
-        # ax.axis('tight')
-
-        # atable = plt.table( cellText=triggers,
-        #                     colWidths = [0.07]*vals.shape[1],
-        #                     loc='center',
-        #                     cellLoc='center',
-        #                     cellColours=plt.cm.Oranges_r(norm(vals))
-        #                    )
-
-        # atable.scale(4,10)
-
-        # for (row, col), cell in atable.get_celld().items():
-        #     cell.set_text_props(fontproperties=FontProperties(weight='bold'))
-            
-        # plt.title( ( ('Data' if (smpl in args.data) else 'MC') +
-        #              ' (' + k1 + ': ' + str(counterRef[k1]) + ' events)' ),
-        #            fontdict={'fontsize': 70, 'fontweight': 30}
-        #            )
-        # plt.savefig( outputs_png[ic] )
-        
+            ftxt.write('\n')
+                    
 # Run with:
-# python3 /home/llr/cms/alves/CMSSW_12_2_0_pre1/src/METTriggerStudies/scripts/addTriggerCounts.py --indir /data_CMS/cms/alves/TriggerScaleFactors/CountsTest/ --outdir /data_CMS/cms/alves/TriggerScaleFactors/CountTest/ --samples SKIM_MET2018 --channels etau mutau tautau --subtag _default --tprefix count_ --triggers IsoMuIsoTau EleIsoTau VBFTau VBFTauHPS METNoMu120 IsoTau50 IsoTau180 --debug
+# python3 /home/llr/cms/alves/CMSSW_12_2_0_pre1/src/METTriggerStudies/scripts/addTriggerCounts.py --indir /data_CMS/cms/alves/TriggerScaleFactors/CountsTest/Data --outdir /data_CMS/cms/alves/TriggerScaleFactors/CountsTest/Data --subtag _default --tprefix counts_ --dataset_name TT --outfile_counts /data_CMS/cms/alves/TriggerScaleFactors/CountsTest/Data/counts_TT_Sum_default.txt --infile_counts /data_CMS/cms/alves/TriggerScaleFactors/CountsTest/Data/counts_TT_SKIM_TT_fullyHad_Sum_default.txt /data_CMS/cms/alves/TriggerScaleFactors/CountsTest/Data/counts_TT_SKIM_TT_fullyLep_Sum_default.txt /data_CMS/cms/alves/TriggerScaleFactors/CountsTest/Data/counts_TT_SKIM_TT_semiLep_Sum_default.txt --aggregation_step 1
 
 # -- Parse input arguments
 if __name__ == '__main__':
@@ -121,17 +99,22 @@ if __name__ == '__main__':
 
     parser.add_argument('--indir',       dest='indir',       required=True, help='SKIM directory')
     parser.add_argument('--outdir',      dest='outdir',      required=True, help='output directory')
-    parser.add_argument('--samples',     dest='samples',     required=True, help='Process name as in SKIM directory', nargs='+', type=str)
-    parser.add_argument('--dataset_name',dest='dset_name',   required=True, help='Name of the dataset.')
     parser.add_argument('--subtag',      dest='subtag',      required=True,
                         help='Additional (sub)tag to differ  entiate similar runs within the same tag.')
-    parser.add_argument('--isdata',      dest='isdata',      required=True, help='Whether it is data or MC', type=int)
     parser.add_argument('--tprefix',     dest='tprefix',     required=True, help='Targets name prefix.')
-    parser.add_argument('--channels',    dest='channels',    required=True, nargs='+', type=str,  
-                        help='Select the channels over w  hich the workflow will be run.' )
-    parser.add_argument('--triggers',    dest='triggers',    required=True, nargs='+', type=str,
-                        help='Select the triggers over w  hich the workflow will be run.' )
+    parser.add_argument('--aggregation_step', dest='aggr',   required=True, type=int,
+                        help='Whether to run the sample aggregation step or the "per sample step"')
+    parser.add_argument('--dataset_name', dest='dataset_name', required=True,
+                        help='Name of the dataset being used.')
     parser.add_argument('--debug', action='store_true', help='debug verbosity')
+
+    parser.add_argument('--sample',     dest='sample',       required=False,
+                        help='Process name as in SKIM directory. Used for the first step only.')
+    
+    parser.add_argument('--infile_counts',  dest='infile_counts', required=False, nargs='+', type=str,
+                        help='Name of input txt files with counts. Used for the aggrgeation step only.')
+    parser.add_argument('--outfile_counts', dest='outfile_counts', required=True,
+                        help='Name of output txt files with counts.')
 
     args = parser.parse_args()
 

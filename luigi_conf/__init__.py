@@ -130,13 +130,11 @@ for x in _binedges.values():
 #_inputs = '/data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_Radion_2018_fixedMETtriggers_mht_16Jun2021/'
 # future inputs:
 # /data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_2018_UL_feb22/
-_inputs = [ '/data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_2018_UL_data_test11Jan22/', #data
-            '/data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_2018_UL_signal_test11Jan22/', #MC signal
-            '/data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_2018_UL_backgrounds_test11Jan22/', #MC backgrounds
-]
+_inputs = [ '/data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_UL18_220325_MiniAODv2/',
+            '/data_CMS/cms/portales/HHresonant_SKIMS/SKIMS_UL18_220331_data_MiniAODv2/' ] #data, MC signal and MC backgrounds
 
 # names of the subfolders under '_inputs' above
-_data = dict( MET2018 = ['SKIM_MET2018',] )
+_data = dict( MET = ['SKIM_MET',] )
 _mc_processes = dict( ggfRadions = [],
                       ggfBulkGraviton = [],
                       vbfRadion = [],

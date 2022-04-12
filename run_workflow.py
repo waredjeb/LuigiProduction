@@ -29,6 +29,10 @@ from scripts.writeHTCondorHaddHistoFiles import (
     writeHTCondorHaddHistoFiles,
     writeHTCondorHaddHistoFiles_outputs,
 )
+from scripts.writeHTCondorHaddCountsFiles import (
+    writeHTCondorHaddCountsFiles,
+    writeHTCondorHaddCountsFiles_outputs,
+)
 from scripts.writeHTCondorEfficienciesAndScaleFactorsFiles import (
     writeHTCondorEfficienciesAndScaleFactorsFiles,
     writeHTCondorEfficienciesAndScaleFactorsFiles_outputs,
@@ -183,7 +187,7 @@ class WriteHTCondorHaddHistoFiles(ForceRun):
 ########################################################################
 ### WRITE HTCONDOR FILES FOR HADDING TXT COUNT FILES ###################
 ########################################################################
-class WriteHTCondorHaddHistoFiles(ForceRun):
+class WriteHTCondorHaddCountsFiles(ForceRun):
     samples = luigi.ListParameter()
     dataset_name = luigi.Parameter()
     args = utils.dotDict(lcfg.haddcounts_params)
@@ -210,7 +214,7 @@ class WriteHTCondorHaddHistoFiles(ForceRun):
     def run(self):
         self.args['samples'] = luigi_to_raw( self.samples )
         self.args['dataset_name'] = self.dataset_name
-        writeHTCondorHaddHistoFiles( self.args )
+        writeHTCondorHaddCountsFiles( self.args )
 
 ########################################################################
 ### WRITE HTCONDOR FILES FOR EFFICIENCIES AND SCALE FACTORS ############
@@ -458,14 +462,15 @@ class WriteHTCondorClosureFiles(ForceRun):
 ### TRIGGERING ALL HTCONDOR WRITING CLASSES ############################
 ########################################################################
 class WriteDAG(ForceRun):
-    params     = utils.dotDict(lcfg.write_params)
-    pHistos    = utils.dotDict(lcfg.histos_params)
-    pHaddHisto = utils.dotDict(lcfg.haddhisto_params)
-    pEffSF     = utils.dotDict(lcfg.drawsf_params)
-    pDisc      = utils.dotDict(lcfg.discriminator_params)
-    pSFCalc    = utils.dotDict(lcfg.calculator_params)
+    params      = utils.dotDict(lcfg.write_params)
+    pHistos     = utils.dotDict(lcfg.histos_params)
+    pHaddHisto  = utils.dotDict(lcfg.haddhisto_params)
+    pHaddCounts = utils.dotDict(lcfg.haddhisto_params)
+    pEffSF      = utils.dotDict(lcfg.drawsf_params)
+    pDisc       = utils.dotDict(lcfg.discriminator_params)
+    pSFCalc     = utils.dotDict(lcfg.calculator_params)
     #pHaddEff   = utils.dotDict(lcfg.haddeff_params)
-    pClosure   = utils.dotDict(lcfg.closure_params)
+    pClosure    = utils.dotDict(lcfg.closure_params)
     
     pHaddHisto['tprefix']  = lcfg.modes['histos']
     pEffSF['tprefix'] =  lcfg.modes['histos']
@@ -494,6 +499,12 @@ class WriteDAG(ForceRun):
         _, submHaddHistoData, _   = writeHTCondorHaddHistoFiles_outputs(self.pHaddHisto)
         self.pHaddHisto['dataset_name'] = FLAGS.mc_process
         _, submHaddHistoMC, _   = writeHTCondorHaddHistoFiles_outputs(self.pHaddHisto)
+
+        self.pHaddCounts['dataset_name'] = FLAGS.data
+        _, submHaddCountsData, _   = writeHTCondorHaddCountsFiles_outputs(self.pHaddCounts)
+        self.pHaddCounts['dataset_name'] = FLAGS.mc_process
+        _, submHaddCountsMC, _   = writeHTCondorHaddCountsFiles_outputs(self.pHaddCounts)
+
         
         _, submEffSF, _  = writeHTCondorEfficienciesAndScaleFactorsFiles_outputs(self.pEffSF)
 
@@ -505,15 +516,17 @@ class WriteDAG(ForceRun):
 
         _, submClosure, _  = writeHTCondorClosureFiles_outputs(self.pClosure)
 
-        self.params['jobsHistos']        = submHistos
-        self.params['jobsCounts']        = submCounts
-        self.params['jobsHaddHistoData'] = submHaddHistoData
-        self.params['jobsHaddHistoMC']   = submHaddHistoMC
-        self.params['jobsEffSF']         = submEffSF
-        self.params['jobsDiscr']         = submDisc
-        self.params['jobsUnion']         = submUnion
+        self.params['jobsHistos']         = submHistos
+        self.params['jobsCounts']         = submCounts
+        self.params['jobsHaddHistoData']  = submHaddHistoData
+        self.params['jobsHaddHistoMC']    = submHaddHistoMC
+        self.params['jobsHaddCountsData'] = submHaddCountsData
+        self.params['jobsHaddCountsMC']   = submHaddCountsMC
+        self.params['jobsEffSF']          = submEffSF
+        self.params['jobsDiscr']          = submDisc
+        self.params['jobsUnion']          = submUnion
         #self.params['jobsHaddEff']       = submHaddEff
-        self.params['jobsClosure']       = submClosure
+        self.params['jobsClosure']        = submClosure
         writeHTCondorDAGFiles( self.params )
         
 class SubmitDAG(ForceRun):
@@ -542,6 +555,10 @@ class SubmitDAG(ForceRun):
                                               samples=lcfg._selected_data ),
                  WriteHTCondorHaddHistoFiles( dataset_name=FLAGS.mc_process,
                                               samples=lcfg._selected_mc_processes ),
+                 WriteHTCondorHaddCountsFiles( dataset_name=FLAGS.data,
+                                               samples=lcfg._selected_data ),
+                 WriteHTCondorHaddCountsFiles( dataset_name=FLAGS.mc_process,
+                                               samples=lcfg._selected_mc_processes ),
                  WriteHTCondorEfficienciesAndScaleFactorsFiles(),
                  WriteHTCondorDiscriminatorFiles(),
                  WriteHTCondorUnionWeightsCalculatorFiles(),

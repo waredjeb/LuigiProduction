@@ -5,7 +5,8 @@ import os
 import argparse
 
 from utils.utils import (
-  setPureInputNamespace,
+    build_prog_path,
+    setPureInputNamespace,
 )
 
 @setPureInputNamespace
@@ -34,12 +35,10 @@ def writeHTCondorClosureFiles_outputs(args):
 
 @setPureInputNamespace
 def writeHTCondorClosureFiles(args):
-    script = os.path.join(args.localdir, 'scripts', 'runClosure.py')
-    prog = 'python3 {}'.format(script)
-
     outs_job, outs_submit, outs_check = writeHTCondorClosureFiles_outputs(args)
 
     #### Write shell executable (python scripts must be wrapped in shell files to run on HTCondor)
+    prog = build_prog_path(args.localdir, 'runClosure.py')
     command =  ( '{prog} --indir_eff {inref} '.format(prog=prog, inref=args.indir_eff)
                  + '--indir_union {inunion} '.format(inunion=args.indir_union)
                  + '--indir_json {injson} '.format(injson=args.indir_json)

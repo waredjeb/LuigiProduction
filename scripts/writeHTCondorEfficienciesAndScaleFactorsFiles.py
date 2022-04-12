@@ -6,38 +6,38 @@ import os
 import argparse
 
 from utils.utils import (
-  generate_trigger_combinations,
-  join_name_trigger_intersection as joinNTC,
-  setPureInputNamespace,
+    build_prog_path,
+    generate_trigger_combinations,
+    join_name_trigger_intersection as joinNTC,
+    setPureInputNamespace,
 )
 
 @setPureInputNamespace
 def writeHTCondorEfficienciesAndScaleFactorsFiles_outputs(args):
-  """
-  Outputs are guaranteed to have the same length.
-  Returns all separate paths to avoid code duplication.
-  """
-  base_dir = os.path.join(args.localdir, 'jobs', args.tag)
-  
-  jobDir = os.path.join(base_dir, 'submission')
-  os.system('mkdir -p {}'.format(jobDir))
-
-  checkDir = os.path.join(base_dir, 'outputs', 'EffAndScaleFactors')
-  os.system('mkdir -p {}'.format(checkDir))
-
-  name = 'jobEfficienciesAndSF.{}'
-  check_name = 'EfficienciesAndSF_C$(Cluster)P$(Process).o'
-
-  jobFiles   = os.path.join(jobDir, name.format('sh'))
-  submFiles  = os.path.join(jobDir, name.format('condor'))
-  checkFiles = os.path.join(checkDir, check_name)
-
-  return jobFiles, submFiles, checkFiles
+    """
+    Outputs are guaranteed to have the same length.
+    Returns all separate paths to avoid code duplication.
+    """
+    base_dir = os.path.join(args.localdir, 'jobs', args.tag)
+    
+    jobDir = os.path.join(base_dir, 'submission')
+    os.system('mkdir -p {}'.format(jobDir))
+   
+    checkDir = os.path.join(base_dir, 'outputs', 'EffAndScaleFactors')
+    os.system('mkdir -p {}'.format(checkDir))
+   
+    name = 'jobEfficienciesAndSF.{}'
+    check_name = 'EfficienciesAndSF_C$(Cluster)P$(Process).o'
+   
+    jobFiles   = os.path.join(jobDir, name.format('sh'))
+    submFiles  = os.path.join(jobDir, name.format('condor'))
+    checkFiles = os.path.join(checkDir, check_name)
+   
+    return jobFiles, submFiles, checkFiles
 
 @setPureInputNamespace
 def writeHTCondorEfficienciesAndScaleFactorsFiles(args):
-    script = os.path.join(args.localdir, 'scripts', 'runEfficienciesAndScaleFactors.py')
-    prog = 'python3 {}'.format(script)
+    prog = build_prog_path(args.localdir, 'runEfficienciesAndScaleFactors.py')
 
     outs_job, outs_submit, outs_check = writeHTCondorEfficienciesAndScaleFactorsFiles_outputs(args)
 

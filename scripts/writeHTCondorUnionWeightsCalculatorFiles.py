@@ -45,9 +45,7 @@ def writeHTCondorUnionWeightsCalculatorFiles_outputs(args):
 
 @utils.setPureInputNamespace
 def writeHTCondorUnionWeightsCalculatorFiles(args):
-    script = os.path.join(args.localdir, 'scripts')
-    script = os.path.join(script, 'runUnionWeightsCalculator.py')
-    prog = 'python3 {}'.format(script)
+    prog = utils.build_prog_path(args.localdir, 'runUnionWeightsCalculator.py')
 
     jobs, subs, checks = writeHTCondorUnionWeightsCalculatorFiles_outputs(args)
 

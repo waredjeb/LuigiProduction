@@ -12,6 +12,7 @@
 # --subtag SUBTAG
 ####################################################################
 import os
+import glob
 import h5py
 import uproot as up
 import pandas as pd
@@ -58,21 +59,35 @@ def defineBinning(args):
         
         # Loop over all data datasets, calculating the quantiles in each dataset per variable
         for sample in args.data:
-
             #### Input list
-            inputfiles = [ os.path.join(idir, sample + '/goodfiles.txt') for idir in args.indir ]
-            fexists = [ os.path.exists( inpf ) for inpf in inputfiles ]
-            assert( sum(fexists) == 1 ) #check one and only one is True
-            inputfiles = inputfiles[ fexists.index(True) ]
+            inputfiles = [ x for idir in args.indir for x in glob.glob(os.path.join(idir, sample + '*/goodfiles.txt')) ]
+
+            fexists = []
+            for idir in args.indir:
+                g = glob.glob(os.path.join(idir, sample + '*/goodfiles.txt'))
+                if len(g)==0:
+                    fexists.append(False)
+                else:
+                    fexists.append(True)
+
+            if sum(fexists) != 1: #check one and only one is True
+                m = '[defineBinning.py] WARNING: More than one file exists for the {} sample.'.format(sample)
+                m += ' Selecting directory {} '.format(args.indir[fexists.index(True)])
+                m += 'from the following list: {}.'.format(args.indir)
+
+            inputfiles = glob.glob(os.path.join(args.indir[fexists.index(True)],
+                                                sample + '*/goodfiles.txt'))
+
 
             #### Parse input list
             filelist = []
-            with open(inputfiles) as fIn:
-                for line in fIn:
-                    if '.root' in line:
-                        if not os.path.exists(line[:-1]):
-                            raise ValueError('[' + os.path.basename(__file__) + '] The input file does not exist: {}'.format(line))
-                        filelist.append(line[:-1] + ':HTauTauTree')
+            for inp in inputfiles:
+                with open(inp) as fIn:
+                    for line in fIn:
+                        if '.root' in line:
+                            if not os.path.exists(line[:-1]):
+                                raise ValueError('[' + os.path.basename(__file__) + '] The input file does not exist: {}'.format(line))
+                            filelist.append(line[:-1] + ':HTauTauTree')
 
             treesize = 0
             quantiles = {k: [] for k in args.channels }

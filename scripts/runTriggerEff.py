@@ -128,11 +128,10 @@ def get_trigger_eff_sig(indir, outdir, sample, fileName,
         os.makedirs( os.path.join(outdir, sample) )
     outdir = os.path.join(outdir, sample)
 
-    fname = os.path.join(indir, sample, fileName)
-    if not os.path.exists(fname):
-        raise ValueError('[' + os.path.basename(__file__) + '] {} does not exist.'.format(fname))
+    if not os.path.exists(fileName):
+        raise ValueError('[' + os.path.basename(__file__) + '] {} does not exist.'.format(fileName))
 
-    f_in = TFile( fname )
+    f_in = TFile( fileName )
     t_in = f_in.Get('HTauTauTree')
 
     binedges, nbins = load_binning( afile=binedges_fname, key=subtag,
@@ -173,7 +172,7 @@ def get_trigger_eff_sig(indir, outdir, sample, fileName,
     #                     effRefVsTrig[i][vname] = {}
     #                 effRefVsTrig[i][vname][k] = {}
 
-    lf = LeafManager( fname, t_in )
+    lf = LeafManager( fileName, t_in )
     
     for entry in range(0,t_in.GetEntries()):
         t_in.GetEntry(entry)
@@ -343,7 +342,7 @@ parser.add_argument('--indir',       dest='indir',       required=True, help='SK
 parser.add_argument('--outdir',      dest='outdir',      required=True, help='output directory')
 parser.add_argument('--sample',      dest='sample',      required=True, help='Process name as in SKIM directory')
 parser.add_argument('--isdata',      dest='isdata',      required=True, help='Whether it is data or MC', type=int)
-parser.add_argument('--file',        dest='fileName',    required=True, help='ID of input root file')
+parser.add_argument('--file',        dest='fileName',    required=True, help='Full path of ROOT input file')
 parser.add_argument('--subtag',      dest='subtag',      required=True,
                     help='Additional (sub)tag to differentiate similar runs within the same tag.')
 parser.add_argument('--tprefix',     dest='tprefix',     required=True, help='Targets name prefix.')

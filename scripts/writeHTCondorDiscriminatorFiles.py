@@ -38,10 +38,8 @@ def writeHTCondorDiscriminatorFiles_outputs(args):
 
 @utils.setPureInputNamespace
 def writeHTCondorDiscriminatorFiles(args):
-    script = os.path.join(args.localdir, 'scripts')
-    script = os.path.join(script, 'runVariableImportanceDiscriminator.py')
-    prog = 'python3 {}'.format(script)
-
+    prog = utils.build_prog_path(args.localdir, 'runVariableImportanceDiscriminator.py')
+    
     outs_job, outs_submit, outs_check = writeHTCondorDiscriminatorFiles_outputs(args)
 
     #### Write shell executable (python scripts must be wrapped in shell files to run on HTCondor)

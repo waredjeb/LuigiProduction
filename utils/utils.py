@@ -1,5 +1,6 @@
 
 import os
+import glob
 import re
 import operator
 import argparse
@@ -26,6 +27,11 @@ def addSlash(s):
     """Adds single slash to path if absent"""
     s = s if s[-1] == '/' else s + '/'
     return s
+
+def build_prog_path(base, script_name):
+    script = os.path.join(base, 'scripts')
+    script = os.path.join(script, script_name)
+    return 'python3 {}'.format(script)
 
 def check_bit(number, bitpos):
     bitdigit = 1
@@ -171,20 +177,31 @@ def get_obj_max_min(graph, npoints, ishisto):
 
 def get_root_input_files(proc, indir):
     #### Check input folder
-    inputfiles = [ os.path.join(idir, proc + '/goodfiles.txt') for idir in indir ]
-    fexists = [ os.path.exists( inpf ) for inpf in inputfiles ]
-    if sum(fexists) != 1: #check one and only one is True
-        raise ValueError('The process {} could be found.'.format(proc))
-    inputdir = indir[ fexists.index(True) ] #this is the only correct input directory
+    if not isinstance(indir, (tuple,list)):
+        indir = [indir]
+    fexists = []
+    for idir in indir:
+        g = glob.glob(os.path.join(idir, proc + '*/goodfiles.txt'))
+        if len(g)==0:
+            fexists.append(False)
+        else:
+            fexists.append(True)
 
-    inputfiles = os.path.join(inputdir, proc + '/goodfiles.txt')
+    if sum(fexists) != 1: #check one and only one is True
+        m = '[utils.py] WARNING: More than one file exists for the {} sample.'.format(proc)
+        m += ' Selecting directory {} '.format(indir[fexists.index(True)])
+        m += 'from the following list: {}.'.format(indir)
+
+    inputdir = indir[ fexists.index(True) ] #this is the only correct input directory
+    inputfiles = glob.glob(os.path.join(indir[fexists.index(True)], proc + '*/goodfiles.txt'))
 
     #### Parse input list
     filelist=[]
-    with open(inputfiles) as fIn:
-        for line in fIn:
-            if '.root' in line:
-                filelist.append(line)
+    for inp in inputfiles:
+        with open(inp) as fIn:
+            for line in fIn:
+                if '.root' in line:
+                    filelist.append(line)
 
     return filelist, inputdir
 
@@ -214,6 +231,12 @@ def get_trigger_bit(trigger_name, isdata):
         print('You likely forgot to add your custom trigger to _triggers_custom.')
         raise
     return res
+
+def hadd_subpaths(args, channel=''):
+    channel_str = '' if channel=='' else channel+'_'
+    _tbase1 = args.tprefix + channel_str + args.dataset_name
+    _tbase2 = '_Sum' + args.subtag
+    return _tbase1, _tbase2
 
 def is_channel_consistent(chn, pairtype):
     opdict = { '<':  operator.lt,

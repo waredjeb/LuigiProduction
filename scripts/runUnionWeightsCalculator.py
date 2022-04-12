@@ -156,7 +156,9 @@ def runUnionWeightsCalculator_outputs(args, proc):
     
     for inp in inputs:
         number = exp.search(inp)
-        basename = args.outprefix + '_' + proc + number.group(1) + args.subtag + '.hdf5'
+        proc_folder = os.path.dirname(inp).split('/')[-1]
+        basename = args.outprefix + '_' + proc_folder + number.group(1)
+        basename += args.subtag + '.hdf5'
         outputs.append( os.path.join(folder, basename) )
     return outputs
 

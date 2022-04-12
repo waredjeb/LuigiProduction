@@ -222,6 +222,7 @@ class cfg(luigi.Config):
     ####
     haddcounts_params = luigi.DictParameter(
         default={ 'indir': data_storage,
+                  'outdir': data_storage,
                   'localdir': local_folder,
                   'tag': tag,
                   'subtag': subtag } )

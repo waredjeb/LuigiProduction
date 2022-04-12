@@ -18,6 +18,8 @@ from ROOT import TFile
 import sys
 sys.path.append( os.environ['PWD'] ) 
 
+from writeHTCondorProcessingFiles import runTrigger_outputs_sample
+
 from utils.utils import (
     generate_trigger_combinations,
     get_histo_names,
@@ -44,11 +46,10 @@ def getTriggerCounts(indir, outdir, sample, fileName,
         os.makedirs( os.path.join(outdir, sample) )
     outdir = os.path.join(outdir, sample)
 
-    fname = os.path.join(indir, sample, fileName)
-    if not os.path.exists(fname):
-        raise ValueError('[' + os.path.basename(__file__) + '] {} does not exist.'.format(fname))
+    if not os.path.exists(fileName):
+        raise ValueError('[' + os.path.basename(__file__) + '] {} does not exist.'.format(fileName))
 
-    f_in = TFile( fname )
+    f_in = TFile(fileName)
     t_in = f_in.Get('HTauTauTree')
 
     triggercomb = generate_trigger_combinations(triggers)
@@ -61,7 +62,7 @@ def getTriggerCounts(indir, outdir, sample, fileName,
             counter[tcomb_str][chn] = 0
             counterRef.setdefault(chn, 0.)
 
-    lf = LeafManager( fname, t_in )
+    lf = LeafManager(fileName, t_in)
     
     for entry in range(0,t_in.GetEntries()):
         t_in.GetEntry(entry)
@@ -92,8 +93,12 @@ def getTriggerCounts(indir, outdir, sample, fileName,
                         tcomb_str = joinNTC(tcomb)
                         counter[tcomb_str][chn] += 1
                                             
-    file_id = ''.join( c for c in fileName[-10:] if c.isdigit() ) 
-    outName = os.path.join(outdir, tprefix + sample + '_' + file_id + subtag + '.txt')
+    file_id = ''.join( c for c in fileName[-10:] if c.isdigit() )
+
+    #all_sample_files = runTrigger_outputs_sample(args, sample, 'root')
+
+    proc_folder = os.path.dirname(fileName).split('/')[-1]
+    outName = os.path.join(outdir, tprefix + proc_folder + '_' + file_id + subtag + '.txt')
     print('Saving file {} at {} '.format(file_id, outName) )
 
     sep = '\t'
