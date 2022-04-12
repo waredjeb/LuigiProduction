@@ -2,6 +2,7 @@ import sys
 sys.path.append("..")
 
 import os
+import atexit # https://stackoverflow.com/questions/865115/how-do-i-correctly-clean-up-a-python-object
 
 from utils.utils import (
   setPureInputNamespace,
@@ -9,110 +10,125 @@ from utils.utils import (
 
 @setPureInputNamespace
 def writeHTCondorDAGFiles_outputs(args):
-  """
-  Outputs are guaranteed to have the same length.
-  Returns all separate paths to avoid code duplication.
-  """
-  outSubmDir = 'submission'
-  submDir = os.path.join(args.localdir, 'jobs', args.tag, outSubmDir)
-  os.system('mkdir -p {}'.format(submDir))
-  # outCheckDir = 'outputs'
-  # checkDir = os.path.join(args.localdir, 'jobs', args.tag, outCheckDir)
-  # os.system('mkdir -p {}'.format(checkDir))
+    """
+    Outputs are guaranteed to have the same length.
+    Returns all separate paths to avoid code duplication.
+    """
+    outSubmDir = 'submission'
+    submDir = os.path.join(args.localdir, 'jobs', args.tag, outSubmDir)
+    os.system('mkdir -p {}'.format(submDir))
+    # outCheckDir = 'outputs'
+    # checkDir = os.path.join(args.localdir, 'jobs', args.tag, outCheckDir)
+    # os.system('mkdir -p {}'.format(checkDir))
 
-  name = 'workflow.dag'
-  return os.path.join(submDir, name)
+    name = 'workflow.dag'
+    return os.path.join(submDir, name)
 
-@setPureInputNamespace
-def writeHTCondorDAGFiles(args):
-  """
-  Writes the condor submission DAG file.
-  """
-  remExt = lambda x : os.path.basename(x).split('.')[0]
+class WriteDAGManager:
+    def __init__(self, localdir, tag, data_name, jobs):
+        self.data_name = data_name
+        
+        out = writeHTCondorDAGFiles_outputs( {'localdir': localdir, 'tag': tag} )
+        self.this_file = open(out, 'w')
+        atexit.register(self.cleanup)
+        
+        self.rem_ext = lambda x : os.path.basename(x).split('.')[0]
 
-  def defineJobNames(afile, jobs):
-    """First step to build a DAG"""
-    if not isinstance(jobs, (list,tuple)):
-      jobs = [jobs]
-    for job in jobs:
-      afile.write('JOB  {} {}\n'.format(remExt(job), job))
-    afile.write('\n')
+        self.jobs = jobs
+        self.define_all_job_names(self.jobs)
 
-  out = writeHTCondorDAGFiles_outputs(args)
-  with open(out, 'w') as s:
-    # configuration
-    #s.write('DAGMAN_HOLD_CLAIM_TIME=30\n')
-    #s.write('\n')
-    
-    # job names
-    defineJobNames(s, args.jobsHistos)
-    defineJobNames(s, args.jobsCounts)
-    defineJobNames(s, args.jobsHaddHistoData)
-    defineJobNames(s, args.jobsHaddHistoMC)
-    defineJobNames(s, args.jobsEffSF)
-    defineJobNames(s, args.jobsDiscr)
-    defineJobNames(s, args.jobsUnion)
-    #defineJobNames(s, args.jobsHaddEff)
-    defineJobNames(s, args.jobsClosure)
+    def cleanup(self):
+        self.this_file.close()
+            
+    def write_string(self, string):
+        self.this_file.write(string)
+            
+    def new_line(self):
+        self.this_file.write('\n')
 
-    # histos to hadd for data
-    s.write('PARENT ')
-    for parent in args.jobsHistos:
-      if args.data_name in parent:
-        s.write('{} '.format( remExt(parent) ))
-    s.write('CHILD {}\n'.format( remExt(args.jobsHaddHistoData[0]) ))
+    def define_all_job_names(self, jobs):
+        for _,values in jobs.items():
+            self.define_job_names(values)
+      
+    def define_job_names(self, jobs):
+        """First step to build a DAG"""
+        for job in jobs:
+            self.write_string('JOB  {} {}\n'.format(self.rem_ext(job), job))
+        self.new_line()
 
-    # histos to hadd for MC
-    s.write('PARENT ')
-    for parent in args.jobsHistos:
-      if args.data_name not in parent:
-        s.write('{} '.format( remExt(parent) ))
-    s.write('CHILD {}\n\n'.format( remExt(args.jobsHaddHistoMC[0]) ))
+    def write_parent_child_hierarchy(self, parents, childs):
+        if not isinstance(parents, (list,tuple)):
+            m = '[writeHTCondorDAGFiles] Please pass lists to the '
+            m += ' `write_parent_child_hierarchy method.'
+            raise TypeError(m)
+        
+        self.write_string('PARENT ')
+        for par in parents:
+            self.write_string('{} '.format(self.rem_ext(par)))
+        self.write_string('CHILD ')
+        for cld in childs:
+            self.write_string('{} '.format(self.rem_ext(cld)))
+        self.new_line()
 
-    # hadd aggregation for Data
-    s.write('PARENT {} '.format( remExt(args.jobsHaddHistoData[0]) ))
-    s.write('CHILD {}\n'.format( remExt(args.jobsHaddHistoData[1]) ))
+    def write_configuration(self):
+        pass
+        #self.this_file.write('DAGMAN_HOLD_CLAIM_TIME=30\n')
+        #self.new_line()
 
-    # hadd aggregation for MC
-    s.write('PARENT {} '.format( remExt(args.jobsHaddHistoMC[0]) ))
-    s.write('CHILD {}\n\n'.format( remExt(args.jobsHaddHistoMC[1]) ))
+    def write_all(self):
+        # histos to hadd for data
+        self.write_parent_child_hierarchy( parents=[x for x in self.jobs['jobsHistos'] if self.data_name in x],
+                                           childs=[self.jobs['jobsHaddHistoData'][0]] )
 
-    # efficiencies/scale factors draw and saving
-    s.write('PARENT {} {} '.format( remExt(args.jobsHaddHistoData[1]),
-                                    remExt(args.jobsHaddHistoMC[1]) ))
-    s.write('CHILD {}\n\n'.format( remExt(args.jobsEffSF) ))
+        # histos to hadd for MC
+        self.write_parent_child_hierarchy( parents=[x for x in self.jobs['jobsHistos'] if self.data_name not in x],
+                                           childs=[self.jobs['jobsHaddHistoMC'][0]] )
+        self.new_line()
 
-    # variable discriminator
-    s.write('PARENT {} '.format( remExt(args.jobsEffSF) ))
-    s.write('CHILD ')
-    for child in args.jobsDiscr:
+        # hadd aggregation for Data
+        self.write_parent_child_hierarchy( parents=[self.jobs['jobsHaddHistoData'][0]],
+                                           childs=[self.jobs['jobsHaddHistoData'][1]] )
 
-      s.write('{} '.format(remExt(child)))
-    s.write('\n\n')
+        # hadd aggregation for MC
+        self.write_parent_child_hierarchy( parents=[self.jobs['jobsHaddHistoMC'][0]],
+                                           childs=[self.jobs['jobsHaddHistoMC'][1]] )
+        self.new_line()
 
-    # union weights calculator
-    for parent, child in zip(args.jobsDiscr,args.jobsUnion):
-      s.write('PARENT {} CHILD {}\n'.format(remExt(parent), remExt(child)))
-    s.write('\n')
+        # counts to add for data
+        self.write_parent_child_hierarchy( parents=[x for x in self.jobs['jobsCounts'] if self.data_name in x],
+                                           childs=[self.jobs['jobsHaddCountsData'][0]] )
 
-    # hadd union efficiencies (only MC)
-    s.write('PARENT ')
-    for parent in args.jobsUnion:
-      s.write('{} '.format( remExt(parent) ))
-    # s.write('CHILD {}\n\n'.format( remExt(args.jobsHaddEff[0]) ))
-    for child in args.jobsClosure:
-        s.write('CHILD {}\n'.format(remExt(child)))
+        # counts to add for MC
+        self.write_parent_child_hierarchy( parents=[x for x in self.jobs['jobsCounts'] if self.data_name not in x],
+                                           childs=[self.jobs['jobsHaddCountsMC'][0]] )
+        self.new_line()
 
+        # counts add aggregation for Data
+        self.write_parent_child_hierarchy( parents=[self.jobs['jobsHaddCountsData'][0]],
+                                           childs=[self.jobs['jobsHaddCountsData'][1]] )
 
-    # hadd aggregation union efficiencies
-    # s.write('PARENT {} '.format( remExt(args.jobsHaddEff[0]) ))
-    # s.write('CHILD {}\n\n'.format( remExt(args.jobsHaddEff[1]) ))
+        # counts add aggregation for MC
+        self.write_parent_child_hierarchy( parents=[self.jobs['jobsHaddCountsMC'][0]],
+                                           childs=[self.jobs['jobsHaddCountsMC'][1]] )
+        self.new_line()
 
-    # hadd aggregation union efficiencies
-    # s.write('PARENT {} '.format( remExt(args.jobsHaddEff[1]) ))
-    # for child in args.jobsClosure:
-    #     s.write('CHILD {}\n'.format(remExt(child)))
+        # efficiencies/scale factors draw and saving
+        self.write_parent_child_hierarchy( parents=[self.jobs['jobsHaddHistoData'][1],
+                                                    self.jobs['jobsHaddHistoMC'][1]],
+                                           childs=self.jobs['jobsEffSF'] )
 
+        # variable discriminator
+        self.write_parent_child_hierarchy( parents=self.jobs['jobsEffSF'],
+                                           childs=[x for x in self.jobs['jobsDiscr']] )
+
+        # union weights calculator
+        self.write_parent_child_hierarchy( parents=[x for x in self.jobs['jobsDiscr']],
+                                           childs=[x for x in self.jobs['jobsUnion']] )
+        self.new_line()
+
+        # hadd union efficiencies (only MC)
+        self.write_parent_child_hierarchy( parents=[x for x in self.jobs['jobsUnion']],
+                                           childs=[x for x in self.jobs['jobsClosure']] )
 
 # condor_submit_dag -no_submit diamond.dag
 # condor_submit diamond.dag.condor.sub

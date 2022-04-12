@@ -13,11 +13,6 @@ from . import _trigger_shift, _triggers_map
 ########################################################################
 parser = argparse.ArgumentParser(formatter_class=RawTextHelpFormatter)
 parser.add_argument(
-    '--submit',
-    action='store_true',
-    help="Executes the submission to HTCondor."
-)
-parser.add_argument(
     '--nbins',
     type=int,
     default=6,
@@ -336,17 +331,6 @@ class cfg(luigi.Config):
                   'tag': tag,
                   'subtag': subtag,
                   'debug': FLAGS.debug_workflow,} )
-
-
-    ####
-    #### haddEff
-    ####
-    # haddeff_params = luigi.DictParameter(
-    #     default={ 'indir': data_storage,
-    #               'localdir': local_folder,
-    #               'outprefix': _outprefix,
-    #               'tag': tag,
-    #               'subtag': subtag} )
 
     ####
     #### draw single efficiencies closure

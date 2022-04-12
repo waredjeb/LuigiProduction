@@ -72,8 +72,6 @@ def addTriggerCounts(args):
 
             trigs = np.array(trigs)
             vals = np.array(vals)
-            for t, v in zip(trigs,vals):
-                 print(t,v)
             
             #sort
             vals, trigs = (np.array(t[::-1]) for t in zip(*sorted(zip(vals, trigs))))

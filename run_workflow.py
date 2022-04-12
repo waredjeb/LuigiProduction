@@ -54,7 +54,7 @@ from scripts.writeHTCondorClosureFiles import (
     writeHTCondorClosureFiles_outputs,
 )
 from scripts.writeHTCondorDAGFiles import (
-    writeHTCondorDAGFiles,
+    WriteDAGManager,
     writeHTCondorDAGFiles_outputs,
 )
 # from scripts.addTriggerCounts import (
@@ -421,44 +421,6 @@ class WriteHTCondorClosureFiles(ForceRun):
 #                                 dataset_name=self.args.mc_name) ]
 
 ########################################################################
-### DRAW TRIGGER INTERSECTION COUNTS ###################################
-########################################################################
-# class DrawTriggerCounts(luigi.Task):
-#     samples = luigi.ListParameter()
-#     dataset_name = luigi.Parameter()
-#     args = utils.dotDict(lcfg.drawcounts_params)
-#     args.update( {'tprefix': lcfg.modes['counts'],} )
-    
-#     target_path = get_target_path( args.taskname )
-    
-#     @WorkflowDebugger(flag=FLAGS.debug_workflow)
-#     def output(self):
-#         self.args['samples'] = luigi_to_raw( self.samples )
-#         self.args['dataset_name'] = self.dataset_name
-#         targets = []
-#         targets_png, targets_txt = addTriggerCounts_outputs( self.args )
-
-#         #define luigi targets
-#         for tpng,ttxt in zip(targets_png,targets_txt):
-#             targets.append( luigi.LocalTarget(tpng) )
-#             targets.append( luigi.LocalTarget(ttxt) )
-
-#         #write the target files for debugging
-#         utils.remove( target_path )
-#         with open( target_path, 'w' ) as f:
-#             for tpng,ttxt in zip(targets_png,targets_txt):
-#                 f.write( tpng )
-#                 f.write( ttxt )
-
-#         return targets
-
-#     @WorkflowDebugger(flag=FLAGS.debug_workflow)
-#     def run(self):
-#         self.args['samples'] = luigi_to_raw( self.samples )
-#         self.args['dataset_name'] = self.dataset_name
-#         addTriggerCounts( self.args )
-
-########################################################################
 ### TRIGGERING ALL HTCONDOR WRITING CLASSES ############################
 ########################################################################
 class WriteDAG(ForceRun):
@@ -469,7 +431,6 @@ class WriteDAG(ForceRun):
     pEffSF      = utils.dotDict(lcfg.drawsf_params)
     pDisc       = utils.dotDict(lcfg.discriminator_params)
     pSFCalc     = utils.dotDict(lcfg.calculator_params)
-    #pHaddEff   = utils.dotDict(lcfg.haddeff_params)
     pClosure    = utils.dotDict(lcfg.closure_params)
     
     pHaddHisto['tprefix']  = lcfg.modes['histos']
@@ -512,22 +473,23 @@ class WriteDAG(ForceRun):
 
         _, submUnion, _  = writeHTCondorUnionWeightsCalculatorFiles_outputs(self.pSFCalc)
 
-        #_, submHaddEff, _  = writeHTCondorHaddEffFiles_outputs(self.pHaddEff)
-
         _, submClosure, _  = writeHTCondorClosureFiles_outputs(self.pClosure)
 
-        self.params['jobsHistos']         = submHistos
-        self.params['jobsCounts']         = submCounts
-        self.params['jobsHaddHistoData']  = submHaddHistoData
-        self.params['jobsHaddHistoMC']    = submHaddHistoMC
-        self.params['jobsHaddCountsData'] = submHaddCountsData
-        self.params['jobsHaddCountsMC']   = submHaddCountsMC
-        self.params['jobsEffSF']          = submEffSF
-        self.params['jobsDiscr']          = submDisc
-        self.params['jobsUnion']          = submUnion
-        #self.params['jobsHaddEff']       = submHaddEff
-        self.params['jobsClosure']        = submClosure
-        writeHTCondorDAGFiles( self.params )
+        jobs = { 'jobsHistos': submHistos,
+                 'jobsCounts': submCounts,
+                 'jobsHaddHistoData':  submHaddHistoData,
+                 'jobsHaddHistoMC':    submHaddHistoMC,
+                 'jobsHaddCountsData': submHaddCountsData,
+                 'jobsHaddCountsMC':   submHaddCountsMC,
+                 'jobsEffSF':          [ submEffSF ],
+                 'jobsDiscr':          submDisc,
+                 'jobsUnion':          submUnion,
+                 'jobsClosure':        [ submClosure ],
+                }
+
+        dag_manager = WriteDAGManager( self.params['localdir'], self.params['tag'], self.params['data_name'],
+                                       jobs )
+        dag_manager.write_all()
         
 class SubmitDAG(ForceRun):
     """
@@ -574,31 +536,22 @@ if __name__ == "__main__":
     utils.create_single_dir( lcfg.data_storage )
     utils.create_single_dir( lcfg.targets_folder )
     
-    if FLAGS.submit:
-        last_tasks = [ SubmitDAG() ]
+    last_tasks = [ SubmitDAG() ]
         
-    else:
-        count_tasks = [ DrawTriggerCounts(samples=lcfg._selected_data,
-                                          dataset_name=FLAGS.data),
-                        DrawTriggerCounts(samples=lcfg._selected_mc_processes,
-                                          dataset_name=FLAGS.mc_process),
-                       ]
+    # if FLAGS.distributions:
+    #     last_tasks += [ DrawDistributions() ]
 
-        last_tasks = count_tasks[:]
-        if FLAGS.distributions:
-            last_tasks += [ DrawDistributions() ]
-            
-        if FLAGS.distributions != 2:
-            triggercomb = utils.generateTriggerCombinations(FLAGS.triggers)
+    # if FLAGS.distributions != 2:
+    #     triggercomb = utils.generateTriggerCombinations(FLAGS.triggers)
 
-            #one task per trigger combination
-            for tcomb in triggercomb:
-                last_tasks += [
-                    Draw1DTriggerScaleFactors(trigger_combination=tcomb)
-                ]
-            
-        if FLAGS.counts: #overwrites
-            last_tasks = count_tasks
+    #     #one task per trigger combination
+    #     for tcomb in triggercomb:
+    #         last_tasks += [
+    #             Draw1DTriggerScaleFactors(trigger_combination=tcomb)
+    #         ]
+
+    # if FLAGS.counts: #overwrites
+    #     last_tasks = count_tasks
             
     if FLAGS.scheduler == 'central':
         luigi.build(last_tasks,
