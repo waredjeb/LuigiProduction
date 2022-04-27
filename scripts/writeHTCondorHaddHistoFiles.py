@@ -1,6 +1,7 @@
 import os
 import sys
 from utils import utils
+from scripts.jobWriter import JobWriter
 
 @utils.setPureInputNamespace
 def runHaddHisto_outputs(args):
@@ -52,50 +53,36 @@ def writeHTCondorHaddHistoFiles(args):
     """Adds ROOT histograms"""
     targets = runHaddHisto_outputs(args)
     outs_job, outs_submit, outs_check = writeHTCondorHaddHistoFiles_outputs(args)
-        
+    jw = JobWriter()
+    
     #### Write shell executable (python scripts must be wrapped in shell files to run on HTCondor)
     command = 'hadd -f ${1} ${@:2}\n' #bash: ${@:POS} captures all arguments starting from POS
+
     for out in outs_job:
-        with open(out, 'w') as s:
-            s.write('#!/bin/bash\n')
-            s.write('export X509_USER_PROXY=~/.t3/proxy.cert\n')
-            s.write('export EXTRA_CLING_ARGS=-O2\n')
-            s.write('source /cvmfs/cms.cern.ch/cmsset_default.sh\n')
-            #s.write('cd /home/llr/cms/alves/CMSSW_12_2_0_pre1/src/\n')
-            s.write('cd {}/\n'.format(args.localdir))
-            s.write('eval `scramv1 runtime -sh`\n')
-            s.write(command)
-            if out == outs_job[0]:
-                s.write('echo "HaddHisto {} done."\n'.format(args.dataset_name))
-            elif out == outs_job[1]:
-                s.write('echo "HaddHisto Agg {} done."\n'.format(args.dataset_name))
-        os.system('chmod u+rwx '+ out)
+        jw.write_init(out, command, args.localdir)
+        if out == outs_job[0]:
+            jw.add_string('echo "HaddHisto {} done."'.format(args.dataset_name))
+        elif out == outs_job[1]:
+            jw.add_string('echo "HaddHisto Agg {} done."'.format(args.dataset_name))
 
     #### Write submission file
     inputs_join = []
-    queue = 'short'
     for out1,out2,out3 in zip(outs_job,outs_submit,outs_check):
-        with open(out2, 'w') as s:
-            s.write('Universe = vanilla\n')
-            s.write('Executable = {}\n'.format(out1))
-            s.write('Arguments = $(myoutput) $(myinputs) \n')
-            s.write('input = /dev/null\n')
-            s.write('output = {}\n'.format(out3))
-            s.write('error  = {}\n'.format(out3.replace('.o', '.e')))
-            s.write('getenv = true\n')
-            s.write('T3Queue = {}\n'.format(queue))
-            s.write('WNTag=el7\n')
-            s.write('+SingularityCmd = ""\n')
-            s.write('include : /opt/exp_soft/cms/t3/t3queue |\n\n')
-            s.write('queue myoutput, myinputs from (\n')
+        jw.write_init( filename=out2,
+                       executable=out1,
+                       outfile=out3,
+                       queue='short' )
 
-            if out1 == outs_job[0]:
-                for t,smpl in zip(targets[1:], args.samples):
-                    inputs = os.path.join(args.indir, smpl, args.tprefix + '*' + args.subtag + '.root')
-                    inputs_join.append(t)
-                    # join subdatasets (different MC or Data subfolders, ex: TT_fullyHad, TT_semiLep, ...)
-                    s.write('  {}, {}\n'.format(t, inputs))
-            elif out1 == outs_job[1]:
-                # join MC or Data subdatasets into a single one (ex: TT)
-                s.write('  {}, {}\n'.format(targets[0], ' '.join(inputs_join)))
-            s.write(')\n')
+        qlines = []
+        if out1 == outs_job[0]:
+            for t,smpl in zip(targets[1:], args.samples):
+                inputs = os.path.join(args.indir, smpl, args.tprefix + '*' + args.subtag + '.root')
+                inputs_join.append(t)
+                # join subdatasets (different MC or Data subfolders, ex: TT_fullyHad, TT_semiLep, ...)
+                qlines.append('  {}, {}'.format(t, inputs))
+        elif out1 == outs_job[1]:
+            # join MC or Data subdatasets into a single one (ex: TT)
+            qlines.append('  {}, {}'.format(targets[0], ' '.join(inputs_join)))
+        
+        jw.write_queue( qvars=('myoutput', 'myinputs'),
+                        qlines=qlines )

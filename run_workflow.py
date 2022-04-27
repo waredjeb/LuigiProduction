@@ -499,9 +499,9 @@ class SubmitDAG(ForceRun):
     def run(self):
         out = self.input()[-1][0].path
         os.system('condor_submit_dag -no_submit {}'.format(out))
-        #os.system('condor_submit {}.condor.sub'.format(out))
-        #os.system('sleep 2')
-        #os.system('condor_q')
+        os.system('condor_submit {}.condor.sub'.format(out))
+        os.system('sleep 2')
+        os.system('condor_q')
 
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def output(self):

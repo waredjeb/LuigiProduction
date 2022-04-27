@@ -9,6 +9,8 @@ from utils.utils import (
     setPureInputNamespace,
 )
 
+from scripts.jobWriter import JobWriter
+
 @setPureInputNamespace
 def writeHTCondorClosureFiles_outputs(args):
     """
@@ -36,6 +38,7 @@ def writeHTCondorClosureFiles_outputs(args):
 @setPureInputNamespace
 def writeHTCondorClosureFiles(args):
     outs_job, outs_submit, outs_check = writeHTCondorClosureFiles_outputs(args)
+    jw = JobWriter()
 
     #### Write shell executable (python scripts must be wrapped in shell files to run on HTCondor)
     prog = build_prog_path(args.localdir, 'runClosure.py')
@@ -59,34 +62,19 @@ def writeHTCondorClosureFiles(args):
         command += '--debug '
     command += '\n'
 
-    with open(outs_job, 'w') as s:
-        s.write('#!/bin/bash\n')
-        s.write('export X509_USER_PROXY=~/.t3/proxy.cert\n')
-        s.write('export EXTRA_CLING_ARGS=-O2\n')
-        s.write('source /cvmfs/cms.cern.ch/cmsset_default.sh\n')
-        s.write('cd {}/\n'.format(args.localdir))
-        s.write('eval `scramv1 runtime -sh`\n')
-        s.write(command)
-        s.write('echo "runClosure for channel ${1} and single trigger ${2} done."\n')
-    os.system('chmod u+rwx '+ outs_job)
+    jw.write_init(outs_job, command, args.localdir)
+    jw.add_string('echo "runClosure for channel ${1} and single trigger ${2} done."')
 
     #### Write submission file
-    queue = 'short'
-    queuevars = 'channel', 'closure_single_trigger'
-    with open(outs_submit, 'w') as s:
-        s.write('Universe = vanilla\n')
-        s.write('Executable = {}\n'.format(outs_job))
-        s.write('Arguments = $({}) $({}) \n'.format(queuevars[0],queuevars[1]))
-        s.write('input = /dev/null\n')
-        s.write('output = {}\n'.format(outs_check))
-        s.write('error  = {}\n'.format(outs_check.replace('.o', '.e')))
-        s.write('getenv = true\n')
-        s.write('T3Queue = {}\n'.format(queue))
-        s.write('WNTag=el7\n')
-        s.write('+SingularityCmd = ""\n')
-        s.write('include : /opt/exp_soft/cms/t3/t3queue |\n\n')
-        s.write('queue {},{} from (\n'.format(queuevars[0],queuevars[1]))
-        for chn in args.channels:
-            for trig in args.closure_single_triggers:
-                s.write('  {},{}\n'.format(chn,trig))
-        s.write(')\n')
+    jw.write_init( filename=outs_submit,
+                   executable=outs_job,
+                   outfile=outs_check,
+                   queue='short' )
+
+    qlines = []
+    for chn in args.channels:
+        for trig in args.closure_single_triggers:
+            qlines.append('  {},{}\n'.format(chn,trig))
+
+    jw.write_queue( qvars=('channel', 'closure_single_trigger'),
+                    qlines=qlines )

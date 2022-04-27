@@ -11,6 +11,7 @@ from utils.utils import (
     join_name_trigger_intersection as joinNTC,
     setPureInputNamespace,
 )
+from scripts.jobWriter import JobWriter
 
 @setPureInputNamespace
 def writeHTCondorEfficienciesAndScaleFactorsFiles_outputs(args):
@@ -38,8 +39,8 @@ def writeHTCondorEfficienciesAndScaleFactorsFiles_outputs(args):
 @setPureInputNamespace
 def writeHTCondorEfficienciesAndScaleFactorsFiles(args):
     prog = build_prog_path(args.localdir, 'runEfficienciesAndScaleFactors.py')
-
     outs_job, outs_submit, outs_check = writeHTCondorEfficienciesAndScaleFactorsFiles_outputs(args)
+    jw = JobWriter()
 
     #### Write shell executable (python scripts must be wrapped in shell files to run on HTCondor)
     command =  ( ( '{prog} --indir {indir} --outdir {outdir} '
@@ -66,36 +67,20 @@ def writeHTCondorEfficienciesAndScaleFactorsFiles(args):
         command += '--draw_independent_MCs '
     if args.debug:
         command += '--debug '
-    command += '\n'
 
-    with open(outs_job, 'w') as s:
-        s.write('#!/bin/bash\n')
-        s.write('export X509_USER_PROXY=~/.t3/proxy.cert\n')
-        s.write('export EXTRA_CLING_ARGS=-O2\n')
-        s.write('source /cvmfs/cms.cern.ch/cmsset_default.sh\n')
-        s.write('cd {}/\n'.format(args.localdir))
-        s.write('eval `scramv1 runtime -sh`\n')
-        s.write(command)
-        s.write('echo "runEfficienciesAndScaleFactors done."\n')
-    os.system('chmod u+rwx '+ outs_job)
+    jw.write_init(outs_job, command, args.localdir)
+    jw.add_string('echo "runEfficienciesAndScaleFactors done."')
 
     #### Write submission file
-    queue = 'short'
-    queuevar = 'triggercomb'
+    jw.write_init( filename=outs_submit,
+                   executable=outs_job,
+                   outfile=outs_check,
+                   queue='short' )
+
+    qlines = []
     triggercomb = generate_trigger_combinations(args.triggers)
-    with open(outs_submit, 'w') as s:
-        s.write('Universe = vanilla\n')
-        s.write('Executable = {}\n'.format(outs_job))
-        s.write('Arguments = $({}) \n'.format(queuevar))
-        s.write('input = /dev/null\n')
-        s.write('output = {}\n'.format(outs_check))
-        s.write('error  = {}\n'.format(outs_check.replace('.o', '.e')))
-        s.write('getenv = true\n')
-        s.write('T3Queue = {}\n'.format(queue))
-        s.write('WNTag=el7\n')
-        s.write('+SingularityCmd = ""\n')
-        s.write('include : /opt/exp_soft/cms/t3/t3queue |\n\n')
-        s.write('queue {} from (\n'.format(queuevar))
-        for tcomb in triggercomb:
-            s.write('  {}\n'.format(joinNTC(tcomb)))
-        s.write(')\n')
+    for tcomb in triggercomb:
+        qlines.append('  {}'.format(joinNTC(tcomb)))
+
+    jw.write_queue( qvars=('triggercomb',),
+                    qlines=qlines )

@@ -23,6 +23,7 @@ import argparse
 import ROOT
 
 from utils import utils
+from scripts.jobWriter import JobWriter
 
 def runTrigger_outputs_sample(args, sample, param):
     """
@@ -107,6 +108,7 @@ def writeHTCondorProcessingFiles_outputs(args):
 def writeHTCondorProcessingFiles(args):
     prog = utils.build_prog_path(args.localdir, ('runTriggerEff.py' if args.mode == 'histos'
                                                  else 'runTriggerCounts.py') )
+    jw = JobWriter()
 
     outs_job, outs_submit, outs_check, _all_processes = writeHTCondorProcessingFiles_outputs(args)
     for i,thisProc in enumerate(_all_processes):
@@ -132,41 +134,23 @@ def writeHTCondorProcessingFiles(args):
                          '--intersection_str {inters} '.format(inters=args.intersection_str) +
                          '--variables {variables} '.format(variables=' '.join(args.variables,)) +
                          '--nocut_dummy_str {nocutstr}'.format(nocutstr=args.nocut_dummy_str)
-                        ) 
-        command += '\n'
-            
-        with open(outs_job[i], 'w') as s:
-            s.write('#!/bin/bash\n')
-            s.write('export X509_USER_PROXY=~/.t3/proxy.cert\n')
-            s.write('export EXTRA_CLING_ARGS=-O2\n')
-            s.write('source /cvmfs/cms.cern.ch/cmsset_default.sh\n')
-            #s.write('cd /home/llr/cms/alves/CMSSW_12_2_0_pre1/src/\n')
-            s.write('cd {}/\n'.format(args.localdir))
-            s.write('eval `scramv1 runtime -sh`\n')
-            s.write(command)
-            s.write('echo "Process {} done in mode {}."\n'.format(thisProc,args.mode))
-        os.system('chmod u+rwx '+ outs_job[i])
+                        )
+
+        jw.write_init(outs_job[i], command, args.localdir)
+        jw.add_string('echo "Process {} done in mode {}."'.format(thisProc,args.mode))
 
         #### Write submission file
-        queue = 'short'
-        with open(outs_submit[i], 'w') as s:
-            s.write('Universe = vanilla\n')
-            s.write('Executable = {}\n'.format(outs_job[i]))
-            s.write('Arguments = $(filename) \n')
-            s.write('input = /dev/null\n')
-            s.write('output = {}\n'.format(outs_check[i]))
-            s.write('error  = {}\n'.format(outs_check[i].replace('.o', '.e')))
-            s.write('getenv = true\n')
-            s.write('T3Queue = {}\n'.format(queue))
-            s.write('WNTag=el7\n')
-            s.write('+SingularityCmd = ""\n')
-            s.write('include : /opt/exp_soft/cms/t3/t3queue |\n\n')
-            s.write('queue filename from (\n')
-            for listname in filelist:
-                s.write('  {}\n'.format( listname.replace('\n','') ))
-            s.write(')\n')
+        jw.write_init( filename=outs_submit[i],
+                       executable=outs_job[i],
+                       outfile=outs_check[i],
+                       queue='short' )
 
-        # os.system('condor_submit -name llrt3condor {}'.format(submFile))
+        qlines = []
+        for listname in filelist:
+            qlines.append('  {}'.format( listname.replace('\n','') ))
+        
+        jw.write_queue( qvars=('filename',),
+                        qlines=qlines )
 
 # -- Parse options
 if __name__ == '__main__':

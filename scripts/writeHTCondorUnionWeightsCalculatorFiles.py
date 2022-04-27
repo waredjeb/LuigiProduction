@@ -11,6 +11,7 @@ import argparse
 import ROOT
 
 from utils import utils
+from scripts.jobWriter import JobWriter
 
 @utils.setPureInputNamespace
 def writeHTCondorUnionWeightsCalculatorFiles_outputs(args):
@@ -46,8 +47,8 @@ def writeHTCondorUnionWeightsCalculatorFiles_outputs(args):
 @utils.setPureInputNamespace
 def writeHTCondorUnionWeightsCalculatorFiles(args):
     prog = utils.build_prog_path(args.localdir, 'runUnionWeightsCalculator.py')
-
     jobs, subs, checks = writeHTCondorUnionWeightsCalculatorFiles_outputs(args)
+    jw = JobWriter()
 
     for i,proc in enumerate(args.mc_processes):
         filelist, inputdir = utils.get_root_input_files(proc, args.indir_root)
@@ -74,40 +75,20 @@ def writeHTCondorUnionWeightsCalculatorFiles(args):
 
         if args.debug:
             command += '--debug '
-        command += '\n'
 
-        # Technically one shell file would have been enough, but this solution is more flexible
-        # for potential future changes, and is more readable when looking at the logs.
-        with open(jobs[i], 'w') as s:
-            s.write('#!/bin/bash\n')
-            s.write('export X509_USER_PROXY=~/.t3/proxy.cert\n')
-            s.write('export EXTRA_CLING_ARGS=-O2\n')
-            s.write('source /cvmfs/cms.cern.ch/cmsset_default.sh\n')
-            s.write('cd {}/\n'.format(args.localdir))
-            s.write('eval `scramv1 runtime -sh`\n')
-            s.write(command)
-            s.write('echo "Process {} done."\n'.format(proc))
-        os.system('chmod u+rwx '+ jobs[i])
+        jw.write_init(jobs[i], command, args.localdir)
+        jw.add_string('echo "Process {} done."'.format(proc))
 
         #### Write submission file
-        queue = 'short'
-        queuevars = 'filename', 'closure_single_trigger'
-        with open(subs[i], 'w') as s:
-            s.write('Universe = vanilla\n')
-            s.write('Executable = {}\n'.format(jobs[i]))
-            s.write('Arguments = $({}) $({})\n'.format(queuevars[0],queuevars[1]))
-            s.write('input = /dev/null\n')
-            s.write('output = {}\n'.format(checks[i]))
-            s.write('error  = {}\n'.format(checks[i].replace('.o', '.e')))
-            s.write('getenv = true\n')
-            s.write('T3Queue = {}\n'.format(queue))
-            s.write('WNTag=el7\n')
-            s.write('+SingularityCmd = ""\n')
-            s.write('include : /opt/exp_soft/cms/t3/t3queue |\n\n')
-            s.write('queue {},{} from (\n'.format(queuevars[0],queuevars[1]))
-            for listname in filelist:
-                for trig in args.closure_single_triggers:
-                    s.write('  {},{}\n'.format( os.path.basename(listname).replace('\n',''), trig ))
-            s.write(')\n')
+        jw.write_init( filename=subs[i],
+                       executable=jobs[i],
+                       outfile=checks[i],
+                       queue='short' )
 
-    # os.system('condor_submit -name llrt3condor {}'.format(submFile))
+        qlines = []
+        for listname in filelist:
+            for trig in args.closure_single_triggers:
+                qlines.append('  {},{}'.format( os.path.basename(listname).replace('\n',''), trig ))
+                        
+        jw.write_queue( qvars=('filename', 'closure_single_trigger'),
+                        qlines=qlines )
