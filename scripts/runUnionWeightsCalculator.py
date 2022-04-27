@@ -11,7 +11,6 @@ import numpy as np
 from ROOT import (
     gROOT,
     TFile,
-    TH2D,
     TIter
 )
 gROOT.SetBatch(True)
@@ -133,7 +132,6 @@ def prob_calculator(efficiencies, effvars, leaf_manager, channel, closure_single
             for iw,weightvar in enumerate(variables):
                 # The following is 1D only CHANGE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 binid = find_bin(binedges[weightvar][channel], values[iw], weightvar)
-
                 term_data = efficiencies[0][0][joincomb][weightvar][binid-1]
                 term_mc   = efficiencies[1][0][joincomb][weightvar][binid-1]
 
