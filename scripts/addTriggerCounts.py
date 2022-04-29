@@ -115,5 +115,6 @@ if __name__ == '__main__':
                         help='Name of output txt files with counts.')
 
     args = parser.parse_args()
-
+    utils.print_configuration(args)
+    
     addTriggerCounts( args )

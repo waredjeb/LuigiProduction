@@ -38,6 +38,7 @@ from utils.utils import (
     get_obj_max_min,
     get_root_object,
     load_binning,
+    print_configuration,
     redraw_border,
     uniformize_bin_width,
 )
@@ -291,37 +292,26 @@ def draw_single_eff( ref_obj, indir_union, indir_eff, channel, var, weightvar, t
     eff1d_data = get_root_object('Data', eff1d_file)
     eff1d_mc = get_root_object('MC', eff1d_file)
 
-    # This was done when I was istakenly trying to convert the number of events and not the efficiency directly
-    # for point in range(nbins):
-    #     orig_yvalue = eff_prof.GetPointY(point)
-    #     eff_prof.SetPoint(point,
-    #                       eff_prof.GetPointX(point),
-    #                       orig_yvalue / ref_obj.GetPointY(point) )
-    #     eff_prof.SetPointEXlow(point, eff_prof.GetErrorXlow(point))
-    #     eff_prof.SetPointEXhigh(point, eff_prof.GetErrorXhigh(point))
-    #     binomial_variance = ref_obj.GetPointY(point)*eff_prof.GetPointY(point)*(1-eff_prof.GetPointY(point))
-    #     binomial_std = TMath.Sqrt(binomial_variance)
-    #     binomial_ratio_std = get_div_error_propagation( binomial_std, #eff_prof.GetPointY(point)
-    #                                                     ref_obj.GetPointY(point),
-    #                                                     eff_prof.GetErrorXlow(point) + eff_prof.GetErrorXhigh(point),
-    #                                                     ref_obj.GetErrorXlow(point)  + ref_obj.GetErrorXhigh(point),
-    #                                                    )
-    #     eff_prof.SetPointEYlow(point, binomial_ratio_std/2)
-    #     eff_prof.SetPointEYhigh(point, binomial_ratio_std/2)
     for point in range(nbins):
         orig_yvalue = eff_prof.GetPointY(point)
         orig_error = eff_prof.GetErrorYlow(point) + eff_prof.GetErrorYhigh(point)
         value = eff1d_mc.GetPointY(point)*orig_yvalue
-        eff_prof.SetPoint(point,
-                          eff_prof.GetPointX(point),
-                          value )
+        eff_prof.SetPoint(point, eff_prof.GetPointX(point), value )
         eff_prof.SetPointEXlow(point, eff_prof.GetErrorXlow(point))
         eff_prof.SetPointEXhigh(point, eff_prof.GetErrorXhigh(point))
         error_mc = eff1d_mc.GetErrorYlow(point) + eff1d_mc.GetErrorYhigh(point)
-        variance = ( value *
-                     TMath.Sqrt( (orig_error*orig_error)/(orig_yvalue*orig_yvalue) +
-                                 (error_mc*error_mc)/(eff1d_mc.GetPointY(point)*eff1d_mc.GetPointY(point)))
-                     )
+
+        try:
+            variance_term1 = (orig_error*orig_error) / (orig_yvalue*orig_yvalue)
+        except ZeroDivisionError:
+            variance_term1 = 0.
+
+        try:
+            variance_term2 = (error_mc*error_mc) / (eff1d_mc.GetPointY(point)*eff1d_mc.GetPointY(point))
+        except ZeroDivisionError:
+            variance_term2 = 0.
+            
+        variance = value * TMath.Sqrt(variance_term1 + variance_term2)
         std = TMath.Sqrt(variance)
         eff_prof.SetPointEYlow(point, std/2)
         eff_prof.SetPointEYhigh(point, std/2)
@@ -705,6 +695,7 @@ parser.add_argument('--mc_name', dest='mc_name', required=True, help='MC sample 
 
 parser.add_argument('--debug', action='store_true', help='debug verbosity')
 args = parser.parse_args()
+print_configuration(args)
 
 run_closure( args.indir_union, args.indir_eff,
              args.outdir,

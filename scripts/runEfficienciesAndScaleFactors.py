@@ -27,11 +27,12 @@ sys.path.append( os.path.join(os.environ['CMSSW_BASE'], 'src', 'METTriggerStudie
 from utils.utils import (
     create_single_dir,
     get_display_variable_name,
-    get_key_list,
     get_histo_names,
+    get_key_list,
     get_obj_max_min,
     get_root_object,
     load_binning,
+    print_configuration,
     redraw_border,
     rewriteCutString,
     uniformize_bin_width,
@@ -532,6 +533,7 @@ parser.add_argument('--intersection_str', dest='intersection_str', required=Fals
                     help='String used to represent set intersection between triggers.')
 parser.add_argument('--debug', action='store_true', help='debug verbosity')
 args = parser.parse_args()
+print_configuration(args)
 
 runEfficienciesAndScaleFactors(args.indir, args.outdir,
                                args.mc_processes, args.mc_name, args.data_name,

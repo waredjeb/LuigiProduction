@@ -26,7 +26,8 @@ from utils.utils import (
     load_binning,
     pass_any_trigger,
     pass_selection_cuts,
-    pass_trigger_bits
+    pass_trigger_bits,
+    print_configuration,
 )
 
 from luigi_conf import (
@@ -294,5 +295,6 @@ if __name__ == '__main__':
     parser.add_argument('--subtag', dest='subtag', required=True, help='subtag')
     parser.add_argument('--debug', action='store_true', help='debug verbosity')
     args = parser.parse_args()
-
+    print_configuration(args)
+    
     runUnionWeightsCalculator(args)

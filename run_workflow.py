@@ -65,6 +65,7 @@ from scripts.writeHTCondorDAGFiles import (
 # from scripts.drawDistributions import drawDistributions, drawDistributions_outputs
 
 from utils import utils
+from scripts.jobWriter import JobWriter
 
 import re
 re_txt = re.compile('\.txt')
@@ -495,12 +496,26 @@ class SubmitDAG(ForceRun):
     """
     Submission class.
     """
+    def edit_condor_submission_file(self, out):
+        jw = JobWriter()
+        with open(out, 'r') as f:
+            contents = f.readlines()
+        ncontents = len(contents)
+        new_content = jw.llr_condor_specific_content(queue='short')
+        contents.insert(ncontents-1, new_content + '\n')
+        with open(out, 'w') as f:
+            contents = "".join(contents)
+            f.write(contents)
+        
     @WorkflowDebugger(flag=FLAGS.debug_workflow)
     def run(self):
         out = self.input()[-1][0].path
-        os.system('condor_submit_dag -no_submit {}'.format(out))
+        os.system('condor_submit_dag -no_submit -f {}'.format(out))
+        os.system('sleep 1')
+        self.edit_condor_submission_file(out + '.condor.sub')
+        os.system('sleep 1')
         os.system('condor_submit {}.condor.sub'.format(out))
-        os.system('sleep 2')
+        os.system('sleep 1')
         os.system('condor_q')
 
     @WorkflowDebugger(flag=FLAGS.debug_workflow)

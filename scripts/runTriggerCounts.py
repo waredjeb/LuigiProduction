@@ -32,6 +32,7 @@ from utils.utils import (
     pass_selection_cuts,
     rewriteCutString,
     pass_trigger_bits,
+    print_configuration,
 )
 
 from luigi_conf import _triggers_custom
@@ -128,6 +129,7 @@ parser.add_argument('--triggers',    dest='triggers',    required=True, nargs='+
 parser.add_argument('--debug', action='store_true', help='debug verbosity')
 
 args = parser.parse_args()
+print_configuration(args)
 
 getTriggerCounts( args.indir, args.outdir, args.sample, args.fileName,
                   args.channels, args.triggers,

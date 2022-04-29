@@ -66,17 +66,17 @@ def writeHTCondorHaddCountsFiles(args):
 
     command_first_step = ( command_base +
                            '--sample ${2} ' +
-                           ' --aggregation_step 0\n' )
-    command_aggregation_step = ( command_base + '--infile_counts ${2} --aggregation_step 1 \n')
+                           ' --aggregation_step 0' )
+    command_aggregation_step = ( command_base + '--infile_counts ${2} --aggregation_step 1')
     
     #### Write shell executable (python scripts must be wrapped in shell files to run on HTCondor)
     for out in outs_job:
         if out == outs_job[0]:
             jw.write_init(out, command_first_step, args.localdir)
-            jw.add_string('echo "HaddCounts {} done."\n'.format(args.dataset_name))
+            jw.add_string('echo "HaddCounts {} done."'.format(args.dataset_name))
         elif out == outs_job[1]:
             jw.write_init(out, command_aggregation_step, args.localdir)
-            jw.add_string('echo "HaddCounts Agg {} done."\n'.format(args.dataset_name))
+            jw.add_string('echo "HaddCounts Agg {} done."'.format(args.dataset_name))
 
     #### Write submission file
     inputs_join = []
@@ -94,10 +94,10 @@ def writeHTCondorHaddCountsFiles(args):
             for t,smpl in zip(targets[1:], args.samples):
                 inputs = os.path.join(args.indir, smpl, args.tprefix + '*' + args.subtag + '.txt')
                 inputs_join.append(t)
-                qlines.append('  {}, {}\n'.format(t,smpl))
+                qlines.append('  {}, {}'.format(t,smpl))
 
         elif out1 == outs_job[1]:
             qvars = ('myoutput', 'myinputs')
-            qlines.append('  {}, {}\n'.format(targets[0], ' '.join(inputs_join)))
+            qlines.append('  {}, {}'.format(targets[0], ' '.join(inputs_join)))
             
         jw.write_queue( qvars=qvars, qlines=qlines )

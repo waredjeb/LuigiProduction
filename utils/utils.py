@@ -434,6 +434,18 @@ def pass_trigger_bits(trig, trig_bit, run, isdata):
     else:
         return check_bit(trig_bit, get_trigger_bit(trig, isdata))
 
+def print_configuration(parse_args):
+    print('----------------------------------------')
+    print('Script configuration:')
+    options = vars(parse_args)
+    maxlkey = max(len(x) for x in options.keys())
+    for k,v in options.items():
+        k = '--' + k
+        if isinstance(v, (tuple,list)):
+            v = ' '.join(v)
+        print('{0:>{d1}}   {1}'.format(k, v, d1=maxlkey+3))
+    print('----------------------------------------')
+
 def slashToUnderscoreAndKeep(s, n=4):
     """Replaces slashes by underscores, keeping only the last 'n' slash-separated strings"""
     return '_'.join( s.split('/')[-n:] )

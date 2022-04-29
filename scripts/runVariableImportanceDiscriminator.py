@@ -10,6 +10,7 @@ sys.path.append( os.environ['PWD'] )
 from utils.utils import (
     generate_trigger_combinations,
     join_name_trigger_intersection as joinNTC,
+    print_configuration,
 )
 
 def discriminator(args, chn):
@@ -63,5 +64,6 @@ parser.add_argument('--tag', help='string to differentiate between different wor
 parser.add_argument('--subtag', dest='subtag', required=True, help='subtag')
 parser.add_argument('--debug', action='store_true', help='debug verbosity')
 args = parser.parse_args()
+print_configuration(args)
 
 discriminatorExecutor(args, args.channel)

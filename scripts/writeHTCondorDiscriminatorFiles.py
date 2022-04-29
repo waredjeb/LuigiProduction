@@ -11,6 +11,7 @@ import argparse
 import ROOT
 
 from utils import utils
+from scripts.jobWriter import JobWriter
 
 @utils.setPureInputNamespace
 def writeHTCondorDiscriminatorFiles_outputs(args):
@@ -39,8 +40,8 @@ def writeHTCondorDiscriminatorFiles_outputs(args):
 @utils.setPureInputNamespace
 def writeHTCondorDiscriminatorFiles(args):
     prog = utils.build_prog_path(args.localdir, 'runVariableImportanceDiscriminator.py')
-    
     outs_job, outs_submit, outs_check = writeHTCondorDiscriminatorFiles_outputs(args)
+    jw = JobWriter()
 
     #### Write shell executable (python scripts must be wrapped in shell files to run on HTCondor)
     for i,chn in enumerate(args.channels):
@@ -61,36 +62,16 @@ def writeHTCondorDiscriminatorFiles(args):
 
         if args.debug:
             command += '--debug '
-        command += '\n'
 
-        # Technically one shell file would have been enough, but this solution is more flexible
-        # for potential future changes, and is more readable when looking at the logs.
-        with open(outs_job[i], 'w') as s:
-            s.write('#!/bin/bash\n')
-            s.write('export X509_USER_PROXY=~/.t3/proxy.cert\n')
-            s.write('export EXTRA_CLING_ARGS=-O2\n')
-            s.write('source /cvmfs/cms.cern.ch/cmsset_default.sh\n')
-            s.write('cd {}/\n'.format(args.localdir))
-            s.write('eval `scramv1 runtime -sh`\n')
-            s.write(command)
-            s.write('echo "Channel {} done."\n'.format(args.channels[i]))
-        os.system('chmod u+rwx '+ outs_job[i])
+        jw.write_init(outs_job[i], command, args.localdir)
+        jw.add_string('echo "Channel {} done."'.format(args.channels[i]))
 
         #### Write submission file
-        queue = 'short'
-        with open(outs_submit[i], 'w') as s:
-            s.write('Universe = vanilla\n')
-            s.write('Executable = {}\n'.format(outs_job[i]))
-            s.write('input = /dev/null\n')
-            s.write('output = {}\n'.format(outs_check[i]))
-            s.write('error  = {}\n'.format(outs_check[i].replace('.o', '.e')))
-            s.write('getenv = true\n')
-            s.write('T3Queue = {}\n'.format(queue))
-            s.write('WNTag=el7\n')
-            s.write('+SingularityCmd = ""\n')
-            s.write('include : /opt/exp_soft/cms/t3/t3queue |\n\n')
-            s.write('queue\n')
-    # os.system('condor_submit -name llrt3condor {}'.format(submFile))
+        jw.write_init( filename=outs_submit[i],
+                       executable=outs_job[i],
+                       outfile=outs_check[i],
+                       queue='short' )
+        jw.write_queue()
 
 # -- Parse options
 if __name__ == '__main__':

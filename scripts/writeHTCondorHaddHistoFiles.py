@@ -56,7 +56,7 @@ def writeHTCondorHaddHistoFiles(args):
     jw = JobWriter()
     
     #### Write shell executable (python scripts must be wrapped in shell files to run on HTCondor)
-    command = 'hadd -f ${1} ${@:2}\n' #bash: ${@:POS} captures all arguments starting from POS
+    command = 'hadd -f ${1} ${@:2}' #bash: ${@:POS} captures all arguments starting from POS
 
     for out in outs_job:
         jw.write_init(out, command, args.localdir)

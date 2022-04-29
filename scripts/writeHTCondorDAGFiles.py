@@ -53,7 +53,7 @@ class WriteDAGManager:
     def define_job_names(self, jobs):
         """First step to build a DAG"""
         for job in jobs:
-            self.write_string('JOB  {} {}\n'.format(self.rem_ext(job), job))
+            self.write_string('JOB {} {}\n'.format(self.rem_ext(job), job))
         self.new_line()
 
     def write_parent_child_hierarchy(self, parents, childs):
@@ -77,11 +77,11 @@ class WriteDAGManager:
 
     def write_all(self):
         # histos to hadd for data
-        self.write_parent_child_hierarchy( parents=[x for x in self.jobs['jobsHistos'] if self.data_name in x],
+        self.write_parent_child_hierarchy( parents=[x for x in self.jobs['jobsHistos'] if self.data_name in os.path.basename(x)],
                                            childs=[self.jobs['jobsHaddHistoData'][0]] )
 
         # histos to hadd for MC
-        self.write_parent_child_hierarchy( parents=[x for x in self.jobs['jobsHistos'] if self.data_name not in x],
+        self.write_parent_child_hierarchy( parents=[x for x in self.jobs['jobsHistos'] if self.data_name not in os.path.basename(x)],
                                            childs=[self.jobs['jobsHaddHistoMC'][0]] )
         self.new_line()
 
@@ -95,11 +95,11 @@ class WriteDAGManager:
         self.new_line()
 
         # counts to add for data
-        self.write_parent_child_hierarchy( parents=[x for x in self.jobs['jobsCounts'] if self.data_name in x],
+        self.write_parent_child_hierarchy( parents=[x for x in self.jobs['jobsCounts'] if self.data_name in os.path.basename(x)],
                                            childs=[self.jobs['jobsHaddCountsData'][0]] )
 
         # counts to add for MC
-        self.write_parent_child_hierarchy( parents=[x for x in self.jobs['jobsCounts'] if self.data_name not in x],
+        self.write_parent_child_hierarchy( parents=[x for x in self.jobs['jobsCounts'] if self.data_name not in os.path.basename(x)],
                                            childs=[self.jobs['jobsHaddCountsMC'][0]] )
         self.new_line()
 

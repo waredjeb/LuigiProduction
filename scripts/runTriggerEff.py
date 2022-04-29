@@ -5,7 +5,6 @@ On production mode should run in the grid via scripts/submitTriggerEff.py.
 """
 import re
 import os
-import sys
 import functools
 import argparse
 import fnmatch
@@ -17,7 +16,6 @@ from ROOT import (
     TH1D,
 )
 import h5py
-
 from collections import defaultdict
 import itertools as it
 
@@ -36,6 +34,7 @@ from utils.utils import (
     pass_selection_cuts,
     rewriteCutString,
     pass_trigger_bits,
+    print_configuration,
 )
 
 from luigi_conf import (
@@ -314,10 +313,7 @@ def get_trigger_eff_sig(indir, outdir, sample, fileName,
             for tcomb in triggercomb:
                 for khist,vhist in hTrig[i][j][joinNTC(tcomb)].items():
                     base_str = get_histo_names('Trig1D')(i,j,joinNTC(tcomb))
-                    print(base_str, khist)
-
                     writename = rewriteCutString(base_str, khist)
-                    print(writename)
 
                     vhist.Write( writename )
 
@@ -359,6 +355,7 @@ parser.add_argument('--nocut_dummy_str', dest='nocut_dummy_str', required=True,
 parser.add_argument('--debug', action='store_true', help='debug verbosity')
 
 args = parser.parse_args()
+print_configuration(args)
 
 get_trigger_eff_sig(args.indir, args.outdir, args.sample, args.fileName,
                     args.channels, args.variables, args.triggers,
