@@ -34,6 +34,8 @@ class WriteDAGManager:
         
         self.rem_ext = lambda x : os.path.basename(x).split('.')[0]
 
+        self.write_configuration()
+
         self.jobs = jobs
         self.define_all_job_names(self.jobs)
 
@@ -71,9 +73,11 @@ class WriteDAGManager:
         self.new_line()
 
     def write_configuration(self):
-        pass
+        # https://research.cs.wisc.edu/htcondor/manual/v7.6/2_10DAGMan_Applications.html#SECTION003109000000000000000
+        # dot -Tps dag.dot -o dag.ps
+        self.this_file.write('DOT dag.dot\n')
         #self.this_file.write('DAGMAN_HOLD_CLAIM_TIME=30\n')
-        #self.new_line()
+        self.new_line()
 
     def write_all(self):
         # histos to hadd for data
