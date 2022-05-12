@@ -50,8 +50,9 @@ class WriteDAGManager:
 
     def define_all_job_names(self, jobs):
         for _,values in jobs.items():
+            print(f"Values {values}")
             self.define_job_names(values)
-      
+        
     def define_job_names(self, jobs):
         """First step to build a DAG"""
         for job in jobs:
@@ -81,58 +82,15 @@ class WriteDAGManager:
 
     def write_all(self):
         # histos to hadd for data
-        self.write_parent_child_hierarchy( parents=[x for x in self.jobs['jobsHistos'] if self.data_name in os.path.basename(x)],
-                                           childs=[self.jobs['jobsHaddHistoData'][0]] )
-
-        # histos to hadd for MC
-        self.write_parent_child_hierarchy( parents=[x for x in self.jobs['jobsHistos'] if self.data_name not in os.path.basename(x)],
-                                           childs=[self.jobs['jobsHaddHistoMC'][0]] )
+        self.write_parent_child_hierarchy( parents=[x for x in self.jobs['jobsStep1'] if self.data_name in os.path.basename(x)],
+                                            childs=[self.jobs["jobsStep2"]])
         self.new_line()
+        
 
         # hadd aggregation for Data
-        self.write_parent_child_hierarchy( parents=[self.jobs['jobsHaddHistoData'][0]],
-                                           childs=[self.jobs['jobsHaddHistoData'][1]] )
 
-        # hadd aggregation for MC
-        self.write_parent_child_hierarchy( parents=[self.jobs['jobsHaddHistoMC'][0]],
-                                           childs=[self.jobs['jobsHaddHistoMC'][1]] )
-        self.new_line()
 
-        # counts to add for data
-        self.write_parent_child_hierarchy( parents=[x for x in self.jobs['jobsCounts'] if self.data_name in os.path.basename(x)],
-                                           childs=[self.jobs['jobsHaddCountsData'][0]] )
 
-        # counts to add for MC
-        self.write_parent_child_hierarchy( parents=[x for x in self.jobs['jobsCounts'] if self.data_name not in os.path.basename(x)],
-                                           childs=[self.jobs['jobsHaddCountsMC'][0]] )
-        self.new_line()
-
-        # counts add aggregation for Data
-        self.write_parent_child_hierarchy( parents=[self.jobs['jobsHaddCountsData'][0]],
-                                           childs=[self.jobs['jobsHaddCountsData'][1]] )
-
-        # counts add aggregation for MC
-        self.write_parent_child_hierarchy( parents=[self.jobs['jobsHaddCountsMC'][0]],
-                                           childs=[self.jobs['jobsHaddCountsMC'][1]] )
-        self.new_line()
-
-        # efficiencies/scale factors draw and saving
-        self.write_parent_child_hierarchy( parents=[self.jobs['jobsHaddHistoData'][1],
-                                                    self.jobs['jobsHaddHistoMC'][1]],
-                                           childs=self.jobs['jobsEffSF'] )
-
-        # variable discriminator
-        self.write_parent_child_hierarchy( parents=self.jobs['jobsEffSF'],
-                                           childs=[x for x in self.jobs['jobsDiscr']] )
-
-        # union weights calculator
-        self.write_parent_child_hierarchy( parents=[x for x in self.jobs['jobsDiscr']],
-                                           childs=[x for x in self.jobs['jobsUnion']] )
-        self.new_line()
-
-        # hadd union efficiencies (only MC)
-        self.write_parent_child_hierarchy( parents=[x for x in self.jobs['jobsUnion']],
-                                           childs=[x for x in self.jobs['jobsClosure']] )
 
 # condor_submit_dag -no_submit diamond.dag
 # condor_submit diamond.dag.condor.sub

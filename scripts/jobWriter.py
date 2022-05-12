@@ -59,33 +59,46 @@ class JobWriter:
         if mode not in self.exts:
             raise ValueError('The mode {} is not supported.'.format(mode))
 
-    def write_shell_(self, command, localdir):
+    def write_shell_(self, command, localdir, cmsswdir = ""):
         m = ( '#!/bin/bash' +
-              self.endl + 'export X509_USER_PROXY=~/.t3/proxy.cert' +
-              self.endl + 'export EXTRA_CLING_ARGS=-O2' +
               self.endl + 'source /cvmfs/cms.cern.ch/cmsset_default.sh' +
-              self.endl + 'cd {}/'.format(localdir) +
+              self.endl + "tar -xzvf " + cmsswdir + ".tgz" +
+            #   self.endl + "rm " + cmsswdir + ".tgz" + 
+              self.endl + "cd " + cmsswdir + "/src/" +
               self.endl + 'eval `scramv1 runtime -sh`' +
+              self.endl + "echo $CMSSW_BASE is the CMSSW we have on the local worker node" +
+              self.endl + "cd ../../" + 
+              self.endl + "date" +
               self.endl + command +
+              self.endl + "date" + 
               self.endl )
         self.f.write(m)
 
     def llr_condor_specific_content(self, queue):
-        m = ( self.endl + 'T3Queue = {}'.format(queue) +
-              self.endl + 'WNTag=el7' +
-              self.endl + '+SingularityCmd = ""' +
-              self.endl + 'include : /opt/exp_soft/cms/t3_tst/t3queue |' +
+        m = ( self.endl + 'queue 1' +
               self.endl )
         return m
 
-    def write_condor_(self, executable, outfile, queue):
+    def write_condor_(self, executable, transfer_files, output_step_file, outfile, outpath, queue):
+        transfer_file_string_list = [f + ", " for f in transfer_files]
+        transfer_file_string = ""
+        for s in transfer_file_string_list:
+            transfer_file_string += s
+        transfer_file_string = transfer_file_string[:-2]
+        if(transfer_files != ""):
+            do_transfer_files = "should_transfer_files = YES" + self.endl + "transfer_input_files = " + transfer_file_string
+            do_transfer_output_remaps = "transfer_output_remaps = \"" + output_step_file + " = " + outpath + outfile.replace(".root", "") + "$(proc)_$(Cluster).root\""
+        else:
+            do_transfer_files = ""
+            do_transfer_output_remaps = ""
+
         m = ( 'Universe = vanilla' +
               self.endl + 'Executable = {}'.format(executable) +
-              self.endl + 'input = /dev/null' +
-              self.endl + 'output = {}'.format(outfile) +
+              self.endl + do_transfer_files + 
+              self.endl + do_transfer_output_remaps + 
               self.endl + 'error  = {}'.format(outfile.replace('.o', '.e')) +
               self.endl + 'getenv = true' +
-              self.llr_condor_specific_content(queue) +
+            #   self.llr_condor_specific_content(queue) +
              self.endl )
         self.f.write(m)
 
